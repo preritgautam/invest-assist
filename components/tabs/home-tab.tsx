@@ -44,7 +44,7 @@ import { type PropertyData, getAllProperties, addProperty } from "@/lib/property
 import { AppCard, MetricCard } from "@/components/ui/app-card"
 import { AppButton } from "@/components/ui/app-button"
 import { AppIcon } from "@/components/ui/app-icons"
-import { PropertyMap } from "@/components/property-map"
+import { PropertyMap } from "@/components/features/property-map"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 

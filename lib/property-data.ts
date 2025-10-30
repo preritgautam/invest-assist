@@ -101,6 +101,48 @@ export interface PropertyData {
   }>
 
   /**
+   * Comprehensive Pro Forma financial data
+   * Populated from backend API extraction of T-12/Operating Statements
+   * All values stored in database for analysis and reporting
+   */
+  proFormaData?: {
+    /** Income line items extracted from operating statements */
+    income: {
+      rentalIncome: ProFormaLineItem[]
+      otherIncome: ProFormaLineItem[]
+      recoveries: ProFormaLineItem[]
+    }
+    /** Operating expense line items */
+    expenses: {
+      controllable: ProFormaLineItem[]
+      nonControllable: ProFormaLineItem[]
+    }
+    /** Capital expenses and reserves */
+    capital: {
+      items: ProFormaLineItem[]
+    }
+    /** Debt service information */
+    debtService: {
+      items: ProFormaLineItem[]
+    }
+    /** Calculated subtotals and totals */
+    calculated: {
+      netRentalIncome: number
+      totalOtherIncome: number
+      effectiveGrossIncome: number
+      totalOperatingExpenses: number
+      netOperatingIncome: number
+      totalCapitalExpenses: number
+      totalDebtService: number
+      netCashFlow: number
+    }
+    /** Last updated timestamp */
+    lastUpdated?: string
+    /** Data source (e.g., "T-12", "T-3", "Operating Statement") */
+    dataSource?: string
+  }
+
+  /**
    * Investment return metrics
    * Used in returns analysis and investor presentations
    */
@@ -225,6 +267,61 @@ export interface PropertyData {
     /** File storage URL */
     fileUrl?: string
   }>
+}
+
+/**
+ * Monthly data breakdown structure
+ * Used for detailed monthly analysis in Pro Forma
+ */
+export interface MonthlyData {
+  jan: number
+  feb: number
+  mar: number
+  apr: number
+  may: number
+  jun: number
+  jul: number
+  aug: number
+  sep: number
+  oct: number
+  nov: number
+  dec: number
+}
+
+/**
+ * Pro Forma line item structure
+ * Represents a single line item in the Pro Forma analysis
+ * Designed for database storage and API population
+ */
+export interface ProFormaLineItem {
+  /** Unique identifier for the line item */
+  id: string
+  /** Display label for the line item */
+  label: string
+  /** Category classification (e.g., "RENTAL_INCOME", "UTILITIES") */
+  category: string
+  /** T-12 actual trailing 12-month data */
+  t12Actual: number
+  /** Underwritten/adjusted projection */
+  underwritten: number
+  /** Year 1 forward projection */
+  year1: number
+  /** Percentage of Effective Gross Income */
+  percentOfEGI: number
+  /** Variance percentage (year over year or vs budget) */
+  variance: number
+  /** Notes and assumptions for this line item */
+  notes: string
+  /** Monthly breakdown data (optional, for detailed analysis) */
+  monthlyData?: MonthlyData
+  /** Whether this is a subtotal row */
+  isSubtotal?: boolean
+  /** Whether this row should be bold */
+  isBold?: boolean
+  /** Whether this field is user-editable */
+  isEditable?: boolean
+  /** Order/sequence for display */
+  displayOrder?: number
 }
 
 /**

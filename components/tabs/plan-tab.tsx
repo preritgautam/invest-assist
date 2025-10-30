@@ -1,56 +1,32 @@
 /**
- * Business Plan Tab Component
- *
- * A comprehensive business plan management interface for real estate investment analysis.
- * This component provides interactive tools for creating, modifying, and analyzing business
- * plans with real-time KPI calculations, scenario management, and plan freezing capabilities.
- *
- * Key Features:
- * - Interactive assumption controls (hold period, renovation budget, financing mix, etc.)
- * - Real-time KPI calculations (IRR, equity multiple, cash-on-cash, DSCR)
- * - AI-driven system suggestions with reasoning
- * - Scenario saving and comparison functionality
- * - Plan freezing for execution readiness
- * - Change log tracking for audit trail
- * - Notes management for documentation
- *
- * @author Real Estate Analysis System
- * @version 1.0.0
+ * Business Plan Tab Component - Main Entry Point
  */
 
 "use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Briefcase,
-  Target,
-  TrendingUp,
-  DollarSign,
-  Info,
-  Lock,
-  Zap,
-  Clock,
-  Percent,
-  Save,
-  BarChart3,
-  Copy,
-  Trash2,
-  AlertTriangle,
-  CheckCircle,
-  FileText,
-  History,
-  Edit3,
-  Calculator,
-} from "lucide-react"
+import { Briefcase, Lock, AlertTriangle, CheckCircle, FileText, History, Edit3 } from "lucide-react"
 import { useState } from "react"
+
+import type {
+  BusinessPlanTabProps,
+  BusinessPlanAssumptionsType,
+  ScenarioType,
+  ChangeLogEntryType,
+  FrozenPlanType,
+} from "./plan-tab/types"
+import { calculateKPIs } from "./plan-tab/utils"
+import { systemSuggestion } from "./plan-tab/mock-data"
+import { SystemSuggestionCard } from "./plan-tab/system-suggestion-card"
+import { InteractiveControls } from "./plan-tab/interactive-controls"
+import { KPIMetricsCard } from "./plan-tab/kpi-metrics-card"
+import { ScenariosSection } from "./plan-tab/scenarios-section"
 
 /**
  * Property interface representing a real estate investment property
@@ -60,32 +36,6 @@ interface Property {
   name: string
   address: string
   isActive: boolean
-}
-
-/**
- * Props for the BusinessPlanTab component
- */
-interface BusinessPlanTabProps {
-  /** The selected property for business plan analysis, null if none selected */
-  property: Property | null
-}
-
-/**
- * Business plan assumptions interface defining key investment parameters
- */
-interface BusinessPlanAssumptions {
-  /** Investment hold period in years */
-  holdPeriod: number
-  /** Renovation budget per unit in dollars */
-  renovationBudget: number
-  /** Timing strategy for renovations */
-  renovationTiming: "upfront" | "staggered" | "opportunistic"
-  /** Percentage of equity financing (vs debt) */
-  financingMix: number
-  /** Exit capitalization rate as percentage */
-  exitCap: number
-  /** Rent growth assumption level */
-  rentGrowth: "conservative" | "base" | "aggressive"
 }
 
 /**
@@ -105,42 +55,6 @@ interface KPIMetrics {
 }
 
 /**
- * Saved scenario interface for business plan comparison
- */
-interface Scenario {
-  /** Unique scenario identifier */
-  id: string
-  /** User-defined scenario name */
-  name: string
-  /** Business plan assumptions for this scenario */
-  assumptions: BusinessPlanAssumptions
-  /** Calculated KPI metrics for this scenario */
-  metrics: KPIMetrics
-  /** Timestamp when scenario was created */
-  createdAt: Date
-}
-
-/**
- * Change log entry interface for tracking plan modifications
- */
-interface ChangeLogEntry {
-  /** Unique entry identifier */
-  id: string
-  /** Type of action performed */
-  action: string
-  /** Description of the change */
-  description: string
-  /** Timestamp of the change */
-  timestamp: Date
-  /** Optional additional data */
-  data?: any
-  /** Previous value before change */
-  oldValue?: any
-  /** New value after change */
-  newValue?: any
-}
-
-/**
  * Business Plan Tab Component
  *
  * Main component for managing real estate investment business plans with interactive
@@ -148,7 +62,7 @@ interface ChangeLogEntry {
  */
 export function PlanTab({ property }: BusinessPlanTabProps) {
   /** Current business plan assumptions */
-  const [assumptions, setAssumptions] = useState<BusinessPlanAssumptions>({
+  const [assumptions, setAssumptions] = useState<BusinessPlanAssumptionsType>({
     holdPeriod: 5,
     renovationBudget: 10000,
     renovationTiming: "upfront",
@@ -158,10 +72,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
   })
 
   /** Array of saved scenarios for comparison */
-  const [scenarios, setScenarios] = useState<Scenario[]>([])
-
-  /** Currently selected scenarios for comparison (max 3) */
-  const [selectedScenarios, setSelectedScenarios] = useState<string[]>([])
+  const [scenarios, setScenarios] = useState<ScenarioType[]>([])
 
   /** Whether the business plan is frozen for execution */
   const [isPlanFrozen, setIsPlanFrozen] = useState(false)
@@ -170,10 +81,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
   const [notes, setNotes] = useState("")
 
   /** Change log entries for audit trail */
-  const [changeLog, setChangeLog] = useState<ChangeLogEntry[]>([])
-
-  /** Name for new scenario being saved */
-  const [newScenarioName, setNewScenarioName] = useState("")
+  const [changeLog, setChangeLog] = useState<ChangeLogEntryType[]>([])
 
   // Dialog and sheet visibility states
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -183,11 +91,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
   const [showChangeLogSheet, setShowChangeLogSheet] = useState(false)
 
   /** Frozen plan data when plan is locked */
-  const [frozenPlan, setFrozenPlan] = useState<{
-    assumptions: BusinessPlanAssumptions
-    metrics: KPIMetrics
-    frozenAt: Date
-  } | null>(null)
+  const [frozenPlan, setFrozenPlan] = useState<FrozenPlanType | null>(null)
 
   /**
    * Calculate Key Performance Indicators based on business plan assumptions
@@ -199,30 +103,6 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
    * @param assumptions - The business plan assumptions to calculate from
    * @returns Calculated KPI metrics
    */
-  const calculateKPIs = (assumptions: BusinessPlanAssumptions): KPIMetrics => {
-    // Base case metrics - would be derived from market data and property analysis
-    const baseIRR = 14.8
-    const baseEM = 1.85
-    const baseCOC = 7.2
-    const baseDSCR = 1.35
-
-    // Adjustment multipliers based on assumptions
-    const holdPeriodMultiplier = assumptions.holdPeriod <= 3 ? 0.9 : assumptions.holdPeriod >= 7 ? 1.1 : 1.0
-    const renovationMultiplier = assumptions.renovationBudget / 10000 // base is $10k/unit
-    const rentGrowthMultiplier =
-      assumptions.rentGrowth === "conservative" ? 0.85 : assumptions.rentGrowth === "aggressive" ? 1.15 : 1.0
-    const exitCapMultiplier = assumptions.exitCap <= 5.0 ? 1.1 : assumptions.exitCap >= 6.0 ? 0.9 : 1.0
-
-    return {
-      irr: baseIRR * holdPeriodMultiplier * renovationMultiplier * rentGrowthMultiplier * exitCapMultiplier,
-      equityMultiple: baseEM * holdPeriodMultiplier * exitCapMultiplier,
-      cashOnCash: baseCOC * rentGrowthMultiplier,
-      dscr: baseDSCR * (assumptions.financingMix / 75), // Higher equity = better DSCR
-      payback: assumptions.holdPeriod * 0.8, // Simplified payback calculation
-    }
-  }
-
-  /** Current KPI metrics based on current assumptions */
   const currentMetrics = calculateKPIs(assumptions)
 
   /**
@@ -231,24 +111,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
    * In production, this would be generated by machine learning models
    * analyzing market conditions, comparable properties, and risk factors.
    */
-  const systemSuggestion = {
-    holdPeriod: 5,
-    renovationBudget: 10000,
-    exitCap: 5.25,
-    rentGrowth: "2.5% Annual Growth" as const,
-    projectedReturns: {
-      irr: 16.2,
-      equityMultiple: 1.85,
-      cashOnCash: 7.0,
-      dscr: 1.35,
-    },
-    reasoning: {
-      holdPeriod: "Optimal hold period based on market cycle analysis",
-      renovationBudget: "Comparable properties show $10k/unit generates 15-20% rent premiums",
-      exitCap: "Market cap rates trending down, conservative exit assumption",
-      rentGrowth: "Local market fundamentals support 2.5% annual growth with strong job growth and limited supply",
-    },
-  }
+  // Replaced with imported systemSuggestion
 
   /**
    * Add an entry to the change log for audit trail
@@ -259,7 +122,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
    * @param newValue - New value (optional)
    */
   const addToChangeLog = (action: string, description: string, oldValue?: any, newValue?: any) => {
-    const entry: ChangeLogEntry = {
+    const entry: ChangeLogEntryType = {
       id: Date.now().toString(),
       action,
       description,
@@ -276,7 +139,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
    * @param key - The assumption key to update
    * @param value - The new value
    */
-  const updateAssumptions = (key: keyof BusinessPlanAssumptions, value: any) => {
+  const updateAssumptions = (key: keyof BusinessPlanAssumptionsType, value: any) => {
     const oldValue = assumptions[key]
     setAssumptions((prev) => ({ ...prev, [key]: value }))
 
@@ -288,22 +151,17 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
   /**
    * Save the current assumptions and metrics as a named scenario
    */
-  const saveScenario = () => {
-    if (!newScenarioName.trim()) return
-
-    const newScenario: Scenario = {
+  const saveScenario = (name: string) => {
+    const newScenario: ScenarioType = {
       id: Date.now().toString(),
-      name: newScenarioName,
+      name,
       assumptions: { ...assumptions },
       metrics: calculateKPIs(assumptions),
       createdAt: new Date(),
     }
 
     setScenarios((prev) => [...prev, newScenario])
-    setNewScenarioName("")
-    setShowSaveDialog(false)
-
-    addToChangeLog("Scenario Saved", `Created new scenario: ${newScenarioName}`)
+    addToChangeLog("Scenario Saved", `Created new scenario: ${name}`)
   }
 
   /**
@@ -314,27 +172,11 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
   const deleteScenario = (scenarioId: string) => {
     const scenario = scenarios.find((s) => s.id === scenarioId)
     setScenarios((prev) => prev.filter((s) => s.id !== scenarioId))
-    setSelectedScenarios((prev) => prev.filter((id) => id !== scenarioId))
+    // Removed selectedScenarios filtering as it's handled in ScenariosSection now
 
     if (scenario) {
       addToChangeLog("Scenario Deleted", `Removed scenario: ${scenario.name}`)
     }
-  }
-
-  /**
-   * Toggle scenario selection for comparison (max 3 scenarios)
-   *
-   * @param scenarioId - ID of the scenario to toggle
-   */
-  const toggleScenarioSelection = (scenarioId: string) => {
-    setSelectedScenarios((prev) => {
-      if (prev.includes(scenarioId)) {
-        return prev.filter((id) => id !== scenarioId)
-      } else if (prev.length < 3) {
-        return [...prev, scenarioId]
-      }
-      return prev
-    })
   }
 
   /**
@@ -445,10 +287,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
                       <Button variant="outline" onClick={() => setShowNotesDialog(false)}>
                         Cancel
                       </Button>
-                      <Button onClick={saveNotes}>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Notes
-                      </Button>
+                      <Button onClick={saveNotes}>Save Notes</Button>
                     </div>
                   </div>
                 </DialogContent>
@@ -649,639 +488,27 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
       )}
 
       {/* AI System Suggestions Card */}
-      <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
-        <CardHeader className="p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 rounded-lg">
-                <Zap className="w-5 h-5 text-gray-600" />
-              </div>
-              <CardTitle className="text-sm font-bold text-gray-900">Suggested Plan</CardTitle>
-            </div>
-            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-              <Zap className="w-3 h-3 mr-1" />
-              Suggested by System
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-3">
-          {/* System Suggestion Parameters */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            {/* Hold Period */}
-            <div className="bg-gray-50 rounded-lg p-2">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-700">Hold Period</span>
-                </div>
-                <Info className="w-3 h-3 text-gray-400 cursor-help" title={systemSuggestion.reasoning.holdPeriod} />
-              </div>
-              <div className="text-base font-bold text-gray-900">{systemSuggestion.holdPeriod} years</div>
-            </div>
-
-            {/* Renovation Budget */}
-            <div className="bg-gray-50 rounded-lg p-2">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-700">Renovation Budget</span>
-                </div>
-                <Info
-                  className="w-3 h-3 text-gray-400 cursor-help"
-                  title={systemSuggestion.reasoning.renovationBudget}
-                />
-              </div>
-              <div className="text-base font-bold text-gray-900">
-                ${systemSuggestion.renovationBudget.toLocaleString()}/unit
-              </div>
-            </div>
-
-            {/* Exit Cap Rate */}
-            <div className="bg-gray-50 rounded-lg p-2">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <Percent className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-700">Exit Cap Rate</span>
-                </div>
-                <Info className="w-3 h-3 text-gray-400 cursor-help" title={systemSuggestion.reasoning.exitCap} />
-              </div>
-              <div className="text-base font-bold text-gray-900">{systemSuggestion.exitCap}%</div>
-            </div>
-
-            {/* Rent Growth */}
-            <div className="bg-gray-50 rounded-lg p-2">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs font-semibold text-gray-700">Rent Growth</span>
-                </div>
-                <Info className="w-3 h-3 text-gray-400 cursor-help" title={systemSuggestion.reasoning.rentGrowth} />
-              </div>
-              <div className="text-base font-bold text-gray-900">{systemSuggestion.rentGrowth}</div>
-            </div>
-          </div>
-
-          {/* Projected Returns */}
-          <div className="border-t pt-3">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Projected Returns</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-800">{systemSuggestion.projectedReturns.irr}%</div>
-                <div className="text-xs text-gray-600">IRR</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-800">
-                  {systemSuggestion.projectedReturns.equityMultiple}x
-                </div>
-                <div className="text-xs text-gray-600">Equity Multiple</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-800">{systemSuggestion.projectedReturns.cashOnCash}%</div>
-                <div className="text-xs text-gray-600">Cash-on-Cash</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-800">{systemSuggestion.projectedReturns.dscr}x</div>
-                <div className="text-xs text-gray-600">DSCR</div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <SystemSuggestionCard suggestion={systemSuggestion} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Interactive Plan Controls */}
-        <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
-          <CardHeader className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Target className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-bold text-gray-900">Interactive Plan</CardTitle>
-                  <p className="text-xs text-gray-600">
-                    {isPlanFrozen
-                      ? "Plan is frozen - unfreeze to make changes"
-                      : "Adjust assumptions to see real-time impact"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 space-y-4">
-            <div className={`space-y-4 ${isPlanFrozen ? "opacity-50 pointer-events-none" : ""}`}>
-              {/* Hold Period Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-gray-700">Hold Period</Label>
-                  <span className="text-xs font-bold text-gray-900">{assumptions.holdPeriod} years</span>
-                </div>
-                <Slider
-                  value={[assumptions.holdPeriod]}
-                  onValueChange={(value) => {
-                    updateAssumptions("holdPeriod", value[0])
-                  }}
-                  min={1}
-                  max={10}
-                  step={1}
-                  className="w-full"
-                  disabled={isPlanFrozen}
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>1 year</span>
-                  <span>10 years</span>
-                </div>
-              </div>
-
-              {/* Renovation Budget Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-gray-700">Renovation Budget</Label>
-                  <span className="text-xs font-bold text-gray-900">
-                    ${assumptions.renovationBudget.toLocaleString()}/unit
-                  </span>
-                </div>
-                <Slider
-                  value={[assumptions.renovationBudget]}
-                  onValueChange={(value) => {
-                    updateAssumptions("renovationBudget", value[0])
-                  }}
-                  min={0}
-                  max={15000}
-                  step={500}
-                  className="w-full"
-                  disabled={isPlanFrozen}
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>$0</span>
-                  <span>$15,000</span>
-                </div>
-              </div>
-
-              {/* Renovation Timing Select */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-gray-700">Renovation Timing</Label>
-                <Select
-                  value={assumptions.renovationTiming}
-                  onValueChange={(value: "upfront" | "staggered" | "opportunistic") =>
-                    updateAssumptions("renovationTiming", value)
-                  }
-                  disabled={isPlanFrozen}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="upfront">Upfront</SelectItem>
-                    <SelectItem value="staggered">Staggered</SelectItem>
-                    <SelectItem value="opportunistic">Opportunistic</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Financing Mix Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-gray-700">Financing Mix</Label>
-                  <span className="text-xs font-bold text-gray-900">
-                    {assumptions.financingMix}% equity / {100 - assumptions.financingMix}% debt
-                  </span>
-                </div>
-                <Slider
-                  value={[assumptions.financingMix]}
-                  onValueChange={(value) => {
-                    updateAssumptions("financingMix", value[0])
-                  }}
-                  min={20}
-                  max={100}
-                  step={5}
-                  className="w-full"
-                  disabled={isPlanFrozen}
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>20% equity</span>
-                  <span>100% equity</span>
-                </div>
-              </div>
-
-              {/* Exit Cap Rate Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-gray-700">Exit Cap Rate</Label>
-                  <span className="text-xs font-bold text-gray-900">{assumptions.exitCap.toFixed(2)}%</span>
-                </div>
-                <Slider
-                  value={[assumptions.exitCap]}
-                  onValueChange={(value) => {
-                    updateAssumptions("exitCap", value[0])
-                  }}
-                  min={4.0}
-                  max={7.0}
-                  step={0.25}
-                  className="w-full"
-                  disabled={isPlanFrozen}
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>4.0%</span>
-                  <span>7.0%</span>
-                </div>
-              </div>
-
-              {/* Rent Growth Select */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-gray-700">Rent Growth</Label>
-                <Select
-                  value={assumptions.rentGrowth}
-                  onValueChange={(value: "conservative" | "base" | "aggressive") =>
-                    updateAssumptions("rentGrowth", value)
-                  }
-                  disabled={isPlanFrozen}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="conservative">Conservative (1.5% YoY)</SelectItem>
-                    <SelectItem value="base">Base (2.5% YoY)</SelectItem>
-                    <SelectItem value="aggressive">Aggressive (3.5% YoY)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Frozen Plan Message */}
-            {isPlanFrozen && (
-              <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <Lock className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                  <p className="text-sm font-medium text-gray-600">Plan is Frozen</p>
-                  <p className="text-xs text-gray-500">Unfreeze the plan to make adjustments</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <InteractiveControls
+          assumptions={assumptions}
+          isPlanFrozen={isPlanFrozen}
+          onUpdateAssumptions={updateAssumptions}
+        />
 
         {/* Real-time KPIs Display */}
-        <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
-          <CardHeader className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-bold text-gray-900">Real-time KPIs</CardTitle>
-                  <p className="text-xs text-gray-600">
-                    {isPlanFrozen ? "Frozen plan metrics" : "Updated based on your assumptions"}
-                  </p>
-                </div>
-              </div>
-              {/* Save Scenario Dialog */}
-              <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white" disabled={isPlanFrozen}>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Scenario
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Save Current Scenario</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="scenario-name">Scenario Name</Label>
-                      <Input
-                        id="scenario-name"
-                        value={newScenarioName}
-                        onChange={(e) => setNewScenarioName(e.target.value)}
-                        placeholder="e.g., Base Case, Aggressive, Conservative"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={saveScenario} disabled={!newScenarioName.trim()}>
-                        Save Scenario
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3">
-            {/* KPI Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* IRR */}
-              <div className="bg-gray-50 rounded-lg p-2 text-center">
-                <div className="p-1 bg-gray-100 rounded-lg w-fit mx-auto mb-1">
-                  <TrendingUp className="w-4 h-4 text-gray-600" />
-                </div>
-                <p className="text-xs font-semibold text-gray-600">IRR</p>
-                <p className="text-base font-bold text-gray-900">{currentMetrics.irr.toFixed(1)}%</p>
-                <p className="text-xs text-gray-500">
-                  {currentMetrics.irr > systemSuggestion.projectedReturns.irr
-                    ? "↗"
-                    : currentMetrics.irr < systemSuggestion.projectedReturns.irr
-                      ? "↘"
-                      : "→"}{" "}
-                  {Math.abs(currentMetrics.irr - systemSuggestion.projectedReturns.irr).toFixed(1)}%
-                </p>
-              </div>
-
-              {/* Equity Multiple */}
-              <div className="bg-gray-50 rounded-lg p-2 text-center">
-                <div className="p-1 bg-gray-100 rounded-lg w-fit mx-auto mb-1">
-                  <DollarSign className="w-4 h-4 text-gray-600" />
-                </div>
-                <p className="text-xs font-semibold text-gray-600">Equity Multiple</p>
-                <p className="text-base font-bold text-gray-900">{currentMetrics.equityMultiple.toFixed(2)}x</p>
-                <p className="text-xs text-gray-500">
-                  {currentMetrics.equityMultiple > systemSuggestion.projectedReturns.equityMultiple
-                    ? "↗"
-                    : currentMetrics.equityMultiple < systemSuggestion.projectedReturns.equityMultiple
-                      ? "↘"
-                      : "→"}{" "}
-                  {Math.abs(currentMetrics.equityMultiple - systemSuggestion.projectedReturns.equityMultiple).toFixed(
-                    2,
-                  )}
-                  x
-                </p>
-              </div>
-
-              {/* Cash-on-Cash */}
-              <div className="bg-gray-50 rounded-lg p-2 text-center">
-                <div className="p-1 bg-gray-100 rounded-lg w-fit mx-auto mb-1">
-                  <Percent className="w-4 h-4 text-gray-600" />
-                </div>
-                <p className="text-xs font-semibold text-gray-600">Cash-on-Cash</p>
-                <p className="text-base font-bold text-gray-900">{currentMetrics.cashOnCash.toFixed(1)}%</p>
-                <p className="text-xs text-gray-500">
-                  {currentMetrics.cashOnCash > systemSuggestion.projectedReturns.cashOnCash
-                    ? "↗"
-                    : currentMetrics.cashOnCash < systemSuggestion.projectedReturns.cashOnCash
-                      ? "↘"
-                      : "→"}{" "}
-                  {Math.abs(currentMetrics.cashOnCash - systemSuggestion.projectedReturns.cashOnCash).toFixed(1)}%
-                </p>
-              </div>
-
-              {/* DSCR */}
-              <div className="bg-gray-50 rounded-lg p-2 text-center">
-                <div className="p-1 bg-gray-100 rounded-lg w-fit mx-auto mb-1">
-                  <Calculator className="w-4 h-4 text-gray-600" />
-                </div>
-                <p className="text-xs font-semibold text-gray-600">DSCR</p>
-                <p className="text-base font-bold text-gray-900">{currentMetrics.dscr.toFixed(2)}x</p>
-                <p className="text-xs text-gray-500">
-                  {currentMetrics.dscr > systemSuggestion.projectedReturns.dscr
-                    ? "↗"
-                    : currentMetrics.dscr < systemSuggestion.projectedReturns.dscr
-                      ? "↘"
-                      : "→"}{" "}
-                  {Math.abs(currentMetrics.dscr - systemSuggestion.projectedReturns.dscr).toFixed(2)}x
-                </p>
-              </div>
-
-              {/* Payback Period */}
-              <div className="bg-gray-50 rounded-lg p-2 text-center col-span-2">
-                <div className="p-1 bg-gray-100 rounded-lg w-fit mx-auto mb-1">
-                  <Clock className="w-4 h-4 text-gray-600" />
-                </div>
-                <p className="text-xs font-semibold text-gray-600">Payback Period</p>
-                <p className="text-base font-bold text-gray-900">{currentMetrics.payback.toFixed(1)} years</p>
-                <p className="text-xs text-gray-500">Based on cash flow</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <KPIMetricsCard
+          currentMetrics={currentMetrics}
+          systemSuggestion={systemSuggestion}
+          isPlanFrozen={isPlanFrozen}
+          onSaveScenario={saveScenario}
+        />
       </div>
 
       {/* Saved Scenarios section */}
-      {scenarios.length > 0 && (
-        <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
-          <CardHeader className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-bold text-gray-900">Saved Scenarios</CardTitle>
-                  <p className="text-xs text-gray-600">Compare different business plan assumptions</p>
-                </div>
-              </div>
-              {selectedScenarios.length >= 2 && (
-                <Sheet open={showComparisonSheet} onOpenChange={setShowComparisonSheet}>
-                  <SheetTrigger asChild>
-                    <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white">
-                      <BarChart3 className="w-4 h-4 mr-2" />
-                      Compare ({selectedScenarios.length})
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-full sm:max-w-4xl">
-                    <SheetHeader>
-                      <SheetTitle>Scenario Comparison</SheetTitle>
-                    </SheetHeader>
-                    <div className="mt-6 space-y-6">
-                      {/* Comparison Table */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left p-3 text-sm font-semibold text-gray-900">Metric</th>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <th key={scenarioId} className="text-center p-3 text-sm font-semibold text-gray-900">
-                                    {scenario?.name}
-                                  </th>
-                                )
-                              })}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="border-b bg-gray-50">
-                              <td className="p-3 text-sm font-medium text-gray-700">IRR</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm font-bold text-gray-800">
-                                    {scenario?.metrics.irr.toFixed(1)}%
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr className="border-b bg-gray-50">
-                              <td className="p-3 text-sm font-medium text-gray-700">Equity Multiple</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm font-bold text-gray-800">
-                                    {scenario?.metrics.equityMultiple.toFixed(2)}x
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr className="border-b bg-gray-50">
-                              <td className="p-3 text-sm font-medium text-gray-700">Cash-on-Cash</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm font-bold text-gray-800">
-                                    {scenario?.metrics.cashOnCash.toFixed(1)}%
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr className="border-b bg-gray-50">
-                              <td className="p-3 text-sm font-medium text-gray-700">DSCR</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm font-bold text-gray-800">
-                                    {scenario?.metrics.dscr.toFixed(2)}x
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr className="border-b">
-                              <td className="p-3 text-sm font-medium text-gray-700">Hold Period</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm text-gray-900">
-                                    {scenario?.assumptions.holdPeriod} years
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr className="border-b">
-                              <td className="p-3 text-sm font-medium text-gray-700">Renovation Budget</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm text-gray-900">
-                                    ${scenario?.assumptions.renovationBudget.toLocaleString()}/unit
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr className="border-b">
-                              <td className="p-3 text-sm font-medium text-gray-700">Exit Cap Rate</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm text-gray-900">
-                                    {scenario?.assumptions.exitCap.toFixed(2)}%
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                            <tr>
-                              <td className="p-3 text-sm font-medium text-gray-700">Rent Growth</td>
-                              {selectedScenarios.map((scenarioId) => {
-                                const scenario = scenarios.find((s) => s.id === scenarioId)
-                                return (
-                                  <td key={scenarioId} className="text-center p-3 text-sm text-gray-900 capitalize">
-                                    {scenario?.assumptions.rentGrowth}
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="p-3">
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {scenarios.map((scenario) => (
-                <div
-                  key={scenario.id}
-                  className={`flex-shrink-0 w-60 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedScenarios.includes(scenario.id)
-                      ? "border-gray-500 bg-gray-50"
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                  onClick={() => toggleScenarioSelection(scenario.id)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900 text-sm">{scenario.name}</h4>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setAssumptions(scenario.assumptions)
-                        }}
-                        className="p-1 h-5 w-5"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteScenario(scenario.id)
-                        }}
-                        className="p-1 h-5 w-5 text-gray-500 hover:text-gray-700"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Hold Period:</span>
-                      <span className="font-medium">{scenario.assumptions.holdPeriod} years</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Renovation:</span>
-                      <span className="font-medium">
-                        ${scenario.assumptions.renovationBudget.toLocaleString()}/unit
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">IRR:</span>
-                      <span className="font-bold text-gray-800">{scenario.metrics.irr.toFixed(1)}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Equity Multiple:</span>
-                      <span className="font-bold text-gray-800">{scenario.metrics.equityMultiple.toFixed(2)}x</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <div className="text-xs text-gray-500">Created {scenario.createdAt.toLocaleDateString()}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {selectedScenarios.length > 0 && (
-              <div className="mt-3 p-2 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-700">
-                  {selectedScenarios.length} scenario{selectedScenarios.length > 1 ? "s" : ""} selected for comparison.
-                  {selectedScenarios.length >= 2
-                    ? " Click Compare to view side-by-side analysis."
-                    : " Select at least 2 scenarios to compare."}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <ScenariosSection scenarios={scenarios} onDeleteScenario={deleteScenario} onLoadScenario={setAssumptions} />
 
       {/* Freeze/Unfreeze Plan Button */}
       <div className="flex justify-center pt-4">

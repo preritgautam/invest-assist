@@ -21,12 +21,18 @@ import {
   FileBarChart,
   FileText,
   Briefcase,
+  Menu,
+  Home,
+  ArrowLeftRight,
+  FileX,
+  BarChart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 import { type PropertyData, getAllProperties, addProperty } from "@/lib/property-data"
+import { Badge } from "@/components/ui/badge"
 
 interface Property {
   id: string
@@ -53,6 +59,8 @@ interface TabBarProps {
   activePropertyName?: string
   openPropertyIds?: string[]
   activePropertyId?: string | null
+  activeProperty?: PropertyData | null
+  onNavigationClick?: (tabId: string) => void
 }
 
 const ColorfulDotsIcon = () => (
@@ -228,6 +236,8 @@ export function TabBar({
   activePropertyName,
   openPropertyIds = [],
   activePropertyId,
+  activeProperty,
+  onNavigationClick,
 }: TabBarProps) {
   const [properties, setProperties] = useState<Property[]>([])
   const [showAppLauncher, setShowAppLauncher] = useState(false)
@@ -235,6 +245,7 @@ export function TabBar({
   const [showTabOverview, setShowTabOverview] = useState(false)
   const [showUserProfile, setShowUserProfile] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [showPropertyInfo, setShowPropertyInfo] = useState(false)
 
   const refs = {
     tabOverview: useRef<HTMLDivElement>(null),
@@ -265,7 +276,7 @@ export function TabBar({
     setProperties(tabProperties)
   }, [openPropertyIds, activePropertyId])
 
-  const activeProperty = properties.find((p) => p.isActive)
+  const activePropertyFromTabs = properties.find((p) => p.isActive)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -349,36 +360,224 @@ export function TabBar({
         onComplete={handleUploadComplete}
       />
       <div className="sticky top-0 z-50 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
-        <div className="flex items-center justify-between h-12 sm:h-14 px-2 sm:px-3 md:px-6 gap-1 sm:gap-2">
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 relative" ref={refs.appLauncher}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-8 h-8 sm:w-9 sm:h-9 p-0 hover:bg-gray-100/80 rounded-xl transition-all duration-200 flex items-center justify-center touch-manipulation"
-                  onClick={() => setShowAppLauncher(!showAppLauncher)}
-                >
-                  <ColorfulDotsIcon />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Clik.ai Apps</p>
-              </TooltipContent>
-            </Tooltip>
+        <div className="flex items-center justify-between h-10 sm:h-11 px-2 sm:px-3 md:px-4 gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 flex-shrink-0 relative">
+            <Drawer open={showPropertyInfo} onOpenChange={setShowPropertyInfo}>
+              <DrawerTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-7 h-7 sm:w-8 sm:h-8 p-0 hover:bg-gray-100/80 rounded-lg transition-all duration-200 flex items-center justify-center touch-manipulation"
+                    >
+                      <Menu className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Menu & Navigation</p>
+                  </TooltipContent>
+                </Tooltip>
+              </DrawerTrigger>
+              <DrawerContent className="max-h-[85vh]">
+                <DrawerHeader className="pb-4 border-b border-gray-200">
+                  <DrawerTitle className="text-lg font-semibold">Menu & Navigation</DrawerTitle>
+                </DrawerHeader>
+                <div className="px-4 pb-8 overflow-y-auto">
+                  <div className="mb-6 mt-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Home className="w-4 h-4 text-blue-600" />
+                      Navigation
+                    </h3>
+                    <div className="space-y-2">
+                      {[
+                        { id: "home", label: "Home", icon: <Home className="w-5 h-5 text-gray-700" /> },
+                        { id: "documents", label: "Docs", icon: <FileText className="w-5 h-5 text-gray-700" /> },
+                        { id: "property", label: "Property", icon: <Building className="w-5 h-5 text-gray-700" /> },
+                        { id: "pro-forma", label: "Pro Forma", icon: <Calculator className="w-5 h-5 text-gray-700" /> },
+                        { id: "debt-assumptions", label: "Capital", icon: <FileX className="w-5 h-5 text-gray-700" /> },
+                        { id: "business-plan", label: "Plan", icon: <Briefcase className="w-5 h-5 text-gray-700" /> },
+                        {
+                          id: "sources-uses",
+                          label: "Outlay",
+                          icon: <ArrowLeftRight className="w-5 h-5 text-gray-700" />,
+                        },
+                        { id: "returns", label: "Returns", icon: <TrendingUp className="w-5 h-5 text-gray-700" /> },
+                        {
+                          id: "underwriting-graphs",
+                          label: "Analytics",
+                          icon: <BarChart className="w-5 h-5 text-gray-700" />,
+                        },
+                        { id: "summary", label: "Summary", icon: <FileBarChart className="w-5 h-5 text-gray-700" /> },
+                      ].map((item) => (
+                        <Button
+                          key={item.id}
+                          variant="ghost"
+                          className="w-full flex items-center gap-3 px-4 py-4 h-auto justify-start bg-white/50 hover:bg-white/70 rounded-xl border border-gray-200/50 transition-all touch-manipulation"
+                          onClick={() => {
+                            onNavigationClick?.(item.id)
+                            setShowPropertyInfo(false)
+                          }}
+                        >
+                          {item.icon}
+                          <span className="text-gray-900 font-medium text-sm">{item.label}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
 
-            {/* App Launcher Component */}
-            <AppLauncher isOpen={showAppLauncher} onClose={() => setShowAppLauncher(false)} />
+                  {activeProperty && (
+                    <div className="space-y-4 mb-6">
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <Building className="w-4 h-4 text-blue-600" />
+                          Property Summary
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-gray-600">Address</p>
+                            <p className="text-sm font-medium text-gray-900">{activeProperty.address}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Status</p>
+                            <Badge variant="outline" className="text-xs">
+                              {activeProperty.status}
+                            </Badge>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Offer Price</p>
+                            <p className="text-sm font-medium text-gray-900">{activeProperty.offerPrice}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Cap Rate</p>
+                            <p className="text-sm font-medium text-gray-900">{activeProperty.capRate}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Units</p>
+                            <p className="text-sm font-medium text-gray-900">{activeProperty.units}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Documents</p>
+                            <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                              <FileText className="w-3 h-3 text-blue-600" />3 uploaded
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Clik.ai Apps</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        {
+                          id: "Invest Assist",
+                          name: "Invest Assist",
+                          icon: <Building className="w-5 h-5 text-blue-500" />,
+                        },
+                        {
+                          id: "Analyze Cashflow",
+                          name: "Analyze Cashflow",
+                          icon: <Briefcase className="w-5 h-5 text-green-500" />,
+                        },
+                        {
+                          id: "Analyze Rent Roll",
+                          name: "Analyze Rent Roll",
+                          icon: <Calculator className="w-5 h-5 text-purple-500" />,
+                        },
+                        {
+                          id: "Analyze OM",
+                          name: "Analyze OM",
+                          icon: <TrendingUp className="w-5 h-5 text-red-500" />,
+                        },
+                        {
+                          id: "Lease Abstraction",
+                          name: "Lease Abstraction",
+                          icon: <FileText className="w-5 h-5 text-yellow-500" />,
+                        },
+                        {
+                          id: "Request Detailed Underwriting",
+                          name: "Request Detailed Underwriting",
+                          icon: <FileBarChart className="w-5 h-5 text-indigo-500" />,
+                        },
+                      ].map((app) => (
+                        <div
+                          key={app.id}
+                          className="flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-gray-50 border border-gray-200/50 hover:shadow-md touch-manipulation"
+                          onClick={() => {
+                            console.log(`Launching app: ${app.name}`)
+                            setShowPropertyInfo(false)
+                          }}
+                        >
+                          <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-2 shadow-sm">
+                            {app.icon}
+                          </div>
+                          <span className="text-xs font-semibold text-center text-gray-900">{app.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      variant="ghost"
+                      className="w-full flex items-center gap-3 px-4 py-4 h-auto justify-start bg-white/50 hover:bg-white/70 rounded-xl border border-gray-200/50 transition-all touch-manipulation"
+                      onClick={() => {
+                        setShowPropertyInfo(false)
+                      }}
+                    >
+                      <Download className="w-5 h-5 text-gray-700 flex-shrink-0" />
+                      <span className="text-gray-900 font-medium text-sm">Download</span>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      className="w-full flex items-center gap-3 px-4 py-4 h-auto justify-start bg-white/50 hover:bg-white/70 rounded-xl border border-gray-200/50 transition-all touch-manipulation"
+                      onClick={() => {
+                        setShowPropertyInfo(false)
+                      }}
+                    >
+                      <Share className="w-5 h-5 text-gray-700 flex-shrink-0" />
+                      <span className="text-gray-900 font-medium text-sm">Share</span>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      className="w-full flex items-center gap-3 px-4 py-4 h-auto justify-start bg-white/50 hover:bg-white/70 rounded-xl border border-gray-200/50 transition-all touch-manipulation"
+                      onClick={() => {
+                        handleNewProperty()
+                        setShowPropertyInfo(false)
+                      }}
+                    >
+                      <Plus className="w-5 h-5 text-gray-700 flex-shrink-0" />
+                      <span className="text-gray-900 font-medium text-sm">New Property</span>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      className="w-full flex items-center gap-3 px-4 py-4 h-auto justify-start bg-white/50 hover:bg-white/70 rounded-xl border border-gray-200/50 transition-all touch-manipulation"
+                      onClick={() => {
+                        setShowPropertyInfo(false)
+                      }}
+                    >
+                      <MessageSquare className="w-5 h-5 text-gray-700 flex-shrink-0" />
+                      <span className="text-gray-900 font-medium text-sm">Help & Support</span>
+                    </Button>
+                  </div>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
 
-          <div className="flex-1 flex items-center justify-center min-w-0">
-            <div className="hidden sm:flex items-center gap-1 w-full max-w-4xl overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-1 md:gap-2 min-w-0 flex-1">
+          <div className="flex-1 flex items-center min-w-0 overflow-hidden">
+            <div className="hidden sm:flex items-center gap-1 md:gap-2 w-full overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-1 md:gap-2 min-w-0">
                 {properties.map((property) => (
                   <div
                     key={property.id}
                     className={`
-                      group flex items-center gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-xl cursor-pointer transition-all duration-300 min-w-fit backdrop-blur-sm flex-shrink-0
+                      group flex items-center gap-2 px-2.5 md:px-4 py-1 md:py-1.5 rounded-lg cursor-pointer transition-all duration-300 min-w-fit backdrop-blur-sm flex-shrink-0
                       ${
                         property.isActive
                           ? "bg-gradient-to-r from-gray-700 to-gray-800 text-white shadow-lg shadow-gray-700/25 scale-105"
@@ -396,7 +595,7 @@ export function TabBar({
                         {property.name}
                       </span>
                       <span
-                        className={`text-xs truncate max-w-24 md:max-w-40 lg:max-w-44 ${
+                        className={`text-[10px] truncate max-w-24 md:max-w-40 lg:max-w-44 ${
                           property.isActive ? "text-gray-300" : "text-gray-500"
                         }`}
                       >
@@ -406,14 +605,14 @@ export function TabBar({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`w-5 h-5 p-0 transition-all duration-200 rounded-lg flex-shrink-0 touch-manipulation ${
+                      className={`w-4 h-4 p-0 transition-all duration-200 rounded-md flex-shrink-0 touch-manipulation ${
                         property.isActive
                           ? "hover:bg-white/20 text-gray-300 hover:text-white"
                           : "hover:bg-gray-200 text-gray-400 hover:text-gray-600"
                       }`}
                       onClick={(e) => handleCloseProperty(property.id, e)}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </Button>
                   </div>
                 ))}
@@ -421,18 +620,20 @@ export function TabBar({
             </div>
 
             <div className="flex sm:hidden items-center gap-2 min-w-0 flex-1 justify-center px-1">
-              {activeProperty && (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-xl shadow-lg shadow-gray-700/25 min-w-0 max-w-[180px]">
+              {activePropertyFromTabs && (
+                <div className="flex items-center gap-2 px-2 py-1 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-lg shadow-lg shadow-gray-700/25 min-w-0 max-w-[180px]">
                   <div className="flex flex-col items-start min-w-0 flex-1">
-                    <span className="text-xs font-semibold text-white truncate w-full">{activeProperty.name}</span>
+                    <span className="text-xs font-semibold text-white truncate w-full">
+                      {activePropertyFromTabs.name}
+                    </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-6 h-6 p-0 hover:bg-white/20 text-gray-300 hover:text-white rounded-lg flex-shrink-0 touch-manipulation"
-                    onClick={(e) => handleCloseProperty(activeProperty.id, e)}
+                    className="w-5 h-5 p-0 hover:bg-white/20 text-gray-300 hover:text-white rounded-md flex-shrink-0 touch-manipulation"
+                    onClick={(e) => handleCloseProperty(activePropertyFromTabs.id, e)}
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </Button>
                 </div>
               )}
@@ -446,9 +647,9 @@ export function TabBar({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-8 h-8 sm:w-9 sm:h-9 p-0 hover:bg-gray-100/80 rounded-xl flex items-center justify-center touch-manipulation"
+                    className="w-7 h-7 sm:w-8 sm:h-8 p-0 hover:bg-gray-100/80 rounded-lg flex items-center justify-center touch-manipulation"
                   >
-                    <MoreHorizontal className="w-5 h-5" />
+                    <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent className="sm:hidden max-h-[85vh]">
@@ -523,7 +724,7 @@ export function TabBar({
                         }}
                       >
                         <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <User className="w-3 h-3 text-white" />
+                          <User className="w-3.5 h-3.5 text-white" />
                         </div>
                         <span className="text-gray-900 font-medium text-sm">Profile</span>
                       </Button>
@@ -553,10 +754,10 @@ export function TabBar({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-9 h-9 p-0 hover:bg-gray-100/80 rounded-xl transition-all duration-200 touch-manipulation"
+                      className="w-8 h-8 p-0 hover:bg-gray-100/80 rounded-lg transition-all duration-200 touch-manipulation"
                       onClick={onClick}
                     >
-                      <Icon className="w-4.5 h-4.5" />
+                      <Icon className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -565,17 +766,17 @@ export function TabBar({
                 </Tooltip>
               ))}
 
-              <div className="relative ml-2" ref={refs.userProfile}>
+              <div className="relative ml-1" ref={refs.userProfile}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-9 h-9 p-0 hover:bg-gray-100/80 rounded-xl touch-manipulation"
+                      className="w-8 h-8 p-0 hover:bg-gray-100/80 rounded-lg touch-manipulation"
                       onClick={() => setShowUserProfile(!showUserProfile)}
                     >
-                      <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                        <User className="w-4 h-4 text-white" />
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <User className="w-3.5 h-3.5 text-white" />
                       </div>
                     </Button>
                   </TooltipTrigger>
@@ -593,10 +794,10 @@ export function TabBar({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-9 h-9 p-0 hover:bg-gray-100/80 rounded-xl touch-manipulation"
+                      className="w-8 h-8 p-0 hover:bg-gray-100/80 rounded-lg touch-manipulation"
                       onClick={() => setShowTabOverview(!showTabOverview)}
                     >
-                      <Grid className="w-4.5 h-4.5" />
+                      <Grid className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>

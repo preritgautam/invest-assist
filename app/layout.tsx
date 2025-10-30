@@ -1,11 +1,21 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import { Suspense } from "react"
 import "./globals.css"
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+})
 
 /**
  * Application Metadata Configuration
@@ -37,12 +47,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
         {/* Suspense wrapper for better loading experience */}
         <Suspense fallback={null}>
           {children}
-          {/* Vercel Analytics for performance and usage tracking */}
-          <Analytics />
           {/* Global toast notification system */}
           <Toaster />
         </Suspense>

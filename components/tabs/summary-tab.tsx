@@ -22,6 +22,7 @@ import type React from "react"
 import { Building, Calculator } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getPropertyById } from "@/lib/property-data"
+import { useEffect, useState } from "react"
 
 /**
  * Basic property interface for summary display
@@ -100,7 +101,26 @@ function SectionCard({
  * Handles three states: no property selected, property selected but no data,
  * and property with data (future implementation).
  */
-export function SummaryTab({ property }: SummaryTabProps) {
+export  function SummaryTab({ property }: SummaryTabProps) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const res = await fetch('http://localhost:3000/api/users');
+        const data = await res.json();
+        console.log('Fetched users:', data);
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, []);
   // Handle case where no property is selected
   if (!property) {
     return (

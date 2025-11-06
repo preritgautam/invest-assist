@@ -33,6 +33,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 import { type PropertyData, getAllProperties, addProperty } from "@/lib/property-data"
 import { Badge } from "@/components/ui/badge"
+import { useClerk, useUser } from '@clerk/clerk-react';
 
 interface Property {
   id: string
@@ -93,6 +94,12 @@ function UserProfileDropdown({
   isOpen: boolean
   onClose: () => void
 }) {
+
+   const { signOut } = useClerk()
+     const { user, isSignedIn, isLoaded } = useUser();
+
+     console.log("UserProfileDropdown - user:", user);
+   
   if (!isOpen) return null
 
   const menuItems = [
@@ -101,11 +108,15 @@ function UserProfileDropdown({
     { icon: HelpCircle, label: "Help" },
   ]
 
+    const handleLogout = () => {
+signOut({ redirectUrl: "/" }); 
+    };
+
   return (
     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50 w-48">
       <div className="px-3 py-2 border-b border-gray-100 mb-1">
-        <div className="text-sm font-medium text-gray-900">John Doe</div>
-        <div className="text-xs text-gray-500">john.doe@example.com</div>
+        <div className="text-sm font-medium text-gray-900">{user?.fullName}</div>
+        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress}</div>
       </div>
 
       <div className="space-y-1">
@@ -127,7 +138,7 @@ function UserProfileDropdown({
             variant="ghost"
             size="sm"
             className="w-full justify-start gap-3 px-3 py-2 h-auto text-sm font-normal hover:bg-gray-50 text-red-600 hover:text-red-700"
-            onClick={onClose}
+            onClick={handleLogout}
           >
             <LogOut className="w-4 h-4" />
             Logout
@@ -158,37 +169,37 @@ function AppLauncher({
       id: "Invest Assist",
       name: "Invest Assist",
       icon: <Building className="w-5 h-5 text-blue-500" />,
-      // description: "Analyze investment properties",
+      description: ""
     },
     {
       id: "Analyze Cashflow",
       name: "Analyze Cashflow",
       icon: <Briefcase className="w-5 h-5 text-green-500" />,
-      // description: "Manage your property portfolio",
+      description: ""
     },
     {
       id: "Analyze Rent Roll",
       name: "Analyze Rent Roll",
       icon: <Calculator className="w-5 h-5 text-purple-500" />,
-      // description: "Investment calculations",
+      description: ""
     },
     {
       id: "Analyze OM",
       name: "Analyze OM",
       icon: <TrendingUp className="w-5 h-5 text-red-500" />,
-      // description: "Real estate market analytics",
+      description: ""
     },
     {
       id: "Lease Abstraction",
       name: "Lease Abstraction",
       icon: <FileText className="w-5 h-5 text-yellow-500" />,
-      // description: "Property documentation",
+      description: ""
     },
     {
       id: "Request Detailed Underwriting",
       name: "Request Detailed Underwriting",
       icon: <FileBarChart className="w-5 h-5 text-indigo-500" />,
-      // description: "Generate investment reports",
+      description: ""
     },
   ]
 

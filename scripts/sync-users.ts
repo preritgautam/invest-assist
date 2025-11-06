@@ -2,7 +2,7 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { createClerkClient } from '@clerk/backend';
-import { query } from '../lib/db';
+import { query } from '@/lib/db';
 
 // Load .env.local
 config({ path: resolve(process.cwd(), '.env.local') });

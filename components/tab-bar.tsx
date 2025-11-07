@@ -1,5 +1,7 @@
 "use client"
 
+import { DrawerTrigger } from "@/components/ui/drawer"
+
 import type React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import {
@@ -29,11 +31,11 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 import { type PropertyData, getAllProperties, addProperty } from "@/lib/property-data"
 import { Badge } from "@/components/ui/badge"
-import { useClerk, useUser } from '@clerk/clerk-react';
+import { useClerk, useUser } from "@clerk/clerk-react"
 
 interface Property {
   id: string
@@ -94,13 +96,18 @@ function UserProfileDropdown({
   isOpen: boolean
   onClose: () => void
 }) {
+  const { signOut } = useClerk()
+  const { user, isSignedIn, isLoaded } = useUser()
 
-   const { signOut } = useClerk()
-     const { user, isSignedIn, isLoaded } = useUser();
-
-     console.log("UserProfileDropdown - user:", user);
-   
   if (!isOpen) return null
+
+  if (!isLoaded) {
+    return (
+      <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50 w-48">
+        <div className="text-sm text-gray-500">Loading...</div>
+      </div>
+    )
+  }
 
   const menuItems = [
     { icon: Settings, label: "Settings" },
@@ -108,15 +115,15 @@ function UserProfileDropdown({
     { icon: HelpCircle, label: "Help" },
   ]
 
-    const handleLogout = () => {
-signOut({ redirectUrl: "/" }); 
-    };
+  const handleLogout = () => {
+    signOut({ redirectUrl: "/" })
+  }
 
   return (
     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50 w-48">
       <div className="px-3 py-2 border-b border-gray-100 mb-1">
-        <div className="text-sm font-medium text-gray-900">{user?.fullName}</div>
-        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress}</div>
+        <div className="text-sm font-medium text-gray-900">{user?.fullName || "User"}</div>
+        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress || ""}</div>
       </div>
 
       <div className="space-y-1">
@@ -169,37 +176,37 @@ function AppLauncher({
       id: "Invest Assist",
       name: "Invest Assist",
       icon: <Building className="w-5 h-5 text-blue-500" />,
-      description: ""
+      description: "",
     },
     {
       id: "Analyze Cashflow",
       name: "Analyze Cashflow",
       icon: <Briefcase className="w-5 h-5 text-green-500" />,
-      description: ""
+      description: "",
     },
     {
       id: "Analyze Rent Roll",
       name: "Analyze Rent Roll",
       icon: <Calculator className="w-5 h-5 text-purple-500" />,
-      description: ""
+      description: "",
     },
     {
       id: "Analyze OM",
       name: "Analyze OM",
       icon: <TrendingUp className="w-5 h-5 text-red-500" />,
-      description: ""
+      description: "",
     },
     {
       id: "Lease Abstraction",
       name: "Lease Abstraction",
       icon: <FileText className="w-5 h-5 text-yellow-500" />,
-      description: ""
+      description: "",
     },
     {
       id: "Request Detailed Underwriting",
       name: "Request Detailed Underwriting",
       icon: <FileBarChart className="w-5 h-5 text-indigo-500" />,
-      description: ""
+      description: "",
     },
   ]
 

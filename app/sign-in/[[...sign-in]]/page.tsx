@@ -36,9 +36,19 @@
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
   const { isLoaded, userId } = useAuth();
+  const router = useRouter();
+  
+  // Redirect if already signed in
+  useEffect(() => {
+    if (isLoaded && userId) {
+      router.push("/");
+    }
+  }, [isLoaded, userId, router]);
   
   // If user is signed in, don't show the forgot password link
   const showForgotPassword = isLoaded && !userId;
@@ -53,8 +63,10 @@ export default function SignInPage() {
             footer: "hidden"
           }
         }}
-        fallbackRedirectUrl="/"
+        forceRedirectUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || "/"}
         signUpUrl="/sign-up"
+        routing="path"
+        path="/sign-in"
       />
       
       {/* Only show Forgot Password Link when not signed in */}

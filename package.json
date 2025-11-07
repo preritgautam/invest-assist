@@ -75,8 +75,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tsconfig-paths": "^4.2.0",

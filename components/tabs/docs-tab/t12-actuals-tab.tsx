@@ -2,21 +2,9 @@
 
 import React, { useState } from "react"
 import type { PropertyData } from "@/lib/property-data"
-import {
-  ChevronDown,
-  ChevronRight,
-  Info,
-  CheckCircle,
-  AlertTriangle,
-  CheckCircle2,
-  Edit3,
-  Plus,
-  TrendingUp,
-  DollarSign,
-} from "lucide-react"
+import { ChevronDown, ChevronRight, Info, CheckCircle, AlertTriangle, CheckCircle2, Edit3 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button" // Added Button import
 
 // Helper function for loan payment calculation
 const calculateMonthlyPayment = (principal: number, annualInterestRate: number, amortizationYears: number): number => {
@@ -94,8 +82,6 @@ interface LineItem {
   isMajorTotal?: boolean // Added for major totals like EGI, NOI
   hasFormula?: boolean // Added to indicate if a formula is associated
   formula?: string // Added to store the formula string
-  label?: string // Added for text truncation on mobile
-  hasChildren?: boolean // Added to explicitly mark items with children
 }
 
 interface ValidationItem {
@@ -189,14 +175,10 @@ interface SummaryMetrics {
 export function T12ActualsTab({ property, onValidate, validated = false, onUnvalidate }: T12ActualsTabProps) {
   // REMOVED: const [activeSubTab, setActiveSubTab] = useState<SubTab>("t12-actuals")
   const [showMonthlyColumns, setShowMonthlyColumns] = useState(true)
-  const [lineItemColumnWidth, setLineItemColumnWidth] = useState(180)
-  const [isResizing, setIsResizing] = useState(false)
-  // </CHANGE>
+  const [lineItemColumnWidth, setLineItemColumnWidth] = useState(253)
   const [t12DataValidated, setT12DataValidated] = useState(validated)
   const [normalizedValidated, setNormalizedValidated] = useState(false)
   const [acceptedDiscrepancies, setAcceptedDiscrepancies] = useState<Set<string>>(new Set())
-  const [mobileSection, setMobileSection] = useState<"income" | "expense" | "noi">("income")
-  // </CHANGE>
 
   React.useEffect(() => {
     setT12DataValidated(validated)
@@ -206,11 +188,10 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
 
   // Property inputs
   const [purchasePrice, setPurchasePrice] = useState<number>(5000000)
-  // REMOVED: const [unitCount, setUnitCount] = useState<number>(50) // Replaced by totalUnits
-  const [totalUnits, setTotalUnits] = useState<number>(50)
+  const [unitCount, setUnitCount] = useState<number>(50)
   const [yearBuilt, setYearBuilt] = useState<number>(1985)
 
-  // REMOVED: const [isResizing, setIsResizing] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
 
   const [normalizedAssumptions, setNormalizedAssumptions] = useState<NormalizedAssumptions>({
     holdPeriod: 5,
@@ -296,7 +277,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       notes: "",
       isExpanded: true,
       isCalculated: false,
-      hasChildren: true,
       children: [
         {
           id: "rental-income",
@@ -306,7 +286,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           notes: "",
           isExpanded: true,
           isCalculated: false,
-          hasChildren: true,
           children: [
             {
               id: "rental-income-line",
@@ -331,7 +310,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 100000,
                 dec: 100000,
               },
-              label: "Rental Income",
             },
             {
               id: "vacancy-loss",
@@ -356,7 +334,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: -5000,
                 dec: -5000,
               },
-              label: "Vacancy Loss",
             },
             {
               id: "concessions",
@@ -381,7 +358,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: -1000,
                 dec: -1000,
               },
-              label: "Concessions",
             },
             {
               id: "bad-debt",
@@ -406,7 +382,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: -500,
                 dec: -500,
               },
-              label: "Bad Debt",
             },
           ],
         },
@@ -419,7 +394,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           isCalculated: true,
           hasFormula: true,
           formula: "= RENTAL_INCOME + VACANCY_LOSS + CONCESSIONS + BAD_DEBT + MODEL_UNITS",
-          label: "Net Rental Income",
         },
         {
           id: "other-income",
@@ -429,7 +403,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           notes: "",
           isExpanded: true,
           isCalculated: false,
-          hasChildren: true,
           children: [
             {
               id: "parking",
@@ -454,7 +427,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 2000,
                 dec: 2000,
               },
-              label: "Parking",
             },
             {
               id: "rubs",
@@ -479,7 +451,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1500,
                 dec: 1500,
               },
-              label: "RUBS",
             },
             {
               id: "application-fees",
@@ -504,7 +475,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 500,
                 dec: 500,
               },
-              label: "Application Fees",
             },
             {
               id: "late-fees",
@@ -529,7 +499,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 300,
                 dec: 300,
               },
-              label: "Late Fees",
             },
             {
               id: "other-fees",
@@ -554,7 +523,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 750,
                 dec: 750,
               },
-              label: "Other Fees",
             },
           ],
         },
@@ -567,7 +535,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           isCalculated: true,
           hasFormula: true,
           formula: "= SUM(OTHER_INCOME_CATEGORIES)",
-          label: "Total Other Income",
         },
         {
           id: "recoveries",
@@ -577,7 +544,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           notes: "",
           isExpanded: true,
           isCalculated: false,
-          hasChildren: true,
           children: [
             {
               id: "misc-income",
@@ -602,7 +568,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1004,
                 dec: 1004,
               },
-              label: "Misc. Income",
             },
           ],
         },
@@ -615,7 +580,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           isCalculated: true,
           hasFormula: true,
           formula: "= SUM(RECOVERY_CATEGORIES)",
-          label: "Total Recoveries",
         },
       ],
     },
@@ -629,7 +593,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       isMajorTotal: true,
       hasFormula: true,
       formula: "= NET_RENTAL_INCOME + TOTAL_OTHER_INCOME + TOTAL_RECOVERIES",
-      label: "Effective Gross Income",
     },
   ])
 
@@ -642,7 +605,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       notes: "",
       isExpanded: true,
       isCalculated: false,
-      hasChildren: true,
       children: [
         {
           id: "controllable-expenses",
@@ -652,7 +614,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           notes: "",
           isExpanded: true,
           isCalculated: false,
-          hasChildren: true,
           children: [
             {
               id: "payroll",
@@ -677,7 +638,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 5000,
                 dec: 5000,
               },
-              label: "Payroll",
             },
             {
               id: "benefits",
@@ -702,7 +662,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1250,
                 dec: 1250,
               },
-              label: "Benefits",
             },
             {
               id: "management-fee",
@@ -727,7 +686,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 4978,
                 dec: 4978,
               },
-              label: "Management Fee",
             },
             {
               id: "administrative",
@@ -752,7 +710,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1000,
                 dec: 1000,
               },
-              label: "Administrative",
             },
             {
               id: "marketing",
@@ -777,7 +734,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 667,
                 dec: 667,
               },
-              label: "Marketing",
             },
             {
               id: "professional-fees",
@@ -802,7 +758,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 500,
                 dec: 500,
               },
-              label: "Professional Fees",
             },
             {
               id: "repairs",
@@ -827,7 +782,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 3333,
                 dec: 3333,
               },
-              label: "Repairs",
             },
             {
               id: "maintenance",
@@ -852,7 +806,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 2500,
                 dec: 2500,
               },
-              label: "Maintenance",
             },
             {
               id: "turnover",
@@ -877,7 +830,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1667,
                 dec: 1667,
               },
-              label: "Turnover",
             },
             {
               id: "contract-services",
@@ -902,7 +854,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1250,
                 dec: 1250,
               },
-              label: "Contract Services",
             },
             {
               id: "landscaping",
@@ -927,7 +878,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 833,
                 dec: 833,
               },
-              label: "Landscaping",
             },
             {
               id: "supplies",
@@ -952,7 +902,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 667,
                 dec: 667,
               },
-              label: "Supplies",
             },
             {
               id: "security",
@@ -977,7 +926,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 1000,
                 dec: 1000,
               },
-              label: "Security",
             },
           ],
         },
@@ -990,7 +938,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           isCalculated: true,
           hasFormula: true,
           formula: "= SUM(CONTROLLABLE_CATEGORIES)",
-          label: "Total Controllable Expenses",
         },
         {
           id: "non-controllable-expenses",
@@ -1000,7 +947,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           notes: "",
           isExpanded: true,
           isCalculated: false,
-          hasChildren: true,
           children: [
             {
               id: "utilities",
@@ -1025,7 +971,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 5000,
                 dec: 5000,
               },
-              label: "Utilities",
             },
             {
               id: "insurance",
@@ -1050,7 +995,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 2500,
                 dec: 2500,
               },
-              label: "Insurance",
             },
             {
               id: "real-estate-tax",
@@ -1075,7 +1019,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 8333,
                 dec: 8333,
               },
-              label: "Real Estate Tax",
             },
             {
               id: "other-tax",
@@ -1099,7 +1042,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 nov: 2086,
                 dec: 2086,
               },
-              label: "Other Tax",
             },
           ],
         },
@@ -1112,7 +1054,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           isCalculated: true,
           hasFormula: true,
           formula: "= SUM(NON_CONTROLLABLE_CATEGORIES)",
-          label: "Total Non-Controllable Expenses",
         },
       ],
     },
@@ -1126,7 +1067,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       isMajorTotal: true,
       hasFormula: true,
       formula: "= TOTAL_CONTROLLABLE_EXPENSES + TOTAL_NON_CONTROLLABLE_EXPENSES",
-      label: "Total Operating Expenses",
     },
   ])
 
@@ -1139,7 +1079,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       notes: "",
       isExpanded: true,
       isCalculated: false,
-      hasChildren: true,
       children: [
         {
           id: "replacement-reserves",
@@ -1164,7 +1103,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             nov: 1250,
             dec: 1250,
           },
-          label: "Replacement Reserves",
         },
         {
           id: "capital-improvements",
@@ -1189,7 +1127,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             nov: 4167,
             dec: 4167,
           },
-          label: "Capital Improvements",
         },
         {
           id: "leasing-commissions",
@@ -1214,7 +1151,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             nov: 1000,
             dec: 1000,
           },
-          label: "Leasing Commissions",
         },
       ],
     },
@@ -1227,7 +1163,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       isCalculated: true,
       hasFormula: true,
       formula: "= SUM(CAPITAL_CATEGORIES)",
-      label: "Total Capital Expenses",
     },
   ])
 
@@ -1240,7 +1175,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       notes: "",
       isExpanded: true,
       isCalculated: false,
-      hasChildren: true,
       children: [
         {
           id: "interest-payment",
@@ -1265,7 +1199,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             nov: 16667,
             dec: 16667,
           },
-          label: "Interest Payment",
         },
         {
           id: "debt-service-line",
@@ -1290,7 +1223,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             nov: 6573,
             dec: 6573,
           },
-          label: "Debt Service",
         },
       ],
     },
@@ -1303,7 +1235,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       isCalculated: true,
       hasFormula: true,
       formula: "= PRINCIPAL + INTEREST_PAYMENT",
-      label: "Total Debt Service",
     },
   ])
 
@@ -1369,7 +1300,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
 
   const isDiscrepancyAcceptable = (discrepancy: number, annualAmount: number): boolean => {
     const absDiscrepancy = Math.abs(discrepancy)
-    // Very tight acceptable ranges for CRE<bos> broker standards
+    // Very tight acceptable ranges for CRE broker standards
     if (absDiscrepancy <= 5) return true // Rounding errors only
     if (annualAmount < 10000) return absDiscrepancy <= 20 // Small line items: ±$20
     if (annualAmount < 100000) return absDiscrepancy <= 100 // Medium line items: ±$100
@@ -1499,18 +1430,18 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           const updated = { ...item, [field]: value } as LineItem
 
           // Auto-calculate per unit when annual amount changes
-          if (field === "annualAmount" && totalUnits > 0) {
-            updated.perUnit = Number(value) / totalUnits
+          if (field === "annualAmount" && unitCount > 0) {
+            updated.perUnit = Number(value) / unitCount
           }
           // Auto-calculate annual amount when per unit changes
           if (field === "perUnit") {
-            updated.annualAmount = Number(value) * totalUnits
+            updated.annualAmount = Number(value) * unitCount
           }
           return updated
         }
         if (item.children) {
           // Recursively update children
-          return { ...item, children: updateLineItemHelper(item.children, id, field, value, totalUnits) }
+          return { ...item, children: updateLineItemHelper(item.children, id, field, value, unitCount) }
         }
         return item
       }),
@@ -1558,7 +1489,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       isEditing: true,
       showMonthly: false,
       monthlyData: { jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0, jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0 },
-      label: `Custom ${type === "income" ? "Income" : "Expense"}`,
     }
 
     if (parentId) {
@@ -1630,8 +1560,8 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     const newValue = Number(value)
     updateLineItem(items, setItems, id, "annualAmount", newValue)
     // Recalculate perUnit if unitCount is available
-    if (totalUnits > 0) {
-      updateLineItem(items, setItems, id, "perUnit", newValue / totalUnits)
+    if (unitCount > 0) {
+      updateLineItem(items, setItems, id, "perUnit", newValue / unitCount)
     }
     // Update monthly data proportionally if it exists and is not zero
     const itemToUpdate = findItem(items, id)
@@ -1659,8 +1589,8 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     const newValue = Number(value)
     updateLineItem(items, setItems, id, "perUnit", newValue)
     // Recalculate annualAmount if unitCount is available
-    if (totalUnits > 0) {
-      updateLineItem(items, setItems, id, "annualAmount", newValue * totalUnits)
+    if (unitCount > 0) {
+      updateLineItem(items, setItems, id, "annualAmount", newValue * unitCount)
     }
   }
 
@@ -1678,7 +1608,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
         if (item.id === id && item.monthlyData) {
           const updatedMonthlyData = { ...item.monthlyData, [month]: newValue }
           const newAnnualAmount = calculateMonthlySum(updatedMonthlyData)
-          const newPerUnit = totalUnits > 0 ? newAnnualAmount / totalUnits : 0
+          const newPerUnit = unitCount > 0 ? newAnnualAmount / unitCount : 0
 
           return {
             ...item,
@@ -1699,35 +1629,26 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
 
   const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"] as const
 
-  // Added resize handler to support both mouse and touch events
-  const handleResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault()
+  const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true)
-
-    const startX = "touches" in e ? e.touches[0].clientX : e.clientX
+    const startX = e.clientX
     const startWidth = lineItemColumnWidth
 
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      const currentX = "touches" in e ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX
-      const diff = currentX - startX
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startX
       const newWidth = Math.max(120, Math.min(400, startWidth + diff))
       setLineItemColumnWidth(newWidth)
     }
 
-    const handleEnd = () => {
+    const handleMouseUp = () => {
       setIsResizing(false)
-      document.removeEventListener("mousemove", handleMove)
-      document.removeEventListener("mouseup", handleEnd)
-      document.removeEventListener("touchmove", handleMove)
-      document.removeEventListener("touchend", handleEnd)
+      document.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseup", handleMouseUp)
     }
 
-    document.addEventListener("mousemove", handleMove)
-    document.addEventListener("mouseup", handleEnd)
-    document.addEventListener("touchmove", handleMove)
-    document.addEventListener("touchend", handleEnd)
+    document.addEventListener("mousemove", handleMouseMove)
+    document.addEventListener("mouseup", handleMouseUp)
   }
-  // </CHANGE>
 
   const renderLineItem = (
     item: LineItem,
@@ -1740,17 +1661,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     const validation = getValidationStatus(item)
     // Don't mark as mismatch if discrepancy is accepted
     const hasMismatch = !validation.isValid && !validation.isAccepted
-    const isCategoryHeader = item.hasChildren && !item.isCalculated
-    if (isCategoryHeader) {
-      console.log("[v0] Category header detected:", {
-        id: item.id,
-        name: item.name, // Added name to debug output
-        hasChildren: item.hasChildren,
-        isCalculated: item.isCalculated,
-        depth: depth, // Fixed depth to use the function parameter
-      })
-    }
-    // </CHANGE>
+    const isCategoryHeader = hasChildren && !item.isCalculated
 
     // Determine row background color
     let rowBgClass = "bg-white"
@@ -1774,34 +1685,21 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               width: `${lineItemColumnWidth}px`,
               minWidth: `${lineItemColumnWidth}px`,
               maxWidth: `${lineItemColumnWidth}px`,
-              paddingLeft: `${4 + depth * 12}px`,
-              paddingRight: "4px",
-              // </CHANGE>
+              paddingLeft: `${8 + depth * 16}px`,
+              paddingRight: "24px",
             }}
           >
-            <div className="flex items-center gap-0.5 w-full">
-              {hasChildren ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
+            <div className="flex items-center gap-1.5">
+              {hasChildren && (
+                <button
                   onClick={() => toggleExpand(item.id)}
-                  className="p-0 h-4 w-4 hover:bg-gray-100 flex-shrink-0"
+                  className="hover:bg-gray-200 rounded p-0.5 flex-shrink-0"
+                  title={item.isExpanded ? "Collapse" : "Expand"}
                 >
-                  {item.isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                </Button>
-              ) : (
-                <div className="w-4 h-4 flex-shrink-0" />
+                  {item.isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                </button>
               )}
-              {/* </CHANGE> */}
-              <span
-                className={`${majorTotalFontClass} ${isCategoryHeader ? "font-semibold" : ""} truncate flex-1`}
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-                title={item.name}
-              >
+              <span className={`${item.isMajorTotal ? "font-bold text-xs" : item.isCalculated ? "font-semibold" : ""}`}>
                 {item.name}
               </span>
               {item.hasFormula && (
@@ -1818,10 +1716,10 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               )}
             </div>
           </td>
-
-          {/* Per Unit column - no longer sticky, consistent styling */}
+          {/* Per Unit column - sticky, now positioned directly after Line Item */}
           <td
-            className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-right text-xs w-[100px] min-w-[100px] max-w-[100px] border-r`}
+            className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-right text-xs w-[100px] min-w-[100px] max-w-[100px] sticky ${rowBgClass} z-10 border-r`}
+            style={{ left: `${lineItemColumnWidth}px` }}
           >
             {isCategoryHeader ? (
               <span className="text-gray-400">-</span>
@@ -1838,9 +1736,10 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               />
             )}
           </td>
-          {/* Doc Total column - no longer sticky, consistent styling */}
+          {/* Doc Total column - sticky, adjusted position */}
           <td
-            className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-right text-xs w-[120px] min-w-[120px] max-w-[120px] border-r text-blue-700`}
+            className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-right text-xs w-[120px] min-w-[120px] max-w-[120px] sticky ${rowBgClass} z-10 border-r text-blue-700`}
+            style={{ left: `${lineItemColumnWidth + 100}px` }}
           >
             {isCategoryHeader ? (
               <span className="text-gray-400">-</span>
@@ -1926,31 +1825,16 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 )}
               </td>
             ))}
-          <td
-            className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-left text-xs ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
-          >
-            {isCategoryHeader || item.isCalculated ? (
+          {/* Notes column - widest */}
+          <td className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-xs w-[300px] min-w-[300px] max-w-[300px]`}>
+            {hasChildren && !item.isCalculated ? (
               <span className="text-gray-400">-</span>
             ) : (
               <Input
-                type="text"
                 value={item.notes || ""}
-                onChange={(e) => {
-                  const updateNotes = (items: LineItem[]): LineItem[] => {
-                    return items.map((i) => {
-                      if (i.id === item.id) {
-                        return { ...i, notes: e.target.value }
-                      }
-                      if (i.children) {
-                        return { ...i, children: updateNotes(i.children) }
-                      }
-                      return i
-                    })
-                  }
-                  setItems(updateNotes(items))
-                }}
+                onChange={(e) => updateLineItem(items, setItems, item.id, "notes", e.target.value)}
                 placeholder="Add notes..."
-                className="border-0 bg-transparent text-xs p-0 h-auto"
+                className="border-0 bg-transparent text-xs p-0 h-auto text-gray-600"
               />
             )}
           </td>
@@ -2109,21 +1993,12 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
   const summaryMetrics = calculateSummaryMetrics()
   const yearlyCashflows = generateYearlyCashflows()
 
-  // Function to add a new line item
-  const handleAddLineItem = () => {
-    // For simplicity, let's add it to the 'other-income' category for now
-    // In a real app, you might have a modal or a more sophisticated way to choose
-    // where to add the item.
-    addCustomLineItem(incomeItems, setIncomeItems, "income", "other-income")
-  }
-
   return (
-    <div className="space-y-2 sm:space-y-4 p-1 sm:p-2 md:p-4">
-      {/* Validation Banner */}
-      <div className="bg-white rounded-lg border p-2 sm:p-3 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div className="flex flex-col gap-2 p-1">
+      <div className="bg-white rounded-lg border p-2 shadow-sm">
+        <div className="flex items-center justify-between">
           <div className="text-xs text-gray-600">
-            {validated ? (
+            {t12DataValidated ? (
               <span className="text-green-600 font-semibold flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
                 T-12 / OS Data Validated
@@ -2133,368 +2008,283 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             )}
           </div>
           <div className="flex items-center gap-2">
-            {validated && (
+            {t12DataValidated && (
               <button
-                onClick={onUnvalidate}
-                className="px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
+                onClick={handleUnvalidate}
+                className="px-3 py-1.5 rounded text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
               >
                 <Edit3 className="w-3 h-3" />
                 Edit
               </button>
             )}
             <button
-              onClick={onValidate}
-              disabled={validated}
-              className={`px-3 sm:px-4 py-1.5 rounded text-xs sm:text-sm font-medium transition-colors ${
-                validated
+              onClick={handleValidateT12Data}
+              disabled={t12DataValidated}
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                t12DataValidated
                   ? "bg-green-100 text-green-700 cursor-not-allowed"
                   : "bg-blue-600 text-white hover:bg-blue-700"
               }`}
             >
-              {validated ? "✓ Validated" : "Validate Data"}
+              {t12DataValidated ? "✓ Validated" : "Validate Data"}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="md:hidden bg-white rounded-lg border p-2 shadow-sm">
-        <div className="flex gap-1 overflow-x-auto">
-          <button
-            onClick={() => setMobileSection("income")}
-            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-              mobileSection === "income" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Income
-          </button>
-          <button
-            onClick={() => setMobileSection("expense")}
-            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-              mobileSection === "expense" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Expenses
-          </button>
-          <button
-            onClick={() => setMobileSection("noi")}
-            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-              mobileSection === "noi" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            NOI
-          </button>
-        </div>
-      </div>
-      {/* </CHANGE> */}
-
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-        <button
-          onClick={() => setShowMonthlyColumns(!showMonthlyColumns)}
-          className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm font-medium text-gray-700 flex items-center justify-center gap-2"
-        >
-          {showMonthlyColumns ? (
-            <>
-              <ChevronDown className="w-4 h-4" />
-              <span>Hide Monthly</span>
-            </>
-          ) : (
-            <>
-              <ChevronRight className="w-4 h-4" />
-              <span>Show Monthly</span>
-            </>
-          )}
-        </button>
-
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <span className="font-medium">Total Units:</span>
-          <input
-            type="number"
-            value={totalUnits}
-            onChange={(e) => setTotalUnits(Number.parseInt(e.target.value) || 0)}
-            className="w-16 sm:w-20 px-2 py-1 border border-gray-300 rounded text-center"
-          />
-        </div>
-
-        <button
-          onClick={handleAddLineItem}
-          className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Line Item</span>
-        </button>
+      {/* Toggle Monthly Columns */}
+      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+        <label className="text-sm font-medium">Show Monthly Columns</label>
+        <input
+          type="checkbox"
+          checked={showMonthlyColumns}
+          onChange={(e) => setShowMonthlyColumns(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
       </div>
 
-      <div className={`${mobileSection !== "income" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Income</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
-            <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
-                <tr>
-                  <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
-                    style={{
-                      width: `${lineItemColumnWidth}px`,
-                      minWidth: `${lineItemColumnWidth}px`,
-                      maxWidth: `${lineItemColumnWidth}px`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate">Line Item</span>
-                      <div
-                        onMouseDown={handleResizeStart}
-                        onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
-                        title="Drag to resize column"
-                      />
-                    </div>
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
-                    Per Unit
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
-                    Doc Total
-                  </th>
-                  <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[120px] min-w-[120px] max-w-[120px]`}
-                  >
-                    Calc Total
-                  </th>
-                  {showMonthlyColumns &&
-                    months.map((month) => (
-                      <th
-                        key={month}
-                        className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px] border-r"
-                      >
-                        {month.charAt(0).toUpperCase() + month.slice(1)}
-                      </th>
-                    ))}
-                  <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
-                  >
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody>{incomeItems.map((item) => renderLineItem(item, incomeItems, setIncomeItems, 0))}</tbody>
-            </table>
-          </div>
+      {/* Income Section */}
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs table-fixed" style={{ minWidth: showMonthlyColumns ? "2400px" : "1200px" }}>
+            <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <tr>
+                <th
+                  className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                  style={{
+                    width: `${lineItemColumnWidth}px`,
+                    minWidth: `${lineItemColumnWidth}px`,
+                    maxWidth: `${lineItemColumnWidth}px`,
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Line Item</span>
+                    <div
+                      onMouseDown={handleMouseDown}
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 bg-gray-300 transition-colors"
+                      title="Drag to resize column"
+                    />
+                  </div>
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[100px] min-w-[100px] max-w-[100px] sticky bg-gray-50 z-20 border-r"
+                  style={{ left: `${lineItemColumnWidth}px` }}
+                >
+                  Per Unit
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] sticky bg-gray-50 z-20 border-r text-blue-700"
+                  style={{ left: `${lineItemColumnWidth + 100}px` }}
+                >
+                  Doc Total
+                </th>
+                <th className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] border-r text-green-700">
+                  Calc Total
+                </th>
+                {showMonthlyColumns && (
+                  <>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jan</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Feb</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Mar</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Apr</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">May</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jun</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jul</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Aug</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Sep</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Oct</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Nov</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Dec</th>
+                  </>
+                )}
+                <th className="p-2 text-left font-semibold w-[300px] min-w-[300px] max-w-[300px]">Notes</th>
+              </tr>
+            </thead>
+            <tbody>{incomeItems.map((item) => renderLineItem(item, incomeItems, setIncomeItems, 0))}</tbody>
+          </table>
         </div>
       </div>
-      {/* </CHANGE> */}
 
-      <div className={`${mobileSection !== "expense" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Expenses</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
-            <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
-                <tr>
-                  <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
-                    style={{
-                      width: `${lineItemColumnWidth}px`,
-                      minWidth: `${lineItemColumnWidth}px`,
-                      maxWidth: `${lineItemColumnWidth}px`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate">Line Item</span>
-                      <div
-                        onMouseDown={handleResizeStart}
-                        onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
-                        title="Drag to resize column"
-                      />
-                    </div>
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
-                    Per Unit
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
-                    Doc Total
-                  </th>
-                  <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[100px] min-w-[100px] max-w-[100px]`}
-                  >
-                    Calc Total
-                  </th>
-                  {showMonthlyColumns &&
-                    months.map((month) => (
-                      <th
-                        key={month}
-                        className="p-2 text-right font-semibold w-[70px] min-w-[70px] max-w-[70px] border-r"
-                      >
-                        {month.charAt(0).toUpperCase() + month.slice(1)}
-                      </th>
-                    ))}
-                  <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
-                  >
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody>{expenseItems.map((item) => renderLineItem(item, expenseItems, setExpenseItems, 0))}</tbody>
-            </table>
-          </div>
+      {/* Expense Section */}
+      <div className="bg-white rounded-lg border overflow-hidden mb-4">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs table-fixed" style={{ minWidth: showMonthlyColumns ? "2400px" : "1200px" }}>
+            <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <tr>
+                <th
+                  className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                  style={{
+                    width: `${lineItemColumnWidth}px`,
+                    minWidth: `${lineItemColumnWidth}px`,
+                    maxWidth: `${lineItemColumnWidth}px`,
+                  }}
+                >
+                  Line Item
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[100px] min-w-[100px] max-w-[100px] sticky bg-gray-50 z-20 border-r"
+                  style={{ left: `${lineItemColumnWidth}px` }}
+                >
+                  Per Unit
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] sticky bg-gray-50 z-20 border-r text-blue-700"
+                  style={{ left: `${lineItemColumnWidth + 100}px` }}
+                >
+                  Doc Total
+                </th>
+                <th className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] border-r text-green-700">
+                  Calc Total
+                </th>
+                {showMonthlyColumns && (
+                  <>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jan</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Feb</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Mar</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Apr</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">May</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jun</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jul</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Aug</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Sep</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Oct</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Nov</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Dec</th>
+                  </>
+                )}
+                <th className="p-2 text-left font-semibold w-[300px] min-w-[300px] max-w-[300px]">Notes</th>
+              </tr>
+            </thead>
+            <tbody>{expenseItems.map((item) => renderLineItem(item, expenseItems, setExpenseItems, 0))}</tbody>
+          </table>
         </div>
       </div>
-      {/* </CHANGE> */}
 
-      <div className={`${mobileSection !== "expense" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Capital Expenditures</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
-            <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
-                <tr>
-                  <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
-                    style={{
-                      width: `${lineItemColumnWidth}px`,
-                      minWidth: `${lineItemColumnWidth}px`,
-                      maxWidth: `${lineItemColumnWidth}px`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate">Line Item</span>
-                      <div
-                        onMouseDown={handleResizeStart}
-                        onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
-                        title="Drag to resize column"
-                      />
-                    </div>
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
-                    Per Unit
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
-                    Doc Total
-                  </th>
-                  <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[100px] min-w-[100px] max-w-[100px]`}
-                  >
-                    Calc Total
-                  </th>
-                  {showMonthlyColumns &&
-                    months.map((month) => (
-                      <th
-                        key={month}
-                        className="p-2 text-right font-semibold w-[70px] min-w-[70px] max-w-[70px] border-r"
-                      >
-                        {month.charAt(0).toUpperCase() + month.slice(1)}
-                      </th>
-                    ))}
-                  <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
-                  >
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody>{capitalItems.map((item) => renderLineItem(item, capitalItems, setCapitalItems, 0))}</tbody>
-            </table>
-          </div>
+      {/* NOI Display */}
+      <div className="bg-orange-50 rounded-lg border border-orange-200 p-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold">NET_OPERATING_INCOME</h3>
+          <span className="text-lg font-bold text-green-600">${calculateNOI().toLocaleString()}</span>
         </div>
       </div>
-      {/* </CHANGE> */}
 
-      <div className={`${mobileSection !== "expense" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Debt Service</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
-            <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
-                <tr>
-                  <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
-                    style={{
-                      width: `${lineItemColumnWidth}px`,
-                      minWidth: `${lineItemColumnWidth}px`,
-                      maxWidth: `${lineItemColumnWidth}px`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate">Line Item</span>
-                      <div
-                        onMouseDown={handleResizeStart}
-                        onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
-                        title="Drag to resize column"
-                      />
-                    </div>
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
-                    Per Unit
-                  </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
-                    Doc Total
-                  </th>
-                  <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[100px] min-w-[100px] max-w-[100px]`}
-                  >
-                    Calc Total
-                  </th>
-                  {showMonthlyColumns &&
-                    months.map((month) => (
-                      <th
-                        key={month}
-                        className="p-2 text-right font-semibold w-[70px] min-w-[70px] max-w-[70px] border-r"
-                      >
-                        {month.charAt(0).toUpperCase() + month.slice(1)}
-                      </th>
-                    ))}
-                  <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
-                  >
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody>{debtItems.map((item) => renderLineItem(item, debtItems, setDebtItems, 0))}</tbody>
-            </table>
-          </div>
+      {/* Capital Expenses Section */}
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs table-fixed" style={{ minWidth: showMonthlyColumns ? "2400px" : "1200px" }}>
+            <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <tr>
+                <th
+                  className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                  style={{
+                    width: `${lineItemColumnWidth}px`,
+                    minWidth: `${lineItemColumnWidth}px`,
+                    maxWidth: `${lineItemColumnWidth}px`,
+                  }}
+                >
+                  Line Item
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[100px] min-w-[100px] max-w-[100px] sticky bg-gray-50 z-20 border-r"
+                  style={{ left: `${lineItemColumnWidth}px` }}
+                >
+                  Per Unit
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] sticky bg-gray-50 z-20 border-r text-blue-700"
+                  style={{ left: `${lineItemColumnWidth + 100}px` }}
+                >
+                  Doc Total
+                </th>
+                <th className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] border-r text-green-700">
+                  Calc Total
+                </th>
+                {showMonthlyColumns && (
+                  <>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jan</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Feb</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Mar</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Apr</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">May</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jun</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jul</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Aug</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Sep</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Oct</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Nov</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Dec</th>
+                  </>
+                )}
+                <th className="p-2 text-left font-semibold w-[300px] min-w-[300px] max-w-[300px]">Notes</th>
+              </tr>
+            </thead>
+            <tbody>{capitalItems.map((item) => renderLineItem(item, capitalItems, setCapitalItems, 0))}</tbody>
+          </table>
         </div>
       </div>
-      {/* </CHANGE> */}
 
-      <div className={`${mobileSection !== "noi" ? "hidden md:block" : "block"} px-2 sm:px-4 pb-4`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-          {/* NET OPERATING INCOME Card */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2.5 border-l-4 border-l-blue-500">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
-                  Net Operating Income
-                </h3>
-                <span className="text-base font-semibold text-gray-900">${calculateNOI().toLocaleString()}</span>
-              </div>
-              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
-              </div>
-            </div>
-          </div>
-          {/* </CHANGE> */}
-
-          {/* NET CASH FLOW Card */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2.5 border-l-4 border-l-emerald-500">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">Net Cash Flow</h3>
-                <span className="text-base font-semibold text-gray-900">${calculateNCF().toLocaleString()}</span>
-              </div>
-              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-            </div>
-          </div>
-          {/* </CHANGE> */}
+      {/* Debt Service Section */}
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs table-fixed" style={{ minWidth: showMonthlyColumns ? "2400px" : "1200px" }}>
+            <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <tr>
+                <th
+                  className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                  style={{
+                    width: `${lineItemColumnWidth}px`,
+                    minWidth: `${lineItemColumnWidth}px`,
+                    maxWidth: `${lineItemColumnWidth}px`,
+                  }}
+                >
+                  Line Item
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[100px] min-w-[100px] max-w-[100px] sticky bg-gray-50 z-20 border-r"
+                  style={{ left: `${lineItemColumnWidth}px` }}
+                >
+                  Per Unit
+                </th>
+                <th
+                  className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] sticky bg-gray-50 z-20 border-r text-blue-700"
+                  style={{ left: `${lineItemColumnWidth + 100}px` }}
+                >
+                  Doc Total
+                </th>
+                <th className="p-2 text-right font-semibold w-[120px] min-w-[120px] max-w-[120px] border-r text-green-700">
+                  Calc Total
+                </th>
+                {showMonthlyColumns && (
+                  <>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jan</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Feb</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Mar</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Apr</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">May</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jun</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Jul</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Aug</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Sep</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Oct</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Nov</th>
+                    <th className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px]">Dec</th>
+                  </>
+                )}
+                <th className="p-2 text-left font-semibold w-[300px] min-w-[300px] max-w-[300px]">Notes</th>
+              </tr>
+            </thead>
+            <tbody>{debtItems.map((item) => renderLineItem(item, debtItems, setDebtItems, 0))}</tbody>
+          </table>
         </div>
       </div>
-      {/* </CHANGE> */}
+
+      {/* NCF Display */}
+      <div className="bg-orange-50 rounded-lg border border-orange-200 p-2 mb-8">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold">NET_CASH_FLOW</h3>
+          <span className="text-lg font-bold text-purple-600">${calculateNCF().toLocaleString()}</span>
+        </div>
+      </div>
     </div>
   )
 }

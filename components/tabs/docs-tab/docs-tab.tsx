@@ -41,6 +41,10 @@ import { Breadcrumb } from "./breadcrumb"
 import type { PropertyDocument, LineItem, RentRollUnit, DocumentView } from "./types"
 import { mockBrokerData } from "./mock-data"
 import { generateRentRollUnits } from "./utils"
+import LineItemRow, { type LineItem as LineItemType } from "./LineItemRow"
+
+// near the other imports at the top of the file
+
 
 const mockRentRollData: RentRollUnit[] = generateRentRollUnits(89, "Riverside Apartments")
 
@@ -415,7 +419,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
     )
   }
 
-  const calculateSummary = () => {
+
+  const calculateSummary = ()  => {
     if (!extractedData) return null
 
     const totalIncome = extractedData.find((item) => item.id === "total-income")

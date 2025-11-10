@@ -52,39 +52,39 @@ export function SummaryTab({ property }: SummaryTabProps) {
   /**
    * Sends a sample email (uses Mailgun API route)
    */
-  async function handleSendMail() {
-    if (!property) return
-    setSending(true)
+  // async function handleSendMail() {
+  //   if (!property) return
+  //   setSending(true)
 
-    try {
-      const res = await fetch("/api/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: "investor@example.com",
-          subject: `Investment Summary - ${property.name}`,
-          html: `
-            <h2>Investment Summary Ready 📊</h2>
-            <p>Your property <strong>${property.name}</strong> has been processed.</p>
-            <p>Address: ${property.address}</p>
-            <p><a href="https://yourapp.com/properties/${property.id}">View in Dashboard</a></p>
-          `,
-        }),
-      })
+  //   try {
+  //     const res = await fetch("/api/send-email", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         to: "investor@example.com",
+  //         subject: `Investment Summary - ${property.name}`,
+  //         html: `
+  //           <h2>Investment Summary Ready 📊</h2>
+  //           <p>Your property <strong>${property.name}</strong> has been processed.</p>
+  //           <p>Address: ${property.address}</p>
+  //           <p><a href="https://yourapp.com/properties/${property.id}">View in Dashboard</a></p>
+  //         `,
+  //       }),
+  //     })
 
-      const data = await res.json()
-      if (data.success) {
-        alert("✅ Email sent successfully!")
-      } else {
-        alert("❌ Failed to send email: " + data.error)
-      }
-    } catch (err) {
-      console.error("Mail send error:", err)
-      alert("Error sending mail.")
-    } finally {
-      setSending(false)
-    }
-  }
+  //     const data = await res.json()
+  //     if (data.success) {
+  //       alert("✅ Email sent successfully!")
+  //     } else {
+  //       alert("❌ Failed to send email: " + data.error)
+  //     }
+  //   } catch (err) {
+  //     console.error("Mail send error:", err)
+  //     alert("Error sending mail.")
+  //   } finally {
+  //     setSending(false)
+  //   }
+  // }
 
   // === UI Rendering ===
   if (!property) {
@@ -105,14 +105,14 @@ export function SummaryTab({ property }: SummaryTabProps) {
         <p className="text-sm text-gray-600 mb-4">No data available for this property yet.</p>
 
         {/* ✅ Send Mail Button */}
-        <AppButton
+        {/* <AppButton
           onClick={handleSendMail}
           disabled={sending}
           className="flex items-center gap-2 mx-auto"
         >
           <Mail className="w-4 h-4" />
           {sending ? "Sending..." : "Send Mail"}
-        </AppButton>
+        </AppButton> */}
       </div>
     )
   }
@@ -150,14 +150,14 @@ export function SummaryTab({ property }: SummaryTabProps) {
         </div>
 
         {/* ✅ Send Mail Button */}
-        <AppButton
+        {/* <AppButton
           onClick={handleSendMail}
           disabled={sending}
           className="flex items-center gap-2 mx-auto"
         >
           <Mail className="w-4 h-4" />
           {sending ? "Sending..." : "Send Mail"}
-        </AppButton>
+        </AppButton> */}
       </div>
     </div>
   )

@@ -27,10 +27,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
-        <ClerkProvider>
+        {/* <ClerkProvider> */}
           {children}
           <Toaster />
-        </ClerkProvider>
+        {/* </ClerkProvider> */}
       </body>
     </html>
   )

@@ -6,8 +6,7 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start",
-    "sync-users": "tsx --tsconfig tsconfig.json -r tsconfig-paths/register scripts/sync-users.ts"
+    "start": "next start"
   },
   "dependencies": {
     "@clerk/backend": "latest",

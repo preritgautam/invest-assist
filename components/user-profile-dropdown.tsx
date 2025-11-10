@@ -1,6 +1,6 @@
 "use client"
 
-import { useClerk, useUser } from "@clerk/clerk-react"
+// import { useClerk, useUser } from "@clerk/clerk-react"
 import { Settings, CreditCard, HelpCircle, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -11,18 +11,18 @@ export function UserProfileDropdown({
   isOpen: boolean
   onClose: () => void
 }) {
-  const { signOut } = useClerk()
-  const { user, isSignedIn, isLoaded } = useUser()
+  // const { signOut } = useClerk()
+  // const { user, isSignedIn, isLoaded } = useUser()
 
   if (!isOpen) return null
 
-  if (!isLoaded) {
-    return (
-      <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50 w-48">
-        <div className="text-sm text-gray-500">Loading...</div>
-      </div>
-    )
-  }
+  // if (!isLoaded) {
+  //   return (
+  //     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50 w-48">
+  //       <div className="text-sm text-gray-500">Loading...</div>
+  //     </div>
+  //   )
+  // }
 
   const menuItems = [
     { icon: Settings, label: "Settings" },
@@ -30,15 +30,15 @@ export function UserProfileDropdown({
     { icon: HelpCircle, label: "Help" },
   ]
 
-  const handleLogout = () => {
-    signOut({ redirectUrl: "/" })
-  }
+  // const handleLogout = () => {
+  //   signOut({ redirectUrl: "/" })
+  // }
 
   return (
     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50 w-48">
       <div className="px-3 py-2 border-b border-gray-100 mb-1">
-        <div className="text-sm font-medium text-gray-900">{user?.fullName || "User"}</div>
-        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress || ""}</div>
+        {/* <div className="text-sm font-medium text-gray-900">{user?.fullName || "User"}</div>
+        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress || ""}</div> */}
       </div>
 
       <div className="space-y-1">
@@ -60,7 +60,7 @@ export function UserProfileDropdown({
             variant="ghost"
             size="sm"
             className="w-full justify-start gap-3 px-3 py-2 h-auto text-sm font-normal hover:bg-gray-50 text-red-600 hover:text-red-700"
-            onClick={handleLogout}
+            // onClick={handleLogout}
           >
             <LogOut className="w-4 h-4" />
             Logout

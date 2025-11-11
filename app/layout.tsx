@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 import { ClerkProvider } from "@clerk/nextjs"
+import PersistentHeader from "@/components/PropertyPageShell"
 
 const inter = Inter({
   subsets: ["latin"],

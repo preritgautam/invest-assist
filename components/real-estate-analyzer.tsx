@@ -54,6 +54,7 @@ import { CapitalTab } from "@/components/tabs/capital-tab"
 import { getPropertyById } from "@/lib/property-data"
 import { DocumentsTab } from "@/components/tabs/docs-tab/docs-tab"
 import { T12ActualsTab } from "@/components/tabs/docs-tab/t12-actuals-tab"
+import { useRouter } from "next/navigation"
 
 /**
  * Navigation Item Interface
@@ -181,6 +182,94 @@ function InvestmentApp() {
 
   const activeProperty = activePropertyId ? getPropertyById(activePropertyId) : null
 
+  const router = useRouter()
+
+// const handleNavigationClick = useCallback((tabId: string) => {
+//   // If it's home keep existing behavior
+//   if (tabId === "home") {
+//     setActivePropertyId(null)
+//     // you can route to / if you want
+//     router.push("/")
+//     return
+//   }
+
+//    if (tabId === "summary") {
+//     if (activePropertyId) {
+//       router.push(`/property/${encodeURIComponent(activePropertyId)}/summary`)
+//     } else {
+//       alert("Select a property first")
+//     }
+//     return
+//   }
+
+//   if (tabId === "documents") {
+//     if (activePropertyId) {
+//       router.push(`/property/${encodeURIComponent(activePropertyId)}/docs`)
+//     } else {
+//       alert("Select a property first")
+//     }
+//     return
+//   }
+//     // fallback for other tabs — you can add similar routes for pro-forma etc.
+//   // router.push(`/property/${activePropertyId}/${tabId}`)
+// }, [router, activePropertyId])
+
+// inside InvestmentApp (replace existing handleNavigationClick)
+const handleNavigationClick = useCallback(
+  (tabId: string) => {
+    // Home
+    if (tabId === "home") {
+      setActivePropertyId(null)
+      router.push("/")
+      return
+    }
+
+    // need active property for property-specific tabs
+    if (!activePropertyId) {
+      alert("Select a property first")
+      return
+    }
+
+    const pid = encodeURIComponent(activePropertyId)
+
+    switch (tabId) {
+      case "documents":
+        router.push(`/property/${pid}/docs`)
+        break
+      case "summary":
+        router.push(`/property/${pid}/summary`)
+        break
+      case "property":
+        router.push(`/property/${pid}/property`)
+        break
+      case "pro-forma":
+        router.push(`/property/${pid}/pro-forma`)
+        break
+      case "debt-assumptions":
+        // you used label "Capital" previously — keep route slug consistent
+        router.push(`/property/${pid}/debt-assumptions`)
+        break
+      case "business-plan":
+        router.push(`/property/${pid}/business-plan`)
+        break
+      case "sources-uses":
+        router.push(`/property/${pid}/sources-uses`)
+        break
+      case "returns":
+        router.push(`/property/${pid}/returns`)
+        break
+      case "underwriting-graphs":
+        router.push(`/property/${pid}/underwriting-graphs`)
+        break
+      default:
+        // fallback — send to docs
+        router.push(`/property/${pid}/docs`)
+    }
+  },
+  [router, activePropertyId],
+)
+
+
   /**
    * Handle Property Edit Action
    *
@@ -264,26 +353,26 @@ function InvestmentApp() {
    *
    * @param {string} tabId - The ID of the tab to navigate to
    */
-  const handleNavigationClick = useCallback(
-    (tabId: string) => {
-      if (tabId === "home") {
-        // Home tab is always accessible
-        setActivePropertyId(null)
-        setActiveTab("home")
-      } else {
-        // Property-specific tabs require a selected property
-        if (activePropertyId) {
-          setActiveTab(tabId)
-        } else {
-          // Show user-friendly alert when no property is selected
-          alert(
-            "Property Required\n\nPlease select a property from the Home tab or create a new property to access this analysis tool.",
-          )
-        }
-      }
-    },
-    [activePropertyId],
-  )
+  // const handleNavigationClick = useCallback(
+  //   (tabId: string) => {
+  //     if (tabId === "home") {
+  //       // Home tab is always accessible
+  //       setActivePropertyId(null)
+  //       setActiveTab("home")
+  //     } else {
+  //       // Property-specific tabs require a selected property
+  //       if (activePropertyId) {
+  //         setActiveTab(tabId)
+  //       } else {
+  //         // Show user-friendly alert when no property is selected
+  //         alert(
+  //           "Property Required\n\nPlease select a property from the Home tab or create a new property to access this analysis tool.",
+  //         )
+  //       }
+  //     }
+  //   },
+  //   [activePropertyId],
+  // )
 
   const handleFullscreenToggle = useCallback(() => {
     setIsFullscreen((prev) => !prev)

@@ -1,32 +1,17 @@
+// components/tabs/summary-tab.tsx
 "use client"
 
 import type React from "react"
 import { useEffect, useState } from "react"
 import { Building, Calculator, Mail } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AppButton } from "@/components/ui/app-button" // ✅ if you already have this button component
-import { getPropertyById } from "@/lib/property-data"
+import { AppButton } from "@/components/ui/app-button"
+import type { PropertyData } from "@/lib/property-data" // <- use the shared type
 
-/**
- * Property interface
- */
-interface Property {
-  id: string
-  name: string
-  address: string
-  isActive: boolean
-}
-
-/**
- * Props for SummaryTab
- */
 interface SummaryTabProps {
-  property: Property | null
+  property: PropertyData | null
 }
 
-/**
- * SummaryTab Component
- */
 export function SummaryTab({ property }: SummaryTabProps) {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,44 +34,7 @@ export function SummaryTab({ property }: SummaryTabProps) {
     fetchUsers()
   }, [])
 
-  /**
-   * Sends a sample email (uses Mailgun API route)
-   */
-  // async function handleSendMail() {
-  //   if (!property) return
-  //   setSending(true)
-
-  //   try {
-  //     const res = await fetch("/api/send-email", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({
-  //         to: "investor@example.com",
-  //         subject: `Investment Summary - ${property.name}`,
-  //         html: `
-  //           <h2>Investment Summary Ready 📊</h2>
-  //           <p>Your property <strong>${property.name}</strong> has been processed.</p>
-  //           <p>Address: ${property.address}</p>
-  //           <p><a href="https://yourapp.com/properties/${property.id}">View in Dashboard</a></p>
-  //         `,
-  //       }),
-  //     })
-
-  //     const data = await res.json()
-  //     if (data.success) {
-  //       alert("✅ Email sent successfully!")
-  //     } else {
-  //       alert("❌ Failed to send email: " + data.error)
-  //     }
-  //   } catch (err) {
-  //     console.error("Mail send error:", err)
-  //     alert("Error sending mail.")
-  //   } finally {
-  //     setSending(false)
-  //   }
-  // }
-
-  // === UI Rendering ===
+  // If no property was passed, show the empty state
   if (!property) {
     return (
       <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-6 text-center">
@@ -96,27 +44,7 @@ export function SummaryTab({ property }: SummaryTabProps) {
     )
   }
 
-  const propertyData = getPropertyById(property.id)
-
-  if (!propertyData) {
-    return (
-      <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-6 text-center">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">{property.name}</h2>
-        <p className="text-sm text-gray-600 mb-4">No data available for this property yet.</p>
-
-        {/* ✅ Send Mail Button */}
-        {/* <AppButton
-          onClick={handleSendMail}
-          disabled={sending}
-          className="flex items-center gap-2 mx-auto"
-        >
-          <Mail className="w-4 h-4" />
-          {sending ? "Sending..." : "Send Mail"}
-        </AppButton> */}
-      </div>
-    )
-  }
-
+  // If property exists but doesn't have more detailed fields yet, still render using the passed property
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl shadow-lg border-2 border-white p-3">
@@ -149,7 +77,7 @@ export function SummaryTab({ property }: SummaryTabProps) {
           <p>• Business Plan Highlights</p>
         </div>
 
-        {/* ✅ Send Mail Button */}
+        {/* Example send mail button (left commented until implemented) */}
         {/* <AppButton
           onClick={handleSendMail}
           disabled={sending}

@@ -32,4 +32,3 @@ export interface S3UploadResult {
   bucket: string
   success: boolean
 }
-

@@ -84,12 +84,22 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
         }
       }}
     >
-      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+      <DialogContent
+        className="sm:max-w-md"
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Update Profile</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <form
+          className="space-y-4 py-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSave()
+          }}
+        >
           {/* First Name */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-900">First Name</label>
@@ -98,9 +108,10 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               name="firstName"
               value={formData.firstName}
               onChange={handleInputChange}
-              onClick={(e) => e.stopPropagation()}
               placeholder="Enter your first name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             />
           </div>
 
@@ -112,9 +123,10 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               name="lastName"
               value={formData.lastName}
               onChange={handleInputChange}
-              onClick={(e) => e.stopPropagation()}
               placeholder="Enter your last name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             />
           </div>
 
@@ -125,7 +137,6 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               type="email"
               value={formData.email}
               disabled
-              onClick={(e) => e.stopPropagation()}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
             />
             <p className="text-xs text-gray-500">Email cannot be changed here. Contact support if needed.</p>
@@ -139,9 +150,10 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleInputChange}
-              onClick={(e) => e.stopPropagation()}
               placeholder="Enter your phone number"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             />
           </div>
 
@@ -160,18 +172,23 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               <span className="text-sm text-green-700">Profile updated successfully!</span>
             </div>
           )}
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 justify-end border-t border-gray-200 pt-4">
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
-            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {isLoading ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 justify-end border-t border-gray-200 pt-4">
+            <Button variant="outline" onClick={onClose} disabled={isLoading} type="button">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              type="button"
+            >
+              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   )

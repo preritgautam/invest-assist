@@ -32,6 +32,9 @@ export function UserProfileDropdown({
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     setShowProfileDialog(true)
+    setTimeout(() => {
+      onClose()
+    }, 100)
   }
 
   const menuItems = [

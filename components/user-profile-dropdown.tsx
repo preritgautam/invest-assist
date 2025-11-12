@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { useClerk, useUser } from "@clerk/clerk-react"
 import { Settings, CreditCard, HelpCircle, LogOut } from "lucide-react"
@@ -27,9 +29,9 @@ export function UserProfileDropdown({
     )
   }
 
-  const handleSettingsClick = () => {
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setShowProfileDialog(true)
-    onClose()
   }
 
   const menuItems = [

@@ -28,6 +28,7 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
   const [error, setError] = useState("")
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation()
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -75,8 +76,15 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose()
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Update Profile</DialogTitle>
         </DialogHeader>
@@ -90,6 +98,7 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               name="firstName"
               value={formData.firstName}
               onChange={handleInputChange}
+              onClick={(e) => e.stopPropagation()}
               placeholder="Enter your first name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -103,6 +112,7 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               name="lastName"
               value={formData.lastName}
               onChange={handleInputChange}
+              onClick={(e) => e.stopPropagation()}
               placeholder="Enter your last name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -115,6 +125,7 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               type="email"
               value={formData.email}
               disabled
+              onClick={(e) => e.stopPropagation()}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
             />
             <p className="text-xs text-gray-500">Email cannot be changed here. Contact support if needed.</p>
@@ -128,6 +139,7 @@ export function ProfileUpdateDialog({ isOpen, onClose }: ProfileUpdateDialogProp
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleInputChange}
+              onClick={(e) => e.stopPropagation()}
               placeholder="Enter your phone number"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

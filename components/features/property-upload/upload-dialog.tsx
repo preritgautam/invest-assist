@@ -1,95 +1,40 @@
-/**
- * Property Upload Dialog Component - Step A: Upload Files
- *
- * This component provides a comprehensive file upload interface for adding new properties
- * to the real estate investment analysis system.
- *
- * Key Features:
- * - Multiple upload methods: zip folders, individual files, email forwarding, manual entry
- * - Drag-and-drop file upload with visual feedback
- * - Zip file extraction and file listing
- * - File selection interface for extracted files
- * - Progress tracking and status updates
- * - Responsive design for mobile and desktop
- *
- * Upload Methods:
- * 1. Zip Folder Upload: Upload entire zip folders from CRE MLS sites
- * 2. Individual Files: Upload specific files (PDF, Excel, images, etc.)
- * 3. Email Forwarding: Forward emails with attachments to a default email address
- * 4. Manual Entry: Skip file upload and enter property details directly
- *
- * Workflow:
- * A. Upload and extract files
- * B. Display extracted data in tabular format (to be implemented)
- * C. Show summary of verified data (to be implemented)
- * D. Extract OM/OS/RR documents (to be implemented)
- *
- * @component
- * @example
- * <UploadDialog isOpen={true} onClose={() => {}} onComplete={(files) => {}} />
- */
-
 "use client"
 
 import type React from "react"
-
 import { useState, useCallback, useRef } from "react"
 import { Upload, FileArchive, File, Mail, Edit, X, Check, AlertCircle, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { AppButton } from "@/components/ui/app-button"
 import { AppCard } from "@/components/ui/app-card"
 import { Badge } from "@/components/ui/badge"
+import { extractZipFile, uploadFiles } from "@/lib/file-upload-utils"
 
-/**
- * Uploaded file information interface
- */
 interface UploadedFile {
-  /** Unique identifier for the file */
   id: string
-  /** Original file name */
   name: string
-  /** File size in bytes */
   size: number
-  /** File MIME type */
   type: string
-  /** Whether this file is selected for processing */
   selected: boolean
-  /** File object for processing */
   file: File
-  /** Whether this file was extracted from a zip */
   fromZip?: boolean
-  /** Parent zip file name if extracted */
   zipParent?: string
+  localPath?: string
 }
 
-/**
- * Upload dialog props interface
- */
 interface UploadDialogProps {
-  /** Whether the dialog is open */
   isOpen: boolean
-  /** Callback when dialog is closed */
   onClose: () => void
-  /** Callback when upload is complete with selected files */
   onComplete?: (files: UploadedFile[]) => void
 }
 
-/**
- * UploadDialog Component
- *
- * Provides a multi-method file upload interface for property data
- */
 export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps) {
-  // State management
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [uploadMethod, setUploadMethod] = useState<"files" | "email" | "manual" | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  /**
-   * Formats file size in human-readable format
-   */
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes"
     const k = 1024
@@ -98,74 +43,79 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
   }
 
-  /**
-   * Handles file selection from input or drag-and-drop
-   */
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return
 
     setIsProcessing(true)
+    setError(null)
     const newFiles: UploadedFile[] = []
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
 
-      // Check if it's a zip file
-      if (file.name.endsWith(".zip") || file.type === "application/zip") {
-        // For now, we'll treat zip files as regular files
-        // In a production environment, you would use JSZip library to extract contents
-        // Example: const zip = await JSZip.loadAsync(file)
-        // Then iterate through zip.files to extract individual files
+        // Check file size (100MB limit)
+        if (file.size > 100 * 1024 * 1024) {
+          setError(`File ${file.name} exceeds 100MB limit`)
+          continue
+        }
 
-        newFiles.push({
-          id: `${Date.now()}-${i}`,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          selected: true,
-          file: file,
-        })
-
-        // TODO: Implement zip extraction
-        // This would extract files and add them with fromZip: true
-      } else {
-        // Regular file
-        newFiles.push({
-          id: `${Date.now()}-${i}`,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          selected: true,
-          file: file,
-        })
+        // Check if it's a zip file
+        if (file.name.endsWith(".zip") || file.type === "application/zip") {
+          try {
+            const extractedFiles = await extractZipFile(file)
+            
+            // Add extracted files to the list
+            extractedFiles.forEach((extractedFile, index) => {
+              newFiles.push({
+                id: `${Date.now()}-${i}-${index}`,
+                name: extractedFile.name,
+                size: extractedFile.size,
+                type: extractedFile.type,
+                selected: true,
+                file: extractedFile.file,
+                fromZip: true,
+                zipParent: file.name,
+              })
+            })
+          } catch (err) {
+            console.error("Error extracting zip:", err)
+            setError(`Failed to extract ${file.name}`)
+          }
+        } else {
+          // Regular file
+          newFiles.push({
+            id: `${Date.now()}-${i}`,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            selected: true,
+            file: file,
+          })
+        }
       }
-    }
 
-    setUploadedFiles((prev) => [...prev, ...newFiles])
-    setIsProcessing(false)
+      setUploadedFiles((prev) => [...prev, ...newFiles])
+    } catch (err) {
+      console.error("Error processing files:", err)
+      setError("Failed to process some files")
+    } finally {
+      setIsProcessing(false)
+    }
   }, [])
 
-  /**
-   * Handles drag over event
-   */
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(true)
   }, [])
 
-  /**
-   * Handles drag leave event
-   */
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
   }, [])
 
-  /**
-   * Handles file drop event
-   */
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
@@ -176,9 +126,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     [handleFiles],
   )
 
-  /**
-   * Handles file input change
-   */
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       handleFiles(e.target.files)
@@ -186,46 +133,56 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     [handleFiles],
   )
 
-  /**
-   * Toggles file selection
-   */
   const toggleFileSelection = useCallback((fileId: string) => {
     setUploadedFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, selected: !f.selected } : f)))
   }, [])
 
-  /**
-   * Removes a file from the list
-   */
   const removeFile = useCallback((fileId: string) => {
     setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }, [])
 
-  /**
-   * Handles proceeding to next step with selected files
-   */
-  const handleProceed = useCallback(() => {
+  const handleProceed = useCallback(async () => {
     const selectedFiles = uploadedFiles.filter((f) => f.selected)
-    onComplete?.(selectedFiles)
-    onClose()
+    
+    if (selectedFiles.length === 0) {
+      setError("Please select at least one file")
+      return
+    }
+
+    setIsProcessing(true)
+    setError(null)
+
+    try {
+      // Upload files to server (local storage for now, S3 later)
+      const uploadedFilesData = await uploadFiles(selectedFiles)
+      
+      // Update files with their local paths
+      const filesWithPaths = selectedFiles.map((file, index) => ({
+        ...file,
+        localPath: uploadedFilesData[index]?.path,
+      }))
+
+      onComplete?.(filesWithPaths)
+      onClose()
+    } catch (err) {
+      console.error("Error uploading files:", err)
+      setError("Failed to upload files. Please try again.")
+    } finally {
+      setIsProcessing(false)
+    }
   }, [uploadedFiles, onComplete, onClose])
 
-  /**
-   * Handles manual entry option
-   */
   const handleManualEntry = useCallback(() => {
     setUploadMethod("manual")
-    // Skip to Step C - manual data entry
     onComplete?.([])
     onClose()
   }, [onComplete, onClose])
 
-  /**
-   * Resets the dialog state
-   */
   const handleReset = useCallback(() => {
     setUploadedFiles([])
     setUploadMethod(null)
     setIsProcessing(false)
+    setError(null)
   }, [])
 
   return (
@@ -239,10 +196,19 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
         </DialogHeader>
 
         <div className="space-y-4 sm:space-y-6 mt-4">
+          {/* Error Message */}
+          {error && (
+            <div className="flex items-start gap-2 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-red-500">
+                <p className="font-medium">{error}</p>
+              </div>
+            </div>
+          )}
+
           {/* Upload Method Selection */}
           {uploadedFiles.length === 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {/* Zip Folder Upload */}
               <AppCard
                 hover
                 className="cursor-pointer border-2 border-dashed border-border hover:border-muted-foreground transition-all touch-manipulation"
@@ -265,7 +231,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 </div>
               </AppCard>
 
-              {/* Individual Files Upload */}
               <AppCard
                 hover
                 className="cursor-pointer border-2 border-dashed border-border hover:border-muted-foreground transition-all touch-manipulation"
@@ -285,7 +250,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 </div>
               </AppCard>
 
-              {/* Email Forwarding */}
               <AppCard
                 hover
                 className="cursor-pointer border-2 border-dashed border-border hover:border-muted-foreground transition-all touch-manipulation"
@@ -302,7 +266,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 </div>
               </AppCard>
 
-              {/* Manual Entry */}
               <AppCard
                 hover
                 className="cursor-pointer border-2 border-dashed border-border hover:border-muted-foreground transition-all touch-manipulation"
@@ -402,6 +365,16 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
             </div>
           )}
 
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".zip,.pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.gif"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+
           {/* Processing Indicator */}
           {isProcessing && (
             <div className="flex items-center justify-center gap-3 p-6">
@@ -446,7 +419,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                         : "border-border bg-card hover:border-muted-foreground"
                     }`}
                   >
-                    {/* Selection checkbox */}
                     <button
                       onClick={() => toggleFileSelection(file.id)}
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${
@@ -458,7 +430,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                       {file.selected && <Check className="w-3 h-3 text-primary-foreground" />}
                     </button>
 
-                    {/* File icon */}
                     <div className="w-7 h-7 sm:w-8 sm:h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
                       {file.name.endsWith(".zip") ? (
                         <FileArchive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
@@ -467,7 +438,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                       )}
                     </div>
 
-                    {/* File info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs sm:text-sm font-medium text-foreground truncate">{file.name}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -481,7 +451,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                       </div>
                     </div>
 
-                    {/* Remove button */}
                     <button
                       onClick={() => removeFile(file.id)}
                       className="w-7 h-7 sm:w-6 sm:h-6 rounded-full hover:bg-muted flex items-center justify-center flex-shrink-0 transition-colors touch-manipulation"
@@ -492,7 +461,6 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 ))}
               </div>
 
-              {/* Info message */}
               <div className="flex items-start gap-2 p-3 bg-data-accent-blue/5 rounded-lg border border-data-accent-blue/20">
                 <AlertCircle className="w-4 h-4 text-data-accent-blue flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-foreground">
@@ -504,17 +472,16 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t">
                 <AppButton variant="outline" onClick={onClose} className="touch-manipulation">
                   Cancel
                 </AppButton>
                 <AppButton
                   onClick={handleProceed}
-                  disabled={uploadedFiles.filter((f) => f.selected).length === 0}
+                  disabled={uploadedFiles.filter((f) => f.selected).length === 0 || isProcessing}
                   className="touch-manipulation"
                 >
-                  Proceed to Step B
+                  {isProcessing ? "Uploading..." : "Proceed to Step B"}
                 </AppButton>
               </div>
             </div>

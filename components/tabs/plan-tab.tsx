@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Briefcase, Lock, AlertTriangle, CheckCircle, FileText, History, Edit3 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import type {
   BusinessPlanTabProps,
@@ -148,11 +148,48 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
     }
   }
 
+  // --- New: load scenarios for current logged-in user from API on mount ---
+  useEffect(() => {
+    let mounted = true
+    async function loadScenarios() {
+      try {
+        const res = await fetch("/api/scenarios", { method: "GET" })
+        if (!res.ok) {
+          const text = await res.text().catch(() => "")
+          console.error("Failed to load scenarios:", res.status, text)
+          return
+        }
+        const json = await res.json()
+        const mapped: ScenarioType[] = (json.scenarios || []).map((row: any) => {
+          const payload = row.payload || {}
+          return {
+            id: String(row.id),
+            name: row.name,
+            assumptions: payload.assumptions || {},
+            metrics: payload.metrics || {},
+            createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+          }
+        })
+        if (mounted) setScenarios(mapped)
+      } catch (err) {
+        console.error("loadScenarios error:", err)
+      }
+    }
+    loadScenarios()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   /**
    * Save the current assumptions and metrics as a named scenario
+   *
+   * This now POSTS to /api/scenarios and stores owner on server using Clerk user id.
+   * The UI still updates locally and logs the change as before.
    */
-  const saveScenario = (name: string) => {
-    const newScenario: ScenarioType = {
+  const saveScenario = async (name: string) => {
+    // keep local behavior: create scenario object (optimistic-ish)
+    const localScenario: ScenarioType = {
       id: Date.now().toString(),
       name,
       assumptions: { ...assumptions },
@@ -160,22 +197,73 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
       createdAt: new Date(),
     }
 
-    setScenarios((prev) => [...prev, newScenario])
+    // optimistic add to UI so user sees it instantly
+    setScenarios((prev) => [localScenario, ...prev])
     addToChangeLog("Scenario Saved", `Created new scenario: ${name}`)
+
+    // send to server to persist (server will set owner_id from Clerk)
+    try {
+      const payload = { assumptions: localScenario.assumptions, metrics: localScenario.metrics }
+      const res = await fetch("/api/scenarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description: "", payload }),
+      })
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "")
+        console.error("Failed to save scenario on server:", res.status, errText)
+        // optional: remove optimistic scenario if server fails
+        // setScenarios(prev => prev.filter(s => s !== localScenario))
+        return
+      }
+
+      const json = await res.json()
+      const saved = json.scenario
+
+      // Replace optimistic local scenario with server-side row (id, timestamps, payload)
+      setScenarios((prev) => {
+        // remove the optimistic one we added (match by name + createdAt heuristic)
+        const withoutOptimistic = prev.filter((s) => !(s.name === localScenario.name && s.createdAt === localScenario.createdAt))
+        const mapped: ScenarioType = {
+          id: String(saved.id),
+          name: saved.name,
+          assumptions: saved.payload?.assumptions || payload.assumptions,
+          metrics: saved.payload?.metrics || payload.metrics,
+          createdAt: saved.created_at ? new Date(saved.created_at) : new Date(),
+        }
+        return [mapped, ...withoutOptimistic]
+      })
+    } catch (err) {
+      console.error("saveScenario request error:", err)
+    }
   }
 
   /**
    * Delete a saved scenario
    *
-   * @param scenarioId - ID of the scenario to delete
+   * Now calls DELETE /api/scenarios/:id and removes locally on success.
+   * Change log remains in place.
    */
-  const deleteScenario = (scenarioId: string) => {
+  const deleteScenario = async (scenarioId: string) => {
     const scenario = scenarios.find((s) => s.id === scenarioId)
-    setScenarios((prev) => prev.filter((s) => s.id !== scenarioId))
-    // Removed selectedScenarios filtering as it's handled in ScenariosSection now
 
-    if (scenario) {
-      addToChangeLog("Scenario Deleted", `Removed scenario: ${scenario.name}`)
+    // optimistic UI update: remove locally immediately
+    setScenarios((prev) => prev.filter((s) => s.id !== scenarioId))
+
+    try {
+      const res = await fetch(`/api/scenarios/${scenarioId}`, { method: "DELETE" })
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "")
+        console.error("delete failed:", res.status, txt)
+        // revert UI removal if needed: re-add scenario
+        if (scenario) setScenarios((prev) => [scenario, ...prev])
+        return
+      }
+      if (scenario) addToChangeLog("Scenario Deleted", `Removed scenario: ${scenario.name}`)
+    } catch (err) {
+      console.error("deleteScenario error:", err)
+      if (scenario) setScenarios((prev) => [scenario, ...prev])
     }
   }
 

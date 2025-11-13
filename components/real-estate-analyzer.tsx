@@ -440,13 +440,13 @@ function InvestmentApp() {
                               px-1.5 sm:px-2 md:px-2.5 lg:px-3 py-1.5 sm:py-2 md:py-2.5 lg:py-3
                               min-w-[50px] sm:min-w-[60px] md:min-w-[65px] lg:min-w-[70px]
                               min-h-[45px] sm:min-h-[50px] md:min-h-[55px]
-                              transition-all duration-300 ease-out flex-shrink-0
+                              transition-all duration-300 ease-out flex-shrink-0  
                               ${
                                 !activePropertyId && item.id !== "home"
-                                  ? "text-gray-500 cursor-pointer bg-gradient-to-r from-gray-50 to-gray-100 rounded-md sm:rounded-lg lg:rounded-xl"
+                                  ? "text-gray-500 cursor-pointer bg-gradient-to-r from-gray-50 to-gray-100 rounded-md sm:rounded-lg lg:rounded-xl border border-black/10"
                                   : isActive
                                     ? "bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-xl scale-105 rounded-md sm:rounded-lg lg:rounded-xl transform ring-2 ring-gray-400"
-                                    : "text-gray-600 hover:text-gray-900 hover:bg-white hover:shadow-lg hover:scale-102 rounded-md sm:rounded-lg lg:rounded-xl transform"
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-white hover:shadow-lg hover:scale-102 rounded-md sm:rounded-lg lg:rounded-xl transform border border-black/10"
                               }
                             `}
                           >

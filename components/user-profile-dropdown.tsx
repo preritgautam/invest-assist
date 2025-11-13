@@ -28,7 +28,7 @@ export function UserProfileDropdown({
 
   const handleSettingsClick = () => {
     onClose()
-    router.push("/settings")
+    router.push("/user")
   }
 
   const menuItems = [

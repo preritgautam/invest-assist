@@ -33,12 +33,10 @@ import {
   MapIcon,
   BarChart3,
   Navigation,
-   ChevronLeft,
- ChevronRight,
 } from "lucide-react"
 import type { PropertyData } from "@/lib/property-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PropertyImages } from "./property-images"
+import PropertyImageCarousel from "./property-images"
 
 /**
  * Props interface for PropertyTab component
@@ -135,49 +133,7 @@ export function PropertyTab({ property }: PropertyTabProps) {
       </Card>
 
       {/* Main property image section */}
-      <div className="space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Property Image</h2>
-          <div className="w-16 h-0.5 bg-gray-800 mx-auto mt-2"></div>
-        </div>
-        <Card className="bg-white rounded-2xl shadow-lg border-2 border-white overflow-hidden">
-          <div className="aspect-[16/9] overflow-hidden">
-            <img
-              src={propertyData.thumbnail || "/placeholder.svg?height=300&width=500&query=apartment building"}
-              alt={`${propertyData.name} exterior view`}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Property gallery section - only shown if images exist */}
-      {propertyData.images && propertyData.images.length > 0 && (
-        <div className="space-y-6">
-          {/* <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Property Gallery</h2>
-            <div className="w-16 h-0.5 bg-gray-800 mx-auto mt-2"></div>
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-            {propertyData.images.map((image, index) => (
-              <Card key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="aspect-[4/3] overflow-hidden">
-                  <img src={image.src || "/placeholder.svg"} alt={image.label} className="w-full h-full object-cover" />
-                </div>
-                <CardContent className="p-1.5 text-center">
-                  <p className="text-xs font-medium text-gray-700 leading-tight truncate">{image.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-
-          </div> */}
-
-            <PropertyImages images={propertyData?.images}/>
-
-        </div>
-      )}
-
-
+      <PropertyImageCarousel propertyData={propertyData} />
 
       {/* Interactive location section with Google Maps */}
       {propertyData.coordinates && (

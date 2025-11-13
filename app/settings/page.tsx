@@ -4,8 +4,9 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/clerk-react"
-import { ArrowLeft, Loader2, Check, ChevronDown, Building2, Target, Plus, Trash2, Edit2 } from "lucide-react"
+import { ArrowLeft, Loader2, Check, ChevronDown, Building2, Target, Plus, Trash2, Edit2, SquareDashed } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { accessedDynamicData } from "next/dist/server/app-render/dynamic-rendering"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -379,3 +380,54 @@ function User(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+
+// "use client";
+
+// import React from "react";
+// import { ArrowLeft, Loader2, Check } from "lucide-react";
+// import { useRouter } from "next/navigation";
+
+// interface Props {
+//   title?: string;
+//   saving?: boolean;
+//   saved?: boolean;
+// }
+
+// export default function SettingsHeader({ title = "Settings", saving = false, saved = false }: Props) {
+//   const router = useRouter();
+
+//   return (
+//     <header className="bg-white border-b border-gray-200">
+//       <div className="max-w-7xl mx-auto flex items-center gap-6 px-6 py-4">
+//         <button
+//           type="button"
+//           onClick={() => router.back()}
+//           className="p-2 rounded-md bg-white border border-gray-200 shadow-sm hover:bg-gray-50"
+//           aria-label="Back"
+//         >
+//           <ArrowLeft className="w-5 h-5 text-gray-700" />
+//         </button>
+
+//         <div className="flex-1">
+//           <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+//           <p className="text-sm text-slate-500">Manage your account and workspace</p>
+//         </div>
+
+//         <div className="ml-auto">
+//           {saving ? (
+//             <div className="inline-flex items-center text-sm text-blue-600 gap-2">
+//               <Loader2 className="w-4 h-4 animate-spin" />
+//               Saving changes
+//             </div>
+//           ) : saved ? (
+//             <div className="inline-flex items-center text-sm text-emerald-600 gap-2">
+//               <Check className="w-4 h-4" />
+//               Saved
+//             </div>
+//           ) : null}
+//         </div>
+//       </div>
+//     </header>
+//   );
+// }

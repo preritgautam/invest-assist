@@ -54,6 +54,8 @@ import { UploadDialog } from "@/components/features/property-upload/upload-dialo
 interface HomeTabProps {
   /** Callback function triggered when a property is selected for editing */
   onPropertyEdit?: (propertyId: string) => void
+  /** Array of open property IDs for quick access */
+  openPropertyIds?: string[]
 }
 
 /**
@@ -65,9 +67,9 @@ type ViewMode = "card" | "list" | "map"
  * HomeTab Component - Main property portfolio dashboard
  *
  * Displays property portfolio with multiple view modes, search functionality,
- * and comprehensive property management features.
+ * comprehensive property management features, and quick access to open properties.
  */
-export function HomeTab({ onPropertyEdit }: HomeTabProps) {
+export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) {
   // State management for view mode, properties, and search
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   const [properties] = useState<PropertyData[]>(getAllProperties())
@@ -211,6 +213,54 @@ export function HomeTab({ onPropertyEdit }: HomeTabProps) {
           />
         </div>
       </AppCard>
+
+      {/* Quick Access - Open Properties */}
+      {openPropertyIds.length > 0 && (
+        <AppCard className="overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-100">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-600" />
+              Recently Opened Properties
+            </h3>
+            <p className="text-xs text-gray-600 mt-1">Click to quickly resume working on these properties</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {openPropertyIds.map((propertyId) => {
+              const property = properties.find((p) => p.id === propertyId)
+              if (!property) return null
+
+              return (
+                <div
+                  key={property.id}
+                  onClick={() => onPropertyEdit?.(property.id)}
+                  className="bg-white rounded-lg p-3 border border-blue-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 flex-shrink-0 overflow-hidden rounded-lg">
+                      <img
+                        src={property.thumbnail || "/placeholder.svg?height=48&width=48&query=apartment"}
+                        alt={property.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-gray-900 truncate">{property.name}</h4>
+                      <p className="text-xs text-gray-600 truncate mt-0.5 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                        {property.address}
+                      </p>
+                      <div className="flex items-center gap-1 mt-1.5 text-xs">
+                        <span className="text-gray-600">Cap: </span>
+                        <span className="font-medium text-gray-900">{property.capRate}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </AppCard>
+      )}
 
       {/* Main layout: Sidebar (25%) + Properties area (75%) */}
       <div className="flex flex-col lg:flex-row gap-4">
@@ -489,7 +539,8 @@ export function HomeTab({ onPropertyEdit }: HomeTabProps) {
             <AppCard className="bg-white rounded-2xl shadow-lg border-2 border-white">
               <PropertyMap
                 properties={properties}
-                onPropertyClick={(propertyId) => handlePropertyClick(propertyId, {} as React.MouseEvent)}
+                activeProperty={null}
+                onPropertySelect={(property) => handlePropertyClick(property.id, {} as React.MouseEvent)}
               />
             </AppCard>
           )}

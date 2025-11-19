@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AppButton } from "@/components/ui/app-button"
 import { AppCard } from "@/components/ui/app-card"
 import { Badge } from "@/components/ui/badge"
-import { extractZipFile, uploadFiles } from "@/lib/file-upload-utils"
+import { extractZipFile } from "@/lib/file-upload-utils"
+import { uploadFilesToRex } from "@/lib/rex-client"
 
 interface UploadedFile {
   id: string
@@ -31,9 +32,14 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [uploadMethod, setUploadMethod] = useState<"files" | "email" | "manual" | null>(null)
+  const [uploadMethod, setUploadMethod] = useState<"zip" | "files" | "email" | "manual" | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+const [processId, setProcessId] = useState<string | null>(null);
+
+  // two separate refs: one for zip picker, one for regular files
+  const fileInputZipRef = useRef<HTMLInputElement>(null)
+  const fileInputFilesRef = useRef<HTMLInputElement>(null)
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes"
@@ -43,66 +49,80 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
   }
 
-  const handleFiles = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0) return
+  /**
+   * handleFiles now accepts FileList | File[] | null
+   * and enforces the current uploadMethod (if zip-only, skip non-zip and show an error)
+   */
+  const handleFiles = useCallback(
+    async (filesInput: FileList | File[] | null) => {
+      if (!filesInput) return
+      setIsProcessing(true)
+      setError(null)
+      const newFiles: UploadedFile[] = []
 
-    setIsProcessing(true)
-    setError(null)
-    const newFiles: UploadedFile[] = []
+      // normalize to array
+      const filesArray: File[] = filesInput instanceof FileList ? Array.from(filesInput) : Array.isArray(filesInput) ? filesInput : []
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+      try {
+        for (let i = 0; i < filesArray.length; i++) {
+          const file = filesArray[i]
 
-        // Check file size (100MB limit)
-        if (file.size > 100 * 1024 * 1024) {
-          setError(`File ${file.name} exceeds 100MB limit`)
-          continue
-        }
-
-        // Check if it's a zip file
-        if (file.name.endsWith(".zip") || file.type === "application/zip") {
-          try {
-            const extractedFiles = await extractZipFile(file)
-            
-            // Add extracted files to the list
-            extractedFiles.forEach((extractedFile, index) => {
-              newFiles.push({
-                id: `${Date.now()}-${i}-${index}`,
-                name: extractedFile.name,
-                size: extractedFile.size,
-                type: extractedFile.type,
-                selected: true,
-                file: extractedFile.file,
-                fromZip: true,
-                zipParent: file.name,
-              })
-            })
-          } catch (err) {
-            console.error("Error extracting zip:", err)
-            setError(`Failed to extract ${file.name}`)
+          // Enforce file selection mode: if we're in 'zip' mode, only allow zip files
+          if (uploadMethod === "zip" && !(file.name.endsWith(".zip") || file.type === "application/zip")) {
+            setError("Only .zip files are allowed for Zip upload. Non-zip files were skipped.")
+            continue
           }
-        } else {
-          // Regular file
-          newFiles.push({
-            id: `${Date.now()}-${i}`,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            selected: true,
-            file: file,
-          })
-        }
-      }
 
-      setUploadedFiles((prev) => [...prev, ...newFiles])
-    } catch (err) {
-      console.error("Error processing files:", err)
-      setError("Failed to process some files")
-    } finally {
-      setIsProcessing(false)
-    }
-  }, [])
+          // Check file size (100MB limit)
+          if (file.size > 100 * 1024 * 1024) {
+            setError(`File ${file.name} exceeds 100MB limit`)
+            continue
+          }
+
+          // If it's a zip, extract contents
+          if (file.name.endsWith(".zip") || file.type === "application/zip") {
+            try {
+              const extractedFiles = await extractZipFile(file)
+
+              extractedFiles.forEach((extractedFile, index) => {
+                newFiles.push({
+                  id: `${Date.now()}-${i}-${index}`,
+                  name: extractedFile.name,
+                  size: extractedFile.size,
+                  type: extractedFile.type,
+                  selected: true,
+                  file: extractedFile.file,
+                  fromZip: true,
+                  zipParent: file.name,
+                })
+              })
+            } catch (err) {
+              console.error("Error extracting zip:", err)
+              setError(`Failed to extract ${file.name}`)
+            }
+          } else {
+            // Regular file
+            newFiles.push({
+              id: `${Date.now()}-${i}`,
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              selected: true,
+              file: file,
+            })
+          }
+        }
+
+        setUploadedFiles((prev) => [...prev, ...newFiles])
+      } catch (err) {
+        console.error("Error processing files:", err)
+        setError("Failed to process some files")
+      } finally {
+        setIsProcessing(false)
+      }
+    },
+    [uploadMethod],
+  )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -121,14 +141,38 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
       e.preventDefault()
       e.stopPropagation()
       setIsDragging(false)
+      // if user hasn't selected a mode, default to 'files' mode for drag-drop
+      const mode = uploadMethod ?? "files"
+      // handleFiles will enforce mode via uploadMethod (we already set uploadMethod when user clicked)
       handleFiles(e.dataTransfer.files)
+    },
+    [handleFiles, uploadMethod],
+  )
+
+  // called by the "Individual Files" input
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      // ensure we are in files mode
+      setUploadMethod("files")
+      handleFiles(e.target.files ? Array.from(e.target.files) : null)
+      // reset input value so same file can be re-selected if needed
+      e.currentTarget.value = ""
     },
     [handleFiles],
   )
 
-  const handleFileInputChange = useCallback(
+  // called by the "Zip" input
+  const handleZipInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleFiles(e.target.files)
+      setUploadMethod("zip")
+      const raw = Array.from(e.target.files || [])
+      // filter to only zips, but pass them to handleFiles (which also enforces)
+      const zips = raw.filter((f) => f.name.endsWith(".zip") || f.type === "application/zip")
+      if (zips.length === 0 && raw.length > 0) {
+        setError("Please select .zip files only.")
+      }
+      handleFiles(zips)
+      e.currentTarget.value = ""
     },
     [handleFiles],
   )
@@ -141,36 +185,54 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }, [])
 
-  const handleProceed = useCallback(async () => {
-    const selectedFiles = uploadedFiles.filter((f) => f.selected)
-    
-    if (selectedFiles.length === 0) {
-      setError("Please select at least one file")
-      return
-    }
+const handleProceed = async () => {
+  const selectedFiles = uploadedFiles.filter((f) => f.selected)
 
-    setIsProcessing(true)
-    setError(null)
+  if (selectedFiles.length === 0) {
+    setError("Please select at least one file")
+    return
+  }
 
-    try {
-      // Upload files to server (local storage for now, S3 later)
-      const uploadedFilesData = await uploadFiles(selectedFiles)
-      
-      // Update files with their local paths
-      const filesWithPaths = selectedFiles.map((file, index) => ({
-        ...file,
-        localPath: uploadedFilesData[index]?.path,
-      }))
+  setIsProcessing(true)
+  setError(null)
+  setUploadSuccess(false)
 
-      onComplete?.(filesWithPaths)
+  try {
+    // Get File objects from uploaded files
+    const filesToUpload = selectedFiles.map((f) => f.file)
+    // Call API route via client utility
+    const result = await uploadFilesToRex(filesToUpload, {
+      documentType: "rent_roll",
+      clientReference: `UPLOAD-${Date.now()}`,
+      pageRange: "all",
+      sheetIndex: "",
+      templateId: "docin-default",
+      templateName: "Docin Default"
+    })
+
+    console.log("REX upload successful:", result)
+    setProcessId(result.processId)
+    setUploadSuccess(true)
+
+    // Optional: Call onComplete with the result
+    onComplete?.(selectedFiles.map(f => ({
+      ...f,
+      localPath: result.documentId
+    })))
+
+    // Optional: Close dialog after success
+    setTimeout(() => {
       onClose()
-    } catch (err) {
-      console.error("Error uploading files:", err)
-      setError("Failed to upload files. Please try again.")
-    } finally {
-      setIsProcessing(false)
-    }
-  }, [uploadedFiles, onComplete, onClose])
+    }, 2000)
+
+  } catch (err: any) {
+    console.error("REX upload failed:", err)
+    setError(err.message || "Failed to upload files to REX. Please try again.")
+  } finally {
+    setIsProcessing(false)
+  }
+}
+
 
   const handleManualEntry = useCallback(() => {
     setUploadMethod("manual")
@@ -213,8 +275,9 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 hover
                 className="cursor-pointer border-2 border-dashed border-border hover:border-muted-foreground transition-all touch-manipulation"
                 onClick={() => {
-                  setUploadMethod("files")
-                  fileInputRef.current?.click()
+                  // open zip-only picker
+                  setUploadMethod("zip")
+                  fileInputZipRef.current?.click()
                 }}
               >
                 <div className="flex flex-col items-center justify-center p-4 sm:p-6 text-center">
@@ -235,8 +298,9 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                 hover
                 className="cursor-pointer border-2 border-dashed border-border hover:border-muted-foreground transition-all touch-manipulation"
                 onClick={() => {
+                  // open individual files picker
                   setUploadMethod("files")
-                  fileInputRef.current?.click()
+                  fileInputFilesRef.current?.click()
                 }}
               >
                 <div className="flex flex-col items-center justify-center p-4 sm:p-6 text-center">
@@ -335,8 +399,8 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
             </AppCard>
           )}
 
-          {/* File Upload Area */}
-          {uploadMethod === "files" && uploadedFiles.length === 0 && (
+          {/* File Upload Area (drag & drop) */}
+          {(uploadMethod === "files" || uploadMethod === "zip") && uploadedFiles.length === 0 && (
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -352,22 +416,36 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                   <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-sm sm:text-base font-bold text-foreground mb-2">
-                  {isDragging ? "Drop files here" : "Drag and drop files here"}
+                  {isDragging ? "Drop files here" : uploadMethod === "zip" ? "Drop ZIP files here" : "Drag and drop files here"}
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">or</p>
-                <AppButton onClick={() => fileInputRef.current?.click()} className="touch-manipulation">
-                  Browse Files
-                </AppButton>
+                <div className="flex gap-2 justify-center">
+                  <AppButton onClick={() => fileInputFilesRef.current?.click()} className="touch-manipulation">
+                    Browse Files
+                  </AppButton>
+                  <AppButton onClick={() => fileInputZipRef.current?.click()} variant="outline" className="touch-manipulation">
+                    Browse ZIPs
+                  </AppButton>
+                </div>
                 <p className="text-xs text-muted-foreground mt-3 sm:mt-4">
-                  Supports: ZIP, PDF, Excel, Word, Images (Max 100MB per file)
+                  {uploadMethod === "zip" ? "Supports: ZIP (Max 100MB per file)" : "Supports: ZIP, PDF, Excel, Word, Images (Max 100MB per file)"}
                 </p>
               </div>
             </div>
           )}
 
-          {/* Hidden file input */}
+          {/* Hidden file inputs */}
           <input
-            ref={fileInputRef}
+            ref={fileInputZipRef}
+            type="file"
+            multiple
+            accept=".zip,application/zip"
+            onChange={handleZipInputChange}
+            className="hidden"
+          />
+
+          <input
+            ref={fileInputFilesRef}
             type="file"
             multiple
             accept=".zip,.pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.gif"
@@ -401,7 +479,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                   </AppButton>
                   <AppButton
                     size="sm"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => (uploadMethod === "zip" ? fileInputZipRef.current?.click() : fileInputFilesRef.current?.click())}
                     className="flex-1 sm:flex-none touch-manipulation"
                   >
                     Add More Files
@@ -487,6 +565,15 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
             </div>
           )}
         </div>
+        {uploadSuccess && processId && (
+  <div className="flex items-start gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+    <div className="text-xs text-green-500">
+      <p className="font-medium">Upload successful!</p>
+      <p className="text-green-600 mt-1">Process ID: {processId}</p>
+    </div>
+  </div>
+)}
       </DialogContent>
     </Dialog>
   )

@@ -329,6 +329,8 @@ function InvestmentApp() {
     }
   }
 
+  console.log("sfdafda",activePropertyId)
+
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       <TabBar
@@ -341,7 +343,7 @@ function InvestmentApp() {
         onNavigationClick={handleNavigationClick}
       />
 
-      {!isFullscreen && (
+      {!isFullscreen && activePropertyId && (
         <div className="sticky top-11 z-40 bg-gray-100 border-b border-gray-200 transition-all duration-300 ease-in-out">
           {/* Collapse/Expand Toggle Button */}
           <div className="flex items-center justify-center py-1 bg-white/50 backdrop-blur-sm">

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { Upload, FileArchive, File, Mail, Edit, X, Check, AlertCircle, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { AppButton } from "@/components/ui/app-button"
@@ -9,6 +9,7 @@ import { AppCard } from "@/components/ui/app-card"
 import { Badge } from "@/components/ui/badge"
 import { extractZipFile } from "@/lib/file-upload-utils"
 import { uploadFilesToRex } from "@/lib/rex-client"
+import { useRexPolling } from "@/hooks/use-rex-polling"
 
 interface UploadedFile {
   id: string
@@ -35,7 +36,9 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   const [uploadMethod, setUploadMethod] = useState<"zip" | "files" | "email" | "manual" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false);
-const [processId, setProcessId] = useState<string | null>(null);
+  const [processId, setProcessId] = useState<string | null>(null);
+  const { isPolling, status, result, error: pollingError, startPolling, stopPolling } = useRexPolling();
+
 
   // two separate refs: one for zip picker, one for regular files
   const fileInputZipRef = useRef<HTMLInputElement>(null)
@@ -185,53 +188,84 @@ const [processId, setProcessId] = useState<string | null>(null);
     setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }, [])
 
-const handleProceed = async () => {
-  const selectedFiles = uploadedFiles.filter((f) => f.selected)
+  const handleProceed = async () => {
+    const selectedFiles = uploadedFiles.filter((f) => f.selected)
 
-  if (selectedFiles.length === 0) {
-    setError("Please select at least one file")
-    return
+    if (selectedFiles.length === 0) {
+      setError("Please select at least one file")
+      return
+    }
+
+    setIsProcessing(true)
+    setError(null)
+    setUploadSuccess(false)
+
+    try {
+      // Get File objects from uploaded files
+      const filesToUpload = selectedFiles.map((f) => f.file)
+      // Call API route via client utility
+      const result = await uploadFilesToRex(filesToUpload, {
+        documentType: "rent_roll",
+        clientReference: `UPLOAD-${Date.now()}`,
+        pageRange: "all",
+        sheetIndex: "",
+        templateId: "docin-default",
+        templateName: "Docin Default"
+      })
+
+      console.log("REX upload successful:", result)
+      setProcessId(result.processId)
+      setUploadSuccess(true)
+
+      // Optional: Call onComplete with the result
+      onComplete?.(selectedFiles.map(f => ({
+        ...f,
+        localPath: result.documentId
+      })))
+
+      // Optional: Close dialog after success
+      setTimeout(() => {
+        onClose()
+      }, 2000)
+
+    } catch (err: any) {
+      console.error("REX upload failed:", err)
+      setError(err.message || "Failed to upload files to REX. Please try again.")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  setIsProcessing(true)
-  setError(null)
-  setUploadSuccess(false)
 
-  try {
-    // Get File objects from uploaded files
-    const filesToUpload = selectedFiles.map((f) => f.file)
-    // Call API route via client utility
-    const result = await uploadFilesToRex(filesToUpload, {
-      documentType: "rent_roll",
-      clientReference: `UPLOAD-${Date.now()}`,
-      pageRange: "all",
-      sheetIndex: "",
-      templateId: "docin-default",
-      templateName: "Docin Default"
-    })
+  // Start polling only when processId is available
+  useEffect(() => {
+    if (processId) {
+      startPolling(processId, {
+        interval: 10000,      // Poll every 5 seconds
+        maxAttempts: 120,    // Try for up to 10 minutes
+        onStatusUpdate: (status) => {
+          console.log('[Polling] Status update:', status);
+        },
+        onCompleted: (result) => {
+          console.log('[Polling] Extraction completed:', result);
+          setUploadSuccess(true);
+          // Optional: Close dialog or show results
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+        },
+        onError: (error) => {
+          console.error('[Polling] Error:', error);
+          setError(`Extraction failed: ${error.message}`);
+        },
+      });
+    }
 
-    console.log("REX upload successful:", result)
-    setProcessId(result.processId)
-    setUploadSuccess(true)
-
-    // Optional: Call onComplete with the result
-    onComplete?.(selectedFiles.map(f => ({
-      ...f,
-      localPath: result.documentId
-    })))
-
-    // Optional: Close dialog after success
-    setTimeout(() => {
-      onClose()
-    }, 2000)
-
-  } catch (err: any) {
-    console.error("REX upload failed:", err)
-    setError(err.message || "Failed to upload files to REX. Please try again.")
-  } finally {
-    setIsProcessing(false)
-  }
-}
+    return () => {
+      // Cleanup: stop polling if component unmounts
+      stopPolling();
+    };
+  }, [processId, startPolling, stopPolling, onClose]);
 
 
   const handleManualEntry = useCallback(() => {
@@ -405,11 +439,10 @@ const handleProceed = async () => {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all ${
-                isDragging
+              className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all ${isDragging
                   ? "border-data-accent-blue bg-data-accent-blue/5"
                   : "border-border hover:border-muted-foreground bg-muted/30"
-              }`}
+                }`}
             >
               <div className="flex flex-col items-center">
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-muted rounded-full flex items-center justify-center mb-3 sm:mb-4">
@@ -491,19 +524,17 @@ const handleProceed = async () => {
                 {uploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border-2 transition-all touch-manipulation ${
-                      file.selected
+                    className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border-2 transition-all touch-manipulation ${file.selected
                         ? "border-data-accent-blue bg-data-accent-blue/5"
                         : "border-border bg-card hover:border-muted-foreground"
-                    }`}
+                      }`}
                   >
                     <button
                       onClick={() => toggleFileSelection(file.id)}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${
-                        file.selected
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${file.selected
                           ? "bg-data-accent-blue border-data-accent-blue"
                           : "bg-card border-border hover:border-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {file.selected && <Check className="w-3 h-3 text-primary-foreground" />}
                     </button>
@@ -566,14 +597,34 @@ const handleProceed = async () => {
           )}
         </div>
         {uploadSuccess && processId && (
-  <div className="flex items-start gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-    <div className="text-xs text-green-500">
-      <p className="font-medium">Upload successful!</p>
-      <p className="text-green-600 mt-1">Process ID: {processId}</p>
-    </div>
-  </div>
-)}
+          <div className="flex items-start gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+            <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-green-500">
+              <p className="font-medium">Upload successful!</p>
+              <p className="text-green-600 mt-1">Process ID: {processId}</p>
+            </div>
+          </div>
+        )}
+
+        {isPolling && (
+          <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <Loader2 className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5 animate-spin" />
+            <div className="text-xs text-blue-600">
+              <p className="font-medium">Processing extraction...</p>
+              <p className="mt-1">Current status: <span className="font-mono">{status?.status || 'pending'}</span></p>
+            </div>
+          </div>
+        )}
+
+        {pollingError && (
+          <div className="flex items-start gap-2 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-red-600">
+              <p className="font-medium">Extraction Error</p>
+              <p className="mt-1">{pollingError.message}</p>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -51,7 +51,7 @@ All API routes using Clerk auth have been updated to use `user_bypass_12345` as 
 
 ## Files Modified
 
-```
+\`\`\`
 middleware.ts
 app/layout.tsx
 app/page.tsx (commented out Clerk code)
@@ -66,7 +66,7 @@ app/api/documents/list/route.ts
 app/api/documents/store/route.ts
 app/api/documents/update/route.ts
 components/user-profile-dropdown.tsx
-```
+\`\`\`
 
 ## Notes
 

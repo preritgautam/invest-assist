@@ -3,16 +3,15 @@
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { DocumentsTab } from "@/components/tabs/docs-tab/docs-tab"
 import { getPropertyById } from "@/lib/property-data"
-import { use } from "react"
 
 interface DocumentsPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function DocumentsPage({ params }: DocumentsPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const property = getPropertyById(id) || null
 
   if (!property) {

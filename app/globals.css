@@ -29,6 +29,10 @@
   --chart-4: oklch(0.7 0.15 60);
   --chart-5: oklch(0.5 0.15 200);
   --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
   --sidebar: oklch(0.98 0.005 106);
   --sidebar-foreground: oklch(0.15 0.01 106);
   --sidebar-primary: oklch(0.18 0.02 106);
@@ -126,7 +130,6 @@
   * {
     @apply border-border outline-ring/50;
   }
-
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";

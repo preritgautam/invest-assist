@@ -89,5 +89,8 @@
     "tsx": "^4.20.6",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"
-  }
+  },
+  "trustedDependencies": [
+    "pg-native"
+  ]
 }

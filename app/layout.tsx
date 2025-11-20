@@ -24,13 +24,26 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const isPreview =
+    typeof window !== "undefined" &&
+    (window.location.hostname.includes("vusercontent.net") ||
+      window.location.hostname.includes("vercel.run") ||
+      window.location.hostname.includes("v0.dev"))
+
   return (
     <html lang="en">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
-        <ClerkProvider>
-          {children}
-          <Toaster />
-        </ClerkProvider>
+        {isPreview ? (
+          <>
+            {children}
+            <Toaster />
+          </>
+        ) : (
+          <ClerkProvider>
+            {children}
+            <Toaster />
+          </ClerkProvider>
+        )}
       </body>
     </html>
   )

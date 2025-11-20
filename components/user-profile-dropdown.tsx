@@ -16,9 +16,15 @@ export function UserProfileDropdown({
   const { user, isSignedIn, isLoaded } = useUser()
   const router = useRouter()
 
+  const isPreview =
+    typeof window !== "undefined" &&
+    (window.location.hostname.includes("vusercontent.net") ||
+      window.location.hostname.includes("vercel.run") ||
+      window.location.hostname.includes("v0.dev"))
+
   if (!isOpen) return null
 
-  if (!isLoaded) {
+  if (!isLoaded && !isPreview) {
     return (
       <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50 w-48">
         <div className="text-sm text-gray-500">Loading...</div>
@@ -42,14 +48,21 @@ export function UserProfileDropdown({
   ]
 
   const handleLogout = () => {
-    signOut({ redirectUrl: "/" })
+    if (!isPreview) {
+      signOut({ redirectUrl: "/" })
+    } else {
+      router.push("/sign-in")
+    }
   }
+
+  const displayName = isPreview ? "Preview User" : user?.fullName || "User"
+  const displayEmail = isPreview ? "preview@example.com" : user?.primaryEmailAddress?.emailAddress || ""
 
   return (
     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50 w-48">
       <div className="px-3 py-2 border-b border-gray-100 mb-1">
-        <div className="text-sm font-medium text-gray-900">{user?.fullName || "User"}</div>
-        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress || ""}</div>
+        <div className="text-sm font-medium text-gray-900">{displayName}</div>
+        <div className="text-xs text-gray-500">{displayEmail}</div>
       </div>
 
       <div className="space-y-1">

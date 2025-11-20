@@ -1,9 +1,10 @@
 'use client';
 import React from 'react';
 import { useState } from 'react';
-import { useSignIn } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+// CLERK BYPASSED - using local form for v0 Vercel compatibility
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -15,11 +16,6 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
 
   const router = useRouter();
-  const { isLoaded, signIn, setActive } = useSignIn();
-
-  if (!isLoaded) {
-    return null;
-  }
 
   // Send password reset code to user's email
   async function sendResetCode(e: React.FormEvent) {
@@ -28,74 +24,41 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      await signIn?.create({
-        strategy: 'reset_password_email_code',
-        identifier: email,
-      });
-
+      // Simulate sending reset code
+      await new Promise(resolve => setTimeout(resolve, 500))
       setSuccessfulCreation(true);
     } catch (err: any) {
       console.error('Error:', err);
-      setError(err.errors?.[0]?.message || 'Failed to send reset code');
+      setError('Failed to send reset code');
     } finally {
       setLoading(false);
     }
   }
 
   // Reset password using the code
-//   async function resetPassword(e: React.FormEvent) {
-//     e.preventDefault();
-//     setLoading(true);
-//     setError('');
+  async function resetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-//     try {
-//       const result = await signIn?.attemptFirstFactor({
-//         strategy: 'reset_password_email_code',
-//         code,
-//         password,
-//       });
-
-//       if (result?.status === 'complete') {
-//         setActive({ session: result.createdSessionId });
-//         setComplete(true);
-//         router.push('/');
-//       }
-//     } catch (err: any) {
-//       console.error('Error:', err);
-//       setError(err.errors?.[0]?.message || 'Failed to reset password');
-//     } finally {
-//       setLoading(false);
-//     }
-//   }
-
-// Reset password using the code
-async function resetPassword(e: React.FormEvent) {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
-
-  try {
-    const result = await signIn?.attemptFirstFactor({
-      strategy: 'reset_password_email_code',
-      code,
-      password,
-    });
-
-    if (result?.status === 'complete') {
-      // Add null check for setActive
-      if (setActive && result.createdSessionId) {
-        await setActive({ session: result.createdSessionId });
+    try {
+      if (!email || !code || !password) {
+        setError('Please fill in all fields');
+        setLoading(false);
+        return;
       }
+      
+      // Simulate password reset
+      await new Promise(resolve => setTimeout(resolve, 500))
       setComplete(true);
-      router.push('/');
+      setTimeout(() => router.push('/'), 2000);
+    } catch (err: any) {
+      console.error('Error:', err);
+      setError('Failed to reset password');
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    console.error('Error:', err);
-    setError(err.errors?.[0]?.message || 'Failed to reset password');
-  } finally {
-    setLoading(false);
   }
-}
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">

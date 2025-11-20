@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+
+// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
+const MOCK_USER_ID = 'user_bypass_12345';
 
 export async function GET(request: NextRequest) {
     try {
@@ -14,8 +16,7 @@ export async function GET(request: NextRequest) {
                 port: '5432',
             },
             clerk: {
-                publishable: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? '***SET***' : 'NOT SET',
-                secret: process.env.CLERK_SECRET_KEY ? '***SET***' : 'NOT SET',
+                status: 'BYPASSED - using mock user ID',
             },
             rex: {
                 apiKey: process.env.DOCIN_API_KEY ? '***SET***' : 'NOT SET',
@@ -24,22 +25,12 @@ export async function GET(request: NextRequest) {
             timestamp: new Date().toISOString(),
         };
 
-        // Try to get Clerk auth
-        let clerkError = null;
-        let clerkUserId = null;
-        try {
-            const authResult = await auth();
-            clerkUserId = authResult?.userId;
-        } catch (err) {
-            clerkError = String(err);
-        }
-
         return NextResponse.json({
             status: 'ok',
             diagnostics,
-            clerk_auth: {
-                error: clerkError,
-                userId: clerkUserId,
+            auth: {
+                userId: MOCK_USER_ID,
+                message: 'Using mock user ID - Clerk bypassed',
             },
         });
 

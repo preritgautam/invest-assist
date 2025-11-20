@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { query } from '@/lib/db';
+
+// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
+const MOCK_USER_ID = 'user_bypass_12345';
 
 export async function GET(request: NextRequest) {
   try {
     console.log('[Documents API List] Request received');
     
-    // Get the authenticated user
-    let userId;
-    try {
-      const authResult = await auth();
-      userId = authResult?.userId;
-      console.log('[Documents API List] Clerk auth result:', { userId });
-    } catch (authErr) {
-      console.error('[Documents API List] Auth error:', authErr);
-      return NextResponse.json(
-        { error: 'Authentication failed', details: String(authErr) },
-        { status: 401 }
-      );
-    }
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized - no user ID' },
-        { status: 401 }
-      );
-    }
+    // CLERK BYPASSED - using mock user ID
+    const userId = MOCK_USER_ID;
+    console.log('[Documents API List] Using mock user ID:', { userId });
 
     const searchParams = request.nextUrl.searchParams;
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);

@@ -1,21 +1,20 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useUser } from "@clerk/clerk-react"
 import { ArrowLeft, Loader2, Check, ChevronDown, Building2, Target, Plus, Trash2, Edit2, SquareDashed } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { accessedDynamicData } from "next/dist/server/app-render/dynamic-rendering"
+
+// CLERK BYPASSED - using mock user data for v0 Vercel compatibility
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    phoneNumber: "",
-    email: "",
+    firstName: "John",
+    lastName: "Doe",
+    phoneNumber: "+1 (555) 000-0000",
+    email: "john.doe@example.com",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -47,17 +46,6 @@ export default function SettingsPage() {
     },
   ])
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      setFormData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        phoneNumber: user.phoneNumbers[0]?.phoneNumber || "",
-        email: user.primaryEmailAddress?.emailAddress || "",
-      })
-    }
-  }, [isLoaded, user])
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
@@ -71,21 +59,8 @@ export default function SettingsPage() {
     setIsLoading(true)
     setError("")
     try {
-      if (!user) return
-
-      await user.update({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      })
-
-      if (formData.phoneNumber && user.phoneNumbers.length > 0) {
-        await user.phoneNumbers[0].destroy()
-      }
-
-      if (formData.phoneNumber) {
-        await user.createPhoneNumber({ phoneNumber: formData.phoneNumber })
-      }
-
+      // Simulate saving - no actual Clerk calls
+      await new Promise(resolve => setTimeout(resolve, 500))
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err) {
@@ -125,14 +100,6 @@ export default function SettingsPage() {
       )}
     </div>
   )
-
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">

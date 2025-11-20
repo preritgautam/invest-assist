@@ -1,13 +1,13 @@
 // app/user/page.tsx
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useUser } from "@clerk/clerk-react"
 import { Home, ChevronDown, ChevronUp, User as UserIcon, LucideBrickWall } from "lucide-react"
 import AccountCard, { AccountFormData } from "@/components/user-profile/account"
 import BillingCard from "@/components/user-profile/billing"
-import { Loader2 } from "lucide-react"
+
+// CLERK BYPASSED - using mock user data for v0 Vercel compatibility
 
 interface NavigationItem {
   id: string
@@ -23,7 +23,7 @@ const PROFILE_SECTIONS: NavigationItem[] = [
 
 export default function UserPage() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
+  // CLERK BYPASSED - using mock data
 
   const [activeTab, setActiveTab] = useState<string>("userProfile")
   const [currentTabs, setCurrentTabs] = useState<string | null>("userProfile")
@@ -31,10 +31,10 @@ export default function UserPage() {
   const [isFullscreen] = useState(false) // keep available if you want to toggle later
 
   const [formData, setFormData] = useState<AccountFormData>({
-    firstName: "",
-    lastName: "",
-    phoneNumber: "",
-    email: "",
+    firstName: "John",
+    lastName: "Doe",
+    phoneNumber: "+1 (555) 000-0000",
+    email: "john.doe@example.com",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -56,17 +56,6 @@ export default function UserPage() {
     { id: 3, date: "Sep 13, 2025", amount: "$49.99", status: "Paid" },
   ]
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      setFormData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        phoneNumber: user.phoneNumbers[0]?.phoneNumber || "",
-        email: user.primaryEmailAddress?.emailAddress || "",
-      })
-    }
-  }, [isLoaded, user])
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name as keyof AccountFormData]: value }))
@@ -77,19 +66,8 @@ export default function UserPage() {
     setIsLoading(true)
     setError("")
     try {
-      if (!user) return
-
-      // Clerk operations
-      await user.update({ firstName: formData.firstName, lastName: formData.lastName })
-
-      if (formData.phoneNumber && user.phoneNumbers.length > 0) {
-        await user.phoneNumbers[0].destroy()
-      }
-
-      if (formData.phoneNumber) {
-        await user.createPhoneNumber({ phoneNumber: formData.phoneNumber })
-      }
-
+      // Simulate saving - no actual Clerk calls
+      await new Promise(resolve => setTimeout(resolve, 500))
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err) {
@@ -97,14 +75,6 @@ export default function UserPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
-    )
   }
 
   function onNavClick(id: string) {

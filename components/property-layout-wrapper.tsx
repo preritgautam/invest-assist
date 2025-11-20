@@ -183,11 +183,16 @@ const handlePropertyClose = useCallback(
   )
 
   if (!activeProperty) {
+    console.warn(
+      `[PropertyLayoutWrapper] Property not found for ID: "${propertyId}". ` +
+      `This usually means the property ID is incorrect or the property doesn't exist in the database.`
+    )
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">Property not found</h2>
           <p className="text-gray-600 mt-2">The property you're looking for doesn't exist.</p>
+          <p className="text-sm text-gray-500 mt-4">Property ID: {propertyId}</p>
         </div>
       </div>
     )

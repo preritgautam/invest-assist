@@ -3,16 +3,15 @@
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { UnderwritingGraphsTab } from "@/components/tabs/analytics-tab"
 import { getPropertyById } from "@/lib/property-data"
-import { use } from "react"
 
 interface AnalyticsPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function AnalyticsPage({ params }: AnalyticsPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const property = getPropertyById(id) || null
 
   return (

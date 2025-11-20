@@ -3,16 +3,15 @@
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { ReturnsTab } from "@/components/tabs/returns-tab"
 import { getPropertyById } from "@/lib/property-data"
-import { use } from "react"
 
 interface ReturnsPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function ReturnsPage({ params }: ReturnsPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const property = getPropertyById(id) || null
 
   return (

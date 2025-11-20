@@ -3,16 +3,15 @@
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { PropertyTab } from "@/components/tabs/property-tab/property-tab"
 import { getPropertyById } from "@/lib/property-data"
-import { use } from "react"
 
 interface PropertyPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function PropertyPage({ params }: PropertyPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const property = getPropertyById(id) || null
 
   return (

@@ -3,16 +3,15 @@
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { OutlayTab } from "@/components/tabs/outlay-tab"
 import { getPropertyById } from "@/lib/property-data"
-import { use } from "react"
 
 interface OutlayPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function OutlayPage({ params }: OutlayPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const property = getPropertyById(id) || null
 
   return (

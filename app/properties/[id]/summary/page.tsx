@@ -4,16 +4,15 @@ import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { SummaryTab } from "@/components/tabs/summary-tab"
 import { getPropertyById } from "@/lib/property-data"
 import { convertPropertyDataToProperty } from "@/lib/property-type-converter"
-import { use } from "react"
 
 interface SummaryPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function SummaryPage({ params }: SummaryPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const propertyData = getPropertyById(id) || null
   const property = convertPropertyDataToProperty(propertyData)
 

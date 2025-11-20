@@ -4,16 +4,15 @@ import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { CapitalTab } from "@/components/tabs/capital-tab"
 import { getPropertyById } from "@/lib/property-data"
 import { convertPropertyDataToProperty } from "@/lib/property-type-converter"
-import { use } from "react"
 
 interface CapitalPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function CapitalPage({ params }: CapitalPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const propertyData = getPropertyById(id) || null
   const property = convertPropertyDataToProperty(propertyData)
 

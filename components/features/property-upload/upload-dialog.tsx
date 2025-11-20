@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { extractZipFile } from "@/lib/file-upload-utils"
 import { uploadFilesToRex } from "@/lib/rex-client"
 import { useRexPolling } from "@/hooks/use-rex-polling"
+import { storeDocument, updateDocumentStatus } from "@/lib/document-utils"
 
 interface UploadedFile {
   id: string
@@ -214,6 +215,24 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
       })
 
       console.log("REX upload successful:", result)
+      
+      // Store document in database for each uploaded file
+      for (const file of selectedFiles) {
+        try {
+          await storeDocument(
+            "", // userId will be extracted from Clerk auth in the API
+            result.processId,
+            file.name,
+            "rent_roll",
+            file.size,
+            result.documentId
+          )
+          console.log(`Stored document: ${file.name}`)
+        } catch (storageErr) {
+          console.error(`Failed to store document ${file.name}:`, storageErr)
+        }
+      }
+
       setProcessId(result.processId)
       setUploadSuccess(true)
 
@@ -241,21 +260,50 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   useEffect(() => {
     if (processId) {
       startPolling(processId, {
-        interval: 10000,      // Poll every 5 seconds
-        maxAttempts: 120,    // Try for up to 10 minutes
+        interval: 10000,      // Poll every 10 seconds
+        maxAttempts: 120,    // Try for up to 20 minutes
         onStatusUpdate: (status) => {
           console.log('[Polling] Status update:', status);
         },
-        onCompleted: (result) => {
+        onCompleted: async (result) => {
           console.log('[Polling] Extraction completed:', result);
+          
+          // Update document status in database with extraction results
+          try {
+            await updateDocumentStatus(
+              processId,
+              'completed',
+              result,
+              undefined,
+              result.documentId
+            );
+            console.log('[DB] Document status updated with extraction results');
+          } catch (err) {
+            console.error('[DB] Failed to update document status:', err);
+          }
+          
           setUploadSuccess(true);
           // Optional: Close dialog or show results
           setTimeout(() => {
             onClose();
           }, 1500);
         },
-        onError: (error) => {
+        onError: async (error) => {
           console.error('[Polling] Error:', error);
+          
+          // Update document status to failed in database
+          try {
+            await updateDocumentStatus(
+              processId,
+              'failed',
+              undefined,
+              error.message
+            );
+            console.log('[DB] Document status updated to failed');
+          } catch (err) {
+            console.error('[DB] Failed to update document error status:', err);
+          }
+          
           setError(`Extraction failed: ${error.message}`);
         },
       });

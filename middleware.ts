@@ -1,10 +1,15 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-const isV0Preview = (request: Request) => {
-  const url = new URL(request.url)
+const isV0Preview = (request: NextRequest) => {
+  const host = request.headers.get("host") || ""
   return (
-    url.hostname.includes("vusercontent.net") || url.hostname.includes("vercel.run") || url.hostname.includes("v0.dev")
+    host.includes("vusercontent.net") ||
+    host.includes("lite.vusercontent.net") ||
+    host.includes("vercel.run") ||
+    host.includes("v0.dev") ||
+    host.includes("generated.vusercontent.net")
   )
 }
 
@@ -17,6 +22,7 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, request) => {
   if (isV0Preview(request)) {
+    console.log("[v0] Preview environment detected, bypassing Clerk auth")
     return NextResponse.next()
   }
 

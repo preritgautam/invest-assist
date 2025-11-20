@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 import { ClerkProvider } from "@clerk/nextjs"
+import { headers } from "next/headers"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,12 +24,14 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const headersList = await headers()
+  const host = headersList.get("host") || ""
   const isPreview =
-    typeof window !== "undefined" &&
-    (window.location.hostname.includes("vusercontent.net") ||
-      window.location.hostname.includes("vercel.run") ||
-      window.location.hostname.includes("v0.dev"))
+    host.includes("vusercontent.net") ||
+    host.includes("vercel.run") ||
+    host.includes("v0.dev") ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV === "preview"
 
   return (
     <html lang="en">

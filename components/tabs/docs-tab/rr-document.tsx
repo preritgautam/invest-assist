@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface RentRollUnit {
   floorPlan: string
@@ -11,7 +11,7 @@ interface RentRollUnit {
   bed: number
   bath: number
   renovated: string
-  status: "Occupied" | "Vacant" | "Occupied-NTVL"
+  status: "Occupied" | "Vacant" | "Occupied-NTVL" | "Admin/Down" | string
   startDate: string
   endDate: string
   moveInDate: string
@@ -42,12 +42,12 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "1 Bed",
     bed: 1,
     bath: 1.5,
-    renovated: "N/A",
+    renovated: "--",
     status: "Vacant",
     startDate: "2025-03-02",
     endDate: "Month-to-Month",
     moveInDate: "2025-02-02",
-    moveOutDate: "N/A",
+    moveOutDate: "--",
   },
   {
     floorPlan: "Plan C",
@@ -72,7 +72,7 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "3 Bed",
     bed: 3,
     bath: 1,
-    renovated: "N/A",
+    renovated: "--",
     status: "Occupied",
     startDate: "2025-09-11",
     endDate: "2026-01-16",
@@ -92,7 +92,7 @@ const mockRentRollData: RentRollUnit[] = [
     startDate: "2025-05-11",
     endDate: "Month-to-Month",
     moveInDate: "2025-10-05",
-    moveOutDate: "N/A",
+    moveOutDate: "--",
   },
   {
     floorPlan: "Plan A",
@@ -102,7 +102,7 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "1 Bed",
     bed: 1,
     bath: 2,
-    renovated: "N/A",
+    renovated: "--",
     status: "Occupied-NTVL",
     startDate: "2025-03-05",
     endDate: "2026-04-14",
@@ -132,12 +132,12 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "3 Bed",
     bed: 3,
     bath: 1.5,
-    renovated: "N/A",
+    renovated: "--",
     status: "Vacant",
     startDate: "2025-02-28",
     endDate: "Month-to-Month",
     moveInDate: "2025-01-04",
-    moveOutDate: "N/A",
+    moveOutDate: "--",
   },
   {
     floorPlan: "Plan D",
@@ -162,7 +162,7 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "1 Bed",
     bed: 1,
     bath: 1,
-    renovated: "N/A",
+    renovated: "--",
     status: "Occupied",
     startDate: "2025-10-22",
     endDate: "2026-07-19",
@@ -182,7 +182,7 @@ const mockRentRollData: RentRollUnit[] = [
     startDate: "2025-10-04",
     endDate: "Month-to-Month",
     moveInDate: "2025-08-10",
-    moveOutDate: "N/A",
+    moveOutDate: "--",
   },
   {
     floorPlan: "Plan B",
@@ -192,7 +192,7 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "3 Bed",
     bed: 3,
     bath: 2,
-    renovated: "N/A",
+    renovated: "--",
     status: "Occupied-NTVL",
     startDate: "2025-09-17",
     endDate: "2026-09-27",
@@ -222,12 +222,12 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "1 Bed",
     bed: 1,
     bath: 1.5,
-    renovated: "N/A",
+    renovated: "--",
     status: "Vacant",
     startDate: "2025-09-26",
     endDate: "Month-to-Month",
     moveInDate: "2024-11-17",
-    moveOutDate: "N/A",
+    moveOutDate: "--",
   },
   {
     floorPlan: "Plan E",
@@ -252,7 +252,7 @@ const mockRentRollData: RentRollUnit[] = [
     unitType: "3 Bed",
     bed: 3,
     bath: 1,
-    renovated: "N/A",
+    renovated: "--",
     status: "Occupied",
     startDate: "2025-10-05",
     endDate: "2026-04-30",
@@ -262,16 +262,83 @@ const mockRentRollData: RentRollUnit[] = [
 ]
 
 export function RRDocument() {
-  const [data] = useState<RentRollUnit[]>(mockRentRollData)
+  const [data, setData] = useState<RentRollUnit[]>(mockRentRollData)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchRentRollData()
+  }, [])
+
+  const fetchRentRollData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
+      const response = await fetch(`/api/documents/${documentId}`)
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.document?.extraction_result?.data?.extraction?.units) {
+        const units = result.document.extraction_result.data.extraction.units
+        const headers = result.document.extraction_result.data.extraction.headers
+
+        // Map API data to RentRollUnit format
+        const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
+          // Create a map of headers to values
+          const unitMap: Record<string, any> = {}
+          headers.forEach((header: string, index: number) => {
+            unitMap[header] = unit[index]
+          })
+
+          return {
+            floorPlan: unitMap["Floor Plan"] || "--",
+            squareFeet: parseInt(unitMap["Square Feet"]?.toString().replace(/,/g, "") || "0") || 0,
+            suiteNumber: parseInt(unitMap["Suite Number"]?.toString() || "0") || 0,
+            buildingId: unitMap["Building Id"] || "--",
+            unitType: unitMap["Unit_Type"] || "--",
+            bed: parseInt(unitMap["Unit_Type"]?.toString().match(/\d+/)?.[0] || "0") || 0,
+            bath: 1, // Not directly available in API, use default
+            renovated: unitMap["Lease Description"] || "--",
+            status: unitMap["status"] || "Vacant",
+            startDate: unitMap["Start Date"] || "--",
+            endDate: unitMap["End Date"] || "Month-to-Month",
+            moveInDate: unitMap["Move In Date"] || "--",
+            moveOutDate: unitMap["Move Out Date"] || "--",
+          }
+        })
+
+        setData(mappedData)
+      } else {
+        throw new Error("Invalid API response format")
+      }
+    } catch (err) {
+      console.error("Failed to fetch rent roll data:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch data")
+      // Fallback to mock data
+      setData(mockRentRollData)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Occupied":
         return "bg-green-100 text-green-800"
       case "Occupied-NTVL":
+      case "Occupied-NTV":
         return "bg-yellow-100 text-yellow-800"
       case "Vacant":
+      case "Applicant":
         return "bg-gray-100 text-gray-800"
+      case "Admin/Down":
+        return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -279,7 +346,25 @@ export function RRDocument() {
 
   return (
     <div className="flex-1 overflow-auto bg-white">
-      <div className="overflow-x-auto">
+      {loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <p className="mt-4 text-gray-600">Loading rent roll data...</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400">
+          <p className="text-sm text-yellow-800">
+            <strong>Note:</strong> {error} - Displaying sample data instead.
+          </p>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -343,6 +428,7 @@ export function RRDocument() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )
 }

@@ -24,6 +24,7 @@ import {
   CheckCircle2Icon,
   Edit3Icon,
   MenuIcon,
+  InspectionPanel,
 } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -32,7 +33,7 @@ import { Badge } from "@/components/ui/badge"
 import type { PropertyData } from "@/lib/property-data"
 import { T12ActualsTab } from "@/components/tabs/docs-tab/t12-actuals-tab"
 import { RightToolbar } from "./right-toolbar"
-import { RRDocument } from "./rr-document"
+import { RRDocument } from "./rent-roll/rr-document"
 import { OMDocument } from "./om-document"
 import { AnalyzeTab } from "@/components/tabs/docs-tab/analyze-tab"
 import { MobileMenu } from "./mobile-menu"
@@ -42,6 +43,7 @@ import type { PropertyDocument, LineItem, RentRollUnit, DocumentView } from "./t
 import { mockBrokerData } from "./mock-data"
 import { generateRentRollUnits } from "./utils"
 import LineItemRow, { type LineItem as LineItemType } from "./LineItemRow"
+import { RentRollConfig, RRConfigure } from "./rent-roll/rr-configure"
 
 // near the other imports at the top of the file
 
@@ -119,6 +121,15 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false)
+  const [rrConfigOpen, setRrConfigOpen] = useState(false)
+  const [rrConfig, setRrConfig] = useState<RentRollConfig>({
+    tenantCharges: [
+      { id: "1", name: "RENT", apiField: "monthly_rent", frequency: "Monthly", targetFrequency: "Monthly" },
+      { id: "2", name: "WATER", apiField: "utility_reimbursement", frequency: "Monthly", targetFrequency: "Monthly" },
+      { id: "3", name: "Unit Upgrades", apiField: "other_charges", frequency: "Monthly", targetFrequency: "Monthly" },
+      { id: "4", name: "WASH/DRY", apiField: "laundry", frequency: "Monthly", targetFrequency: "Monthly" },
+    ],
+  })
 
   const renderBreadcrumb = () => {
     const steps = [
@@ -803,6 +814,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-white sm:border-2 overflow-hidden">
       <div className="relative flex h-screen">
+
         {/* Mobile Menu */}
         <MobileMenu
           isOpen={mobileMenuOpen}
@@ -1073,6 +1085,13 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                     )}
                   </div>
                 </div>
+                {activeDocType === "RR" && ( <button
+                  onClick={() => setRrConfigOpen(true)}
+                  className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
+                  title="Configure Rent Roll"
+                >
+                  <InspectionPanel className="w-5 h-5" />
+                </button>)}                 
 
                 {/* Right side: Add button */}
                 <button
@@ -1098,7 +1117,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
               )}
 
               {activeSection === "t12" && activeDocType === "RR" && activeDocument?.rentRollData && (
-                <div>
+                <div className="flex-1 flex flex-col overflow-hidden relative">
                   <div className="bg-white rounded-lg border p-2 shadow-sm m-2">
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-600">
@@ -1135,7 +1154,15 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                       </div>
                     </div>
                   </div>
-                  <RRDocument />
+                  <div className="flex flex-1 overflow-hidden">
+                      <RRDocument />
+                    </div>
+                    <RRConfigure
+                      isOpen={rrConfigOpen}
+                      onClose={() => setRrConfigOpen(false)}
+                      config={rrConfig}
+                      onConfigChange={setRrConfig}
+                    />
                 </div>
               )}
               {activeSection === "t12" && activeDocType === "OM" && (
@@ -1263,6 +1290,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
           </div>
         </div>
       </div>
+
+    
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface PollConfig {
   maxAttempts?: number;
@@ -16,6 +16,53 @@ interface PollState {
   attempt: number;
 }
 
+interface PersistedPollState {
+  processId: string;
+  config: PollConfig;
+  startTime: number;
+  attempt: number;
+}
+
+const POLLING_STATE_KEY = 'rex_polling_state';
+
+// Helper to get persisted polling state from sessionStorage
+const getPersistedPollingState = (): PersistedPollState | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = sessionStorage.getItem(POLLING_STATE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch (err) {
+    console.error('[Polling] Error reading persisted state:', err);
+    return null;
+  }
+};
+
+// Helper to save polling state to sessionStorage
+const savePollingState = (processId: string, config: PollConfig, attempt: number): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    const state: PersistedPollState = {
+      processId,
+      config,
+      startTime: Date.now(),
+      attempt,
+    };
+    sessionStorage.setItem(POLLING_STATE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.error('[Polling] Error saving polling state:', err);
+  }
+};
+
+// Helper to clear persisted polling state
+const clearPersistedPollingState = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(POLLING_STATE_KEY);
+  } catch (err) {
+    console.error('[Polling] Error clearing polling state:', err);
+  }
+};
+
 export const useRexPolling = () => {
   const [state, setState] = useState<PollState>({
     isPolling: false,
@@ -27,13 +74,17 @@ export const useRexPolling = () => {
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const configRef = useRef<PollConfig>({});
+  const processIdRef = useRef<string | null>(null);
+  const isPollingRef = useRef<boolean>(false);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
+    isPollingRef.current = false;
     setState((prev) => ({ ...prev, isPolling: false }));
+    clearPersistedPollingState();
   }, []);
 
   const startPolling = useCallback(
@@ -47,6 +98,8 @@ export const useRexPolling = () => {
       } = config;
 
       configRef.current = config;
+      processIdRef.current = processId;
+      isPollingRef.current = true;
 
       setState((prev) => ({
         ...prev,
@@ -58,9 +111,18 @@ export const useRexPolling = () => {
       let attempts = 0;
 
       const poll = async () => {
+        // Check if polling has been stopped
+        if (!isPollingRef.current) {
+          console.log('[Polling] Polling stopped, skipping poll');
+          return;
+        }
+
         try {
           attempts++;
           setState((prev) => ({ ...prev, attempt: attempts }));
+          
+          // Persist polling state so it can be resumed if page refreshes
+          savePollingState(processId, config, attempts);
 
           // Check status
           const statusResponse = await fetch(
@@ -126,6 +188,17 @@ export const useRexPolling = () => {
     },
     [stopPolling]
   );
+
+  // On mount, check if there's a persisted polling state and resume it
+  useEffect(() => {
+    const persistedState = getPersistedPollingState();
+    
+    if (persistedState && !state.isPolling) {
+      console.log('[Polling] Resuming polling from previous session:', persistedState.processId);
+      // Resume polling from where it left off
+      startPolling(persistedState.processId, persistedState.config);
+    }
+  }, []);
 
   return {
     ...state,

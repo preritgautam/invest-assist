@@ -211,12 +211,12 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
 
   return (
     <>
-      {/* Modal - Part of flex layout, slides from right */}
-      <div className={`h-full bg-white shadow-lg border-l border-gray-200 transform transition-all duration-300 ease-in-out overflow-hidden flex flex-col flex-shrink-0 ${
+      {/* Modal - Absolute positioned, stays fixed while table scrolls */}
+      <div className={`absolute top-0 right-0 h-full bg-white shadow-lg border-l border-gray-200 transform transition-all duration-300 ease-in-out overflow-hidden flex flex-col flex-shrink-0 z-20 ${
         isOpen ? "w-1/3" : "w-0"
       }`}>
-          {/* Header */}
-          <div className=" items-center justify-between px-3 py-2 border-b border-gray-200">
+          {/* Header - Sticky */}
+          <div className="sticky top-0 z-10 bg-white items-center justify-between px-3 py-2 border-b border-gray-200">
             <div className="flex justify-between items-center w-full">
               <h2 className="text-xl font-semibold text-gray-900">Configurations</h2>
                <button
@@ -231,8 +231,8 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
            
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 px-3 pt-2 bg-gray-50 border-b border-gray-200">
+          {/* Tabs - Sticky */}
+          <div className="sticky top-[84px] z-10 flex gap-1 px-3 pt-2 bg-gray-50 border-b border-gray-200">
             <button
               onClick={() => setActiveTab("tenant-charges")}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
@@ -266,7 +266,8 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-auto p-6 min-h-0">
+          <div className="flex-1 overflow-auto min-h-0">
+            <div className="p-6">
             {activeTab === "tenant-charges" && (
               <div>
                 {/* Table */}
@@ -571,10 +572,11 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
                 </div>
               </div>
             )}
+            </div>
           </div>
 
-          {/* Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 flex justify-between items-center bg-gray-50">
+          {/* Footer - Sticky */}
+          <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 flex justify-between items-center bg-gray-50">
             <button
               onClick={handleReset}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"

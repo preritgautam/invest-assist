@@ -262,8 +262,24 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
       startPolling(processId, {
         interval: 10000,      // Poll every 10 seconds
         maxAttempts: 120,    // Try for up to 20 minutes
-        onStatusUpdate: (status) => {
+        onStatusUpdate: async (status) => {
           console.log('[Polling] Status update:', status);
+          
+          // Periodically sync extraction status to database
+          if (status?.status && status.status !== 'completed') {
+            try {
+              await updateDocumentStatus(
+                processId,
+                status.status || 'processing',
+                status, // Include partial results
+                undefined
+              );
+              console.log('[DB] Document status synced during extraction');
+            } catch (err) {
+              console.error('[DB] Failed to sync document status during polling:', err);
+              // Don't stop polling due to sync errors - extraction may still complete
+            }
+          }
         },
         onCompleted: async (result) => {
           console.log('[Polling] Extraction completed:', result);
@@ -309,11 +325,11 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
       });
     }
 
-    return () => {
-      // Cleanup: stop polling if component unmounts
-      stopPolling();
-    };
-  }, [processId, startPolling, stopPolling, onClose]);
+    // NOTE: Do NOT stop polling when component unmounts.
+    // The polling state is persisted in sessionStorage and will resume
+    // when the component remounts or page refreshes. Only stopPolling()
+    // is called by the hook when polling completes or errors.
+  }, [processId, startPolling, onClose]);
 
 
   const handleManualEntry = useCallback(() => {

@@ -21,7 +21,7 @@ export function RRDocument() {
       setLoading(true)
       setError(null)
 
-      const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
+      const documentId = "00a647b4-3b2c-4b96-b217-c2ff00bffb2e"
       const response = await fetch(`/api/documents/${documentId}`)
 
       if (!response.ok) {

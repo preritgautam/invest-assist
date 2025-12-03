@@ -1026,6 +1026,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                           ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
+                    
                   >
                     <FileSpreadsheetIcon className="w-4 h-4" />
                     <span className="hidden sm:inline">T-12 / OS</span>
@@ -1154,7 +1155,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-1 overflow-hidden">
+                  <div className="relative flex flex-1 overflow-hidden">
                     <div className="flex-1 overflow-auto">
                       <RRDocument />
                     </div>

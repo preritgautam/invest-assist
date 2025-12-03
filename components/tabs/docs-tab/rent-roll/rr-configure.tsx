@@ -1,6 +1,7 @@
+
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { X } from "lucide-react"
 
 export interface TenantChargeConfig {
@@ -9,10 +10,28 @@ export interface TenantChargeConfig {
   apiField: string
   frequency: "Monthly" | "Annual" | "One-Time"
   targetFrequency: "Monthly" | "Annual" | "One-Time"
+  isActive?: boolean
+}
+
+export interface FloorPlan {
+  id: string
+  name: string
+  bedrooms: number
+  bathrooms: number
+  isRenovated: boolean
+}
+
+export interface OccupancyMapping {
+  id: string
+  rawStatus: string
+  normalizedStatus: string
 }
 
 export interface RentRollConfig {
   tenantCharges: TenantChargeConfig[]
+  floorPlans: FloorPlan[]
+  occupancyMappings: OccupancyMapping[]
+  availableColumns: string[]
 }
 
 interface RRConfigureProps {
@@ -22,8 +41,119 @@ interface RRConfigureProps {
   onConfigChange: (config: RentRollConfig) => void
 }
 
+type TabType = "tenant-charges" | "floor-plans" | "occupancy"
+
 export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfigureProps) {
-  const [localConfig, setLocalConfig] = useState<RentRollConfig>(config)
+  const [localConfig, setLocalConfig] = useState<RentRollConfig>({
+    tenantCharges: [
+      {
+        id: "1",
+        name: "RENT",
+        apiField: "monthly_rent",
+        frequency: "Monthly",
+        targetFrequency: "Monthly",
+        isActive: true,
+      },
+      {
+        id: "2",
+        name: "WATER",
+        apiField: "utility_reimbursement",
+        frequency: "Monthly",
+        targetFrequency: "Monthly",
+        isActive: true,
+      },
+      {
+        id: "3",
+        name: "Unit Upgrades",
+        apiField: "other_charges",
+        frequency: "Monthly",
+        targetFrequency: "Monthly",
+        isActive: true,
+      },
+      {
+        id: "4",
+        name: "WASH/DRY",
+        apiField: "laundry",
+        frequency: "Monthly",
+        targetFrequency: "Monthly",
+        isActive: true,
+      },
+    ],
+    floorPlans: [
+      { id: "1", name: "A1", bedrooms: 1, bathrooms: 1, isRenovated: false },
+      { id: "2", name: "A2", bedrooms: 2, bathrooms: 1, isRenovated: false },
+      { id: "3", name: "B1", bedrooms: 1, bathrooms: 1, isRenovated: false },
+      { id: "4", name: "B2", bedrooms: 2, bathrooms: 2, isRenovated: false },
+    ],
+    occupancyMappings: [
+      { id: "1", rawStatus: "Occupied", normalizedStatus: "Occupied" },
+      { id: "2", rawStatus: "Occupied-NTVL", normalizedStatus: "Occupied" },
+      { id: "3", rawStatus: "Admin/Down", normalizedStatus: "Admin/Down" },
+      { id: "4", rawStatus: "Occupied-NTV", normalizedStatus: "Occupied" },
+    ],
+    availableColumns: ["laundry", "parking", "pet_fee", "storage", "subsidy", "vacancy"]
+  })
+  const [activeTab, setActiveTab] = useState<TabType>("tenant-charges")
+  const [showColumnSelector, setShowColumnSelector] = useState(false)
+  const [columnSearchQuery, setColumnSearchQuery] = useState("")
+  const [mapToSearchQuery, setMapToSearchQuery] = useState<{[key: string]: string}>({})
+  const [showMapToDropdown, setShowMapToDropdown] = useState<{[key: string]: boolean}>({})
+
+  const availableColumns = [
+    "laundry",
+    "parking",
+    "pet_fee",
+    "storage",
+    "subsidy",
+    "vacancy"
+  ]
+
+  const availableApiFields = [
+    "monthly_rent",
+    "utility_reimbursement",
+    "other_charges",
+    "laundry",
+    "parking",
+    "pet_fee",
+    "storage",
+    "subsidy",
+    "vacancy"
+  ]
+
+  const filteredColumns = availableColumns.filter(col => 
+    col.toLowerCase().includes(columnSearchQuery.toLowerCase())
+  )
+
+  const getFilteredApiFields = (chargeId: string) => {
+    const searchQuery = mapToSearchQuery[chargeId] || ""
+    return availableApiFields.filter(field =>
+      field.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }
+
+  const handleAddColumn = (column: string) => {
+    const newCharge: TenantChargeConfig = {
+      id: Date.now().toString(),
+      name: column.toUpperCase().replace("_", " "),
+      apiField: column,
+      frequency: "Monthly",
+      targetFrequency: "Monthly",
+      isActive: true
+    }
+    setLocalConfig(prev => ({
+      ...prev,
+      tenantCharges: [...prev.tenantCharges, newCharge]
+    }))
+    setShowColumnSelector(false)
+    setColumnSearchQuery("")
+  }
+
+  const handleRemoveCharge = (chargeId: string) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      tenantCharges: prev.tenantCharges.filter(charge => charge.id !== chargeId)
+    }))
+  }
 
   const handleFrequencyChange = (chargeId: string, newFrequency: string) => {
     setLocalConfig((prev) => ({
@@ -36,6 +166,24 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
     }))
   }
 
+  const handleFloorPlanChange = (planId: string, field: string, value: any) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      floorPlans: prev.floorPlans.map(plan =>
+        plan.id === planId ? { ...plan, [field]: value } : plan
+      )
+    }))
+  }
+
+  const handleOccupancyChange = (mappingId: string, newStatus: string) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      occupancyMappings: prev.occupancyMappings.map(mapping =>
+        mapping.id === mappingId ? { ...mapping, normalizedStatus: newStatus } : mapping
+      )
+    }))
+  }
+
   const handleSave = () => {
     onConfigChange(localConfig)
     onClose()
@@ -43,104 +191,420 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
 
   const handleReset = () => {
     setLocalConfig(config)
+    setMapToSearchQuery({})
+    setShowMapToDropdown({})
   }
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.relative')) {
+        setShowMapToDropdown({})
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  if (!isOpen) return null
 
   return (
     <>
-      {/* Side Panel with absolute positioning inside rent roll container */}
-      <div
-        className={`absolute top-0 right-0 h-full w-96 bg-white shadow-lg border-l border-gray-200 transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">Rent Roll Config</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Close"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
+      {/* Modal - Part of flex layout, slides from right */}
+      <div className={`h-full bg-white shadow-lg border-l border-gray-200 transform transition-all duration-300 ease-in-out overflow-hidden flex flex-col flex-shrink-0 ${
+        isOpen ? "w-1/3" : "w-0"
+      }`}>
+          {/* Header */}
+          <div className=" items-center justify-between px-3 py-2 border-b border-gray-200">
+            <div className="flex justify-between items-center w-full">
+              <h2 className="text-xl font-semibold text-gray-900">Configurations</h2>
+               <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              title="Close"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+            </div>
+              <p className="text-sm text-gray-500 mt-1">Map tenant charges, floor plans, and occupancy</p>
+           
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-6">
-            {/* Tenant Charges Configuration */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-900 mb-3 uppercase tracking-wider">Tenant Charges</h3>
-              <div className="space-y-2">
-                {localConfig.tenantCharges.map((charge) => (
-                  <div key={charge.id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex flex-col">
-                      <p className="text-xs font-semibold text-gray-700">{charge.name}</p>
-                      <p className="text-xs text-gray-600 mb-2">{charge.apiField}</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-600 mb-1">Current</p>
-                          <p className="text-xs text-gray-600">{charge.frequency}</p>
-                        </div>
-                        <div className="text-xs text-gray-600">→</div>
-                        <div className="flex-1">
-                          <label className="text-xs font-medium text-gray-700 block mb-1">Target</label>
-                          <select
-                            value={charge.targetFrequency}
-                            onChange={(e) => handleFrequencyChange(charge.id, e.target.value)}
-                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+          {/* Tabs */}
+          <div className="flex gap-1 px-3 pt-2 bg-gray-50 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab("tenant-charges")}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === "tenant-charges"
+                  ? "bg-white text-gray-900 border-t border-x border-gray-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              Tenant Charges
+            </button>
+            <button
+              onClick={() => setActiveTab("floor-plans")}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === "floor-plans"
+                  ? "bg-white text-gray-900 border-t border-x border-gray-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              Floor Plan Configuration
+            </button>
+            <button
+              onClick={() => setActiveTab("occupancy")}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === "occupancy"
+                  ? "bg-white text-gray-900 border-t border-x border-gray-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              Occupancy Configuration
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto p-6 min-h-0">
+            {activeTab === "tenant-charges" && (
+              <div>
+                {/* Table */}
+                <div className="relative min-w-max">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Tenant Charge
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Map To
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          <div className="flex items-center gap-1">
+                            Frequency Conversion
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-500 text-xs">
+                              i
+                            </span>
+                          </div>
+                        </th>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="px-4 py-2"></th>
+                        <th className="px-4 py-2"></th>
+                        <th className="px-4 py-2">
+                          <div className="flex items-center gap-8 text-xs font-medium text-gray-600">
+                            <span className="flex-1">PER DOC</span>
+                            <span className="flex-1">NORMALIZED</span>
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {localConfig.tenantCharges.map((charge, index) => (
+                        <tr key={charge.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  charge.isActive !== false ? "bg-green-500" : "bg-red-500"
+                                }`}
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{charge.name}</p>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveCharge(charge.id)}
+                                className="ml-auto p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Remove"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 relative">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={mapToSearchQuery[charge.id] || charge.apiField}
+                                onChange={(e) => {
+                                  setMapToSearchQuery(prev => ({
+                                    ...prev,
+                                    [charge.id]: e.target.value
+                                  }))
+                                }}
+                                onFocus={() => {
+                                  setShowMapToDropdown(prev => ({
+                                    ...prev,
+                                    [charge.id]: true
+                                  }))
+                                }}
+                                placeholder="Search or select..."
+                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                              />
+                              
+                              {/* Dropdown */}
+                              {showMapToDropdown[charge.id] && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+                                  {getFilteredApiFields(charge.id).map((field) => (
+                                    <button
+                                      key={field}
+                                      onClick={() => {
+                                        setLocalConfig(prev => ({
+                                          ...prev,
+                                          tenantCharges: prev.tenantCharges.map(c =>
+                                            c.id === charge.id ? { ...c, apiField: field } : c
+                                          )
+                                        }))
+                                        setMapToSearchQuery(prev => ({
+                                          ...prev,
+                                          [charge.id]: field
+                                        }))
+                                        setShowMapToDropdown(prev => ({
+                                          ...prev,
+                                          [charge.id]: false
+                                        }))
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                                    >
+                                      {field}
+                                    </button>
+                                  ))}
+                                  {getFilteredApiFields(charge.id).length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      No matching fields
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-4">
+                              <div className="flex-1">
+                                <span className="text-sm text-gray-700">{charge.frequency}</span>
+                              </div>
+                              <span className="text-gray-400">→</span>
+                              <div className="flex-1">
+                                <select
+                                  value={charge.targetFrequency}
+                                  onChange={(e) => handleFrequencyChange(charge.id, e.target.value)}
+                                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                                >
+                                  <option value="Monthly">Monthly</option>
+                                  <option value="Annual">Annual</option>
+                                  <option value="One-Time">One-Time</option>
+                                </select>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Column Selector Dropdown */}
+                  {showColumnSelector && (
+                    <div className="absolute top-full left-4 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                      <div className="p-2">
+                        <input
+                          type="text"
+                          placeholder="Search columns..."
+                          value={columnSearchQuery}
+                          onChange={(e) => setColumnSearchQuery(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="border-t border-gray-200">
+                        <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Available Columns</p>
+                        <div className="max-h-64 overflow-y-auto">
+                          <button
+                            onClick={() => {
+                              setShowColumnSelector(false)
+                              setColumnSearchQuery("")
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                           >
-                            <option value="Monthly">Monthly</option>
-                            <option value="Annual">Annual</option>
-                            <option value="One-Time">One-Time</option>
-                          </select>
+                            <span className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center">
+                              <X className="w-3 h-3" />
+                            </span>
+                            Clear Selection
+                          </button>
+                          {filteredColumns.map((column) => (
+                            <button
+                              key={column}
+                              onClick={() => handleAddColumn(column)}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                                column === 'laundry' ? 'border-orange-500 text-orange-500' : 'border-gray-300'
+                              }`}>
+                                {column === 'laundry' && '○'}
+                              </span>
+                              {column}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Info message with Add Column button */}
+                  <div className="flex gap-2 text-sm text-gray-600 items-baseline">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 text-gray-500 text-xs flex-shrink-0 mt-0.5">
+                      i
+                    </span>
+                    <span>Tip: Target frequency changes automatically recalculate values</span>
                   </div>
-                ))}
               </div>
+            )}
 
-              <p className="text-xs text-gray-600 mt-3 flex items-start gap-2">
-                <span className="text-blue-600 font-semibold mt-0.5 flex-shrink-0">ℹ</span>
-                <span>Changes recalculate values automatically</span>
-              </p>
-            </div>
-
-            {/* Floor Plan Configuration */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-900 mb-3 uppercase tracking-wider">Floor Plans</h3>
-              <div className="space-y-2 text-xs text-gray-600">
-                <p>Map floor plans to unit types and availability</p>
+            {activeTab === "floor-plans" && (
+              <div>
+                <div className="min-w-max">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Floor Plan
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Bedrooms
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Bathrooms
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Renovated
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        RE...
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {localConfig.floorPlans.map((plan, index) => (
+                      <tr key={plan.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-medium text-gray-900">{plan.name}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={plan.bedrooms}
+                            onChange={(e) => handleFloorPlanChange(plan.id, 'bedrooms', parseInt(e.target.value))}
+                            className="w-20 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={plan.bathrooms}
+                            onChange={(e) => handleFloorPlanChange(plan.id, 'bathrooms', parseInt(e.target.value))}
+                            className="w-20 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-700">
+                            {plan.isRenovated ? "Renovated" : "Not Renovated"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={plan.isRenovated}
+                            onChange={(e) => handleFloorPlanChange(plan.id, 'isRenovated', e.target.checked)}
+                            className="w-5 h-5 border-2 border-orange-500 rounded"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Occupancy Configuration */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-900 mb-3 uppercase tracking-wider">Occupancy</h3>
-              <div className="space-y-2 text-xs text-gray-600">
-                <p>Configure occupancy rules and vacancy tracking</p>
+            {activeTab === "occupancy" && (
+              <div>
+                <div className="min-w-max">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Raw Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Normalized
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {localConfig.occupancyMappings.map((mapping, index) => (
+                      <tr key={mapping.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900">{mapping.rawStatus}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={mapping.normalizedStatus}
+                            onChange={(e) => handleOccupancyChange(mapping.id, e.target.value)}
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                          >
+                            <option value="Occupied">Occupied</option>
+                            <option value="Vacant">Vacant</option>
+                            <option value="Admin/Down">Admin/Down</option>
+                            <option value="Office">Office</option>
+                            <option value="Model">Model</option>
+                            <option value="Excluded">Excluded</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="mt-4 text-sm text-gray-600">
+                  <span className="font-medium">Validation:</span> All statuses mapped
+                </div>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-200 px-6 py-4 flex justify-between items-center bg-gray-50">
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Reset
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                />
+              </svg>
+              Save Changes
+            </button>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 px-4 py-3 flex gap-2 flex-shrink-0">
-          <button
-            onClick={handleReset}
-            className="flex-1 px-3 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            Reset
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 px-3 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            Save
-          </button>
-        </div>
-      </div>
     </>
   )
 }

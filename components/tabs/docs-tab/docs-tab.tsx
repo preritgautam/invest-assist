@@ -1155,6 +1155,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                     </div>
                   </div>
                   <div className="flex flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-auto">
                       <RRDocument />
                     </div>
                     <RRConfigure
@@ -1163,6 +1164,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                       config={rrConfig}
                       onConfigChange={setRrConfig}
                     />
+                  </div>
                 </div>
               )}
               {activeSection === "t12" && activeDocType === "OM" && (

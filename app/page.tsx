@@ -40,8 +40,27 @@ import { HomeTab } from "@/components/tabs/home-tab"
 import { TabBar } from "@/components/tab-bar"
 import { useRouter } from "next/navigation"
 import { useCallback, useState, useEffect, useLayoutEffect } from "react"
-import { Home as HomeIcon, ChevronDown, ChevronUp } from "lucide-react"
+import {
+  Home as HomeIcon,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Building,
+  Calculator,
+  FileX,
+  Briefcase,
+  ArrowLeftRight,
+  TrendingUp,
+  BarChart,
+  FileBarChart,
+} from "lucide-react"
 import type React from "react"
+
+interface NavItem {
+  id: string
+  label: string
+  icon: React.ReactNode
+}
 
 export default function Home() {
   const router = useRouter()
@@ -153,6 +172,7 @@ export default function Home() {
                 <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border sm:border-2 md:border-4 border-white p-0.5 sm:p-1 w-full">
                   <nav className="bg-gradient-to-br from-gray-50 via-gray-100/80 to-gray-200/60 rounded-xl sm:rounded-2xl p-0.5 sm:p-1 w-full shadow-[inset_0_2px_8px_rgba(0,0,0,0.06),inset_0_-2px_4px_rgba(255,255,255,0.8)] border border-gray-200/30 backdrop-blur-sm relative before:absolute before:inset-0 before:bg-gradient-to-t before:from-white/20 before:to-transparent before:rounded-xl sm:before:rounded-2xl before:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-transparent after:to-white/10 after:rounded-xl sm:after:rounded-2xl after:pointer-events-none">
                     <div className="flex items-center justify-between overflow-x-auto scrollbar-hide px-0.5 pb-0.5 sm:pb-0">
+                      {/* Home Button */}
                       <button
                         className="
                           group relative flex flex-col items-center justify-center gap-0.5 sm:gap-1 
@@ -171,6 +191,50 @@ export default function Home() {
                           Home
                         </span>
                       </button>
+
+                      {/* Divider */}
+                      <div className="flex items-center px-0.5 md:px-1 lg:px-1 flex-shrink-0">
+                        <div className="w-px h-5 sm:h-8 md:h-9 lg:h-10 bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
+                        <div className="hidden md:flex items-center mx-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mx-0.5"></div>
+                          <div className="w-1 h-1 rounded-full bg-gray-400 mx-0.5"></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mx-0.5"></div>
+                        </div>
+                        <div className="w-px h-5 sm:h-8 md:h-9 lg:h-10 bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
+                      </div>
+
+                      {/* Property Tabs - Disabled */}
+                      {[
+                        { id: "documents", label: "Docs", icon: <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "property", label: "Property", icon: <Building className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "pro-forma", label: "Pro Forma", icon: <Calculator className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "capital", label: "Capital", icon: <FileX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "plan", label: "Plan", icon: <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "outlay", label: "Outlay", icon: <ArrowLeftRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "returns", label: "Returns", icon: <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "analytics", label: "Analytics", icon: <BarChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                        { id: "summary", label: "Summary", icon: <FileBarChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          disabled={true}
+                          className="
+                            group relative flex flex-col items-center justify-center gap-0.5 sm:gap-1 
+                            px-1.5 sm:px-2 md:px-2.5 lg:px-3 py-1.5 sm:py-2 md:py-2.5 lg:py-3
+                            min-w-[50px] sm:min-w-[60px] md:min-w-[65px] lg:min-w-[70px]
+                            min-h-[45px] sm:min-h-[50px] md:min-h-[55px]
+                            transition-all duration-300 ease-out flex-shrink-0
+                            text-gray-400 bg-gray-50 cursor-not-allowed opacity-50 rounded-md sm:rounded-lg lg:rounded-xl border border-gray-200
+                          "
+                        >
+                          <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4 md:h-4 flex items-center justify-center flex-shrink-0 transition-transform duration-300 relative z-10">
+                            {tab.icon}
+                          </div>
+                          <span className="font-semibold text-center leading-tight transition-all duration-300 text-[9px] sm:text-[10px] md:text-[10px] lg:text-xs relative z-10 text-gray-400">
+                            {tab.label}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </nav>
                 </div>

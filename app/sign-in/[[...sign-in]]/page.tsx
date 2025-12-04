@@ -1,140 +1,148 @@
 "use client"
 
 import type React from "react"
-
-import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { useSignIn } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function SignInPage() {
+  const { signIn, isLoaded } = useSignIn()
   const router = useRouter()
+  
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  // CLERK BYPASSED - using local form for v0 Vercel compatibility
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!isLoaded || !signIn) return
+
     setError("")
-    setLoading(true)
+    setIsLoading(true)
 
     try {
-      if (!email || !password) {
-        setError("Email and password are required")
-        setLoading(false)
-        return
-      }
+      const result = await signIn.create({
+        identifier: email,
+        password: password,
+      })
 
-      // Bypass authentication - just redirect to home
-      // In production, you would integrate your own auth system here
-      router.push("/")
-    } catch (err) {
-      setError("An error occurred during sign in")
-      setLoading(false)
+      if (result.status === "complete") {
+        router.push("/")
+      } else {
+        setError("Sign in failed. Please try again.")
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Invalid email or password")
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[oklch(0.25_0.03_240)] flex flex-col">
-      {/* Header */}
-      <header className="p-4 sm:p-6">
-        <div className="flex items-center gap-2 text-white">
-          <Building2 className="w-6 h-6 sm:w-8 sm:h-8" />
-          <span className="text-lg sm:text-xl font-bold">Invest Assist</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col items-center justify-center p-4">
+      {/* Header with Logo */}
+      <div className="mb-8 flex flex-col items-center">
+        <div className="bg-white rounded-2xl shadow-2xl shadow-blue-300/50 px-8 py-6 mb-6 border border-blue-100">
+          <Image
+            src="/investassist-logo.png"
+            alt="Invest Assist Logo"
+            width={200}
+            height={80}
+            priority
+            className="h-20 w-auto"
+          />
         </div>
-      </header>
-
-      {/* Main Content - Centered Card */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md">
-          {/* Welcome Text - Mobile First */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">Welcome Back</h1>
-            <p className="text-sm sm:text-base text-white/70">Sign in to access your investment portfolio</p>
-          </div>
-
-          {/* Auth Card */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
-            {error && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <Input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="Enter your email"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
-                </label>
-                <Input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="Enter your password"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-              >
-                {loading ? (
-                  "Signing in..."
-                ) : (
-                  <>
-                    <span>Sign In</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-sm text-gray-600">
-                Don't have an account?{" "}
-                <Link href="/sign-up" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-                  Create account
-                </Link>
-              </p>
-            </div>
-          </div>
-
-          {/* Trust Indicators */}
-          <div className="mt-6 sm:mt-8 text-center">
-            <p className="text-xs sm:text-sm text-white/50">Trusted by investors managing over $500M in assets</p>
-          </div>
-        </div>
+        <p className="text-center text-sm text-slate-500">Professional investment deal management platform</p>
       </div>
+
+      {/* Login Card */}
+      <Card className="w-full max-w-md border-0 bg-white shadow-xl">
+        <CardHeader className="space-y-1 pb-6">
+          <CardTitle className="text-2xl font-bold text-slate-900">
+            Welcome back
+          </CardTitle>
+          <CardDescription className="text-slate-600">Enter your credentials to access your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium text-slate-900">
+                Email address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                required
+                className="h-11 border-slate-200 bg-white placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium text-slate-900">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                className="h-11 border-slate-200 bg-white placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Remember me
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-blue-600 font-medium hover:text-blue-700 transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <Button
+              type="submit"
+              className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold shadow-md hover:from-blue-700 hover:to-cyan-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !isLoaded}
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
+          <div className="mt-6 text-center text-sm text-slate-600">
+            {"Don't have an account? "}
+            <Link 
+              href="/sign-up"
+              className="text-blue-600 font-medium hover:text-blue-700 transition-colors"
+            >
+              Contact your administrator
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

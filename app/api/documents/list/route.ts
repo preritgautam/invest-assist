@@ -1,15 +1,21 @@
 // app/api/documents/list/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { query } from '@/lib/db';
-
-const MOCK_USER_ID = 'user_bypass_12345';
 
 export async function GET(request: NextRequest) {
   try {
+    // Get authenticated user from Clerk
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized - User not authenticated' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
-    
-    // Allow optional user_id parameter (for admin/testing)
-    const userId = searchParams.get('userId') || MOCK_USER_ID;
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
     const documentType = searchParams.get('documentType');

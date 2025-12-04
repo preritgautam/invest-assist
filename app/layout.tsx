@@ -1,9 +1,9 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
+import { ClerkProvider } from "@clerk/nextjs"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
-// CLERK BYPASSED - removed ClerkProvider for v0 Vercel compatibility
 
 const inter = Inter({
   subsets: ["latin"],
@@ -27,8 +27,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
-        {children}
-        <Toaster />
+        <ClerkProvider>
+          {children}
+          <Toaster />
+        </ClerkProvider>
       </body>
     </html>
   )

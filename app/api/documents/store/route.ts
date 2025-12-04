@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { query } from '@/lib/db';
-
-// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
-const MOCK_USER_ID = 'user_bypass_12345';
 
 export async function POST(request: NextRequest) {
   try {
+    // Get authenticated user from Clerk
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized - User not authenticated' },
+        { status: 401 }
+      );
+    }
+
     console.log('[Documents API Store] Request received');
-    
-    // CLERK BYPASSED - using mock user ID
-    const userId = MOCK_USER_ID;
-    console.log('[Documents API Store] Using mock user ID:', { userId });
+    console.log('[Documents API Store] Storing for user:', { userId });
 
     const body = await request.json();
     const {

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
-const MOCK_USER_ID = 'user_bypass_12345';
+import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request: NextRequest) {
     try {
         console.log('[Health Check] Running diagnostics');
+
+        // Get authenticated user from Clerk
+        const { userId } = await auth();
 
         const diagnostics = {
             database: {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
                 port: '5432',
             },
             clerk: {
-                status: 'BYPASSED - using mock user ID',
+                status: userId ? 'AUTHENTICATED' : 'NOT AUTHENTICATED',
             },
             rex: {
                 apiKey: process.env.DOCIN_API_KEY ? '***SET***' : 'NOT SET',
@@ -29,8 +30,8 @@ export async function GET(request: NextRequest) {
             status: 'ok',
             diagnostics,
             auth: {
-                userId: MOCK_USER_ID,
-                message: 'Using mock user ID - Clerk bypassed',
+                userId: userId || null,
+                isAuthenticated: !!userId,
             },
         });
 

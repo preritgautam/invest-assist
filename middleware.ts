@@ -1,11 +1,18 @@
-// CLERK BYPASSED - Middleware disabled for v0 Vercel compatibility
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-export default function middleware(request: NextRequest) {
-  // Allow all requests to pass through - no authentication
-  return NextResponse.next()
-}
+// Define public routes that don't require authentication
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)', 
+  '/sign-up(.*)',
+  '/api/webhook(.*)', // if you have webhooks
+])
+
+export default clerkMiddleware(async (auth, request) => {
+  // Protect all routes except public ones
+  if (!isPublicRoute(request)) {
+    await auth.protect()
+  }
+})
 
 export const config = {
   matcher: [

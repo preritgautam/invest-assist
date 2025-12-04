@@ -1,9 +1,20 @@
 // app/api/documents/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Get authenticated user from Clerk
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized - User not authenticated' },
+        { status: 401 }
+      );
+    }
+
     const rawId = (params.id ?? '').trim();
     console.log(`[Document API] Fetching document with raw ID: "${rawId}"`);
 

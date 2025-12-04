@@ -1157,14 +1157,13 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                   </div>
                   <div className="relative flex flex-1 overflow-hidden">
                     <div className="flex-1 overflow-auto">
-                      <RRDocument />
-                    </div>
-                    <RRConfigure
-                      isOpen={rrConfigOpen}
+                      <RRDocument 
+                       isOpen={rrConfigOpen}
                       onClose={() => setRrConfigOpen(false)}
                       config={rrConfig}
                       onConfigChange={setRrConfig}
-                    />
+                      />
+                    </div>
                   </div>
                 </div>
               )}

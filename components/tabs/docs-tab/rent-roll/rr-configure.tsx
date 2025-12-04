@@ -44,89 +44,43 @@ interface RRConfigureProps {
 type TabType = "tenant-charges" | "floor-plans" | "occupancy"
 
 export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfigureProps) {
-  const [localConfig, setLocalConfig] = useState<RentRollConfig>({
-    tenantCharges: [
-      {
-        id: "1",
-        name: "RENT",
-        apiField: "monthly_rent",
-        frequency: "Monthly",
-        targetFrequency: "Monthly",
-        isActive: true,
-      },
-      {
-        id: "2",
-        name: "WATER",
-        apiField: "utility_reimbursement",
-        frequency: "Monthly",
-        targetFrequency: "Monthly",
-        isActive: true,
-      },
-      {
-        id: "3",
-        name: "Unit Upgrades",
-        apiField: "other_charges",
-        frequency: "Monthly",
-        targetFrequency: "Monthly",
-        isActive: true,
-      },
-      {
-        id: "4",
-        name: "WASH/DRY",
-        apiField: "laundry",
-        frequency: "Monthly",
-        targetFrequency: "Monthly",
-        isActive: true,
-      },
-    ],
-    floorPlans: [
-      { id: "1", name: "A1", bedrooms: 1, bathrooms: 1, isRenovated: false },
-      { id: "2", name: "A2", bedrooms: 2, bathrooms: 1, isRenovated: false },
-      { id: "3", name: "B1", bedrooms: 1, bathrooms: 1, isRenovated: false },
-      { id: "4", name: "B2", bedrooms: 2, bathrooms: 2, isRenovated: false },
-    ],
-    occupancyMappings: [
-      { id: "1", rawStatus: "Occupied", normalizedStatus: "Occupied" },
-      { id: "2", rawStatus: "Occupied-NTVL", normalizedStatus: "Occupied" },
-      { id: "3", rawStatus: "Admin/Down", normalizedStatus: "Admin/Down" },
-      { id: "4", rawStatus: "Occupied-NTV", normalizedStatus: "Occupied" },
-    ],
-    availableColumns: ["laundry", "parking", "pet_fee", "storage", "subsidy", "vacancy"]
-  })
+  const defaultConfig: RentRollConfig = {
+    tenantCharges: [],
+    floorPlans: [],
+    occupancyMappings: [],
+    availableColumns: [],
+  }
+  
+  const [localConfig, setLocalConfig] = useState<RentRollConfig>(config || defaultConfig)
   const [activeTab, setActiveTab] = useState<TabType>("tenant-charges")
   const [showColumnSelector, setShowColumnSelector] = useState(false)
   const [columnSearchQuery, setColumnSearchQuery] = useState("")
   const [mapToSearchQuery, setMapToSearchQuery] = useState<{[key: string]: string}>({})
   const [showMapToDropdown, setShowMapToDropdown] = useState<{[key: string]: boolean}>({})
 
-  const availableColumns = [
-    "laundry",
-    "parking",
-    "pet_fee",
-    "storage",
-    "subsidy",
-    "vacancy"
-  ]
+  useEffect(() => {
+    if (config) {
+      setLocalConfig(config)
+    }
+  }, [config])
+
+  // Dynamically get available columns and API fields from config
+  const availableColumns = localConfig?.availableColumns || []
 
   const availableApiFields = [
-    "monthly_rent",
-    "utility_reimbursement",
-    "other_charges",
-    "laundry",
-    "parking",
-    "pet_fee",
-    "storage",
-    "subsidy",
-    "vacancy"
+    ...new Set([
+      ...(localConfig?.tenantCharges || []).map(charge => charge.apiField),
+      ...(localConfig?.availableColumns || []),
+    ])
   ]
 
-  const filteredColumns = availableColumns.filter(col => 
+  const filteredColumns = availableColumns.filter((col: string) =>
     col.toLowerCase().includes(columnSearchQuery.toLowerCase())
   )
 
   const getFilteredApiFields = (chargeId: string) => {
     const searchQuery = mapToSearchQuery[chargeId] || ""
-    return availableApiFields.filter(field =>
+    return availableApiFields.filter((field: string) =>
       field.toLowerCase().includes(searchQuery.toLowerCase())
     )
   }
@@ -195,26 +149,30 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
     setShowMapToDropdown({})
   }
 
-  // Close dropdowns when clicking outside
+  // Get the RRDocument parent container position to calculate modal position
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 })
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.relative')) {
-        setShowMapToDropdown({})
-      }
+    // Get the position of the RRDocument container
+    const rrDocContainer = document.querySelector('[data-rr-container]') as HTMLElement
+    if (rrDocContainer && isOpen) {
+      const rect = rrDocContainer.getBoundingClientRect()
+      setModalPosition({
+        top: rect.top,
+        right: window.innerWidth - rect.right,
+      })
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [isOpen])
 
   if (!isOpen) return null
 
   return (
     <>
-      {/* Modal - Absolute positioned, stays fixed while table scrolls */}
-      <div className={`absolute top-0 right-0 h-full bg-white shadow-lg border-l border-gray-200 transform transition-all duration-300 ease-in-out overflow-hidden flex flex-col flex-shrink-0 z-20 ${
-        isOpen ? "w-1/3" : "w-0"
-      }`}>
+      {/* Modal - Fixed positioning that stays in place when table scrolls */}
+      {isOpen && (
+        <div 
+          className="fixed top-0 right-0 bottom-0 h-screen bg-white shadow-lg border-l border-gray-200 transform transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 z-50 overflow-hidden w-1/3 pointer-events-auto"
+        >
           {/* Header - Sticky */}
           <div className="sticky top-0 z-10 bg-white items-center justify-between px-3 py-2 border-b border-gray-200">
             <div className="flex justify-between items-center w-full">
@@ -302,7 +260,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
                       </tr>
                     </thead>
                     <tbody className="bg-white">
-                      {localConfig.tenantCharges.map((charge, index) => (
+                      {(localConfig?.tenantCharges || []).map((charge, index) => (
                         <tr key={charge.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
@@ -347,7 +305,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
                               {/* Dropdown */}
                               {showMapToDropdown[charge.id] && (
                                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
-                                  {getFilteredApiFields(charge.id).map((field) => (
+                                  {getFilteredApiFields(charge.id).map((field: string) => (
                                     <button
                                       key={field}
                                       onClick={() => {
@@ -432,7 +390,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
                             </span>
                             Clear Selection
                           </button>
-                          {filteredColumns.map((column) => (
+                          {filteredColumns.map((column: string) => (
                             <button
                               key={column}
                               onClick={() => handleAddColumn(column)}
@@ -486,7 +444,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {localConfig.floorPlans.map((plan, index) => (
+                    {(localConfig?.floorPlans || []).map((plan, index) => (
                       <tr key={plan.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
                         <td className="px-4 py-3">
                           <span className="text-sm font-medium text-gray-900">{plan.name}</span>
@@ -543,7 +501,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {localConfig.occupancyMappings.map((mapping, index) => (
+                    {(localConfig?.occupancyMappings || []).map((mapping, index) => (
                       <tr key={mapping.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
                         <td className="px-4 py-3">
                           <span className="text-sm text-gray-900">{mapping.rawStatus}</span>
@@ -607,6 +565,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
             </button>
           </div>
         </div>
+      )}
     </>
   )
 }

@@ -46,7 +46,7 @@ interface Metadata {
   "Mapping for the charges"?: Record<string, string[]>
 }
 
-function buildConfigFromMetadata(metadata: Metadata): RentRollConfig {
+function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []): RentRollConfig {
   // Build tenant charges from Transaction Codes and Mapping for the charges
   const transactionCodes = metadata["Transaction Codes"] || []
   const chargesMapping = metadata["Mapping for the charges"] || {}
@@ -94,8 +94,9 @@ function buildConfigFromMetadata(metadata: Metadata): RentRollConfig {
       normalizedStatus: normalizedStatus as string,
     }))
 
-  // Available columns from the charges mapping keys
-  const availableColumns = Object.keys(chargesMapping)
+  // Note: availableColumns will be populated from the actual API headers when data is fetched
+  // For now, include charge mapping keys as a fallback
+  const availableColumns = allHeaders.length > 0 ? allHeaders : Object.keys(chargesMapping)
 
   return {
     tenantCharges,
@@ -160,7 +161,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         if (metadata) {
           setMetadata(metadata)
           setChargesMapping(metadata["Mapping for the charges"] || {})
-          const builtConfig = buildConfigFromMetadata(metadata)
+          const builtConfig = buildConfigFromMetadata(metadata, headers)
           setDynamicConfig(builtConfig)
         }
       } else {
@@ -212,16 +213,53 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   }
 
   const formatHeaderName = (column: string): string => {
-    // If it's a charge column, use the category name from mapping
-    const category = getChargeCategory(column)
-    if (category) {
-      return category
-    }
-    // Otherwise format the column name
+    // Format the column name by capitalizing words
     return column
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ")
+  }
+
+  const getChargeCategories = (): string[] => {
+    return Object.keys(chargesMapping)
+  }
+
+  const getCategoryHeaderColor = (category: string) => {
+    switch (category) {
+      case "Monthly Rent":
+        return "bg-green-600 text-white"
+      case "utility_reimbursement":
+        return "bg-blue-600 text-white"
+      case "laundry":
+        return "bg-orange-600 text-white"
+      case "other_charges":
+        return "bg-purple-600 text-white"
+      default:
+        return "bg-gray-600 text-white"
+    }
+  }
+
+  const getCategoryCellColor = (category: string) => {
+    switch (category) {
+      case "Monthly Rent":
+        return "bg-green-50"
+      case "utility_reimbursement":
+        return "bg-blue-50"
+      case "laundry":
+        return "bg-orange-50"
+      case "other_charges":
+        return "bg-purple-50"
+      default:
+        return "bg-gray-50"
+    }
+  }
+
+  const getTotalForCategory = (row: RentRollUnit, category: string): number => {
+    const headers = chargesMapping[category] || []
+    return headers.reduce((total, header) => {
+      const value = parseFloat(String(row[header]).replace(/[^0-9.-]/g, "")) || 0
+      return total + value
+    }, 0)
   }
 
   return (
@@ -252,21 +290,25 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                 <tr className="bg-gray-50 border-b border-gray-200">
                   {getDisplayColumns().map((column) => {
                     const displayHeader = formatHeaderName(column)
-                    const isCharge = isChargeColumn(column)
 
                     return (
                       <th
                         key={column}
-                        className={`px-4 py-2 text-left text-xs font-medium whitespace-nowrap ${
-                          isCharge
-                            ? "bg-blue-50 text-blue-700 border-l-2 border-blue-300"
-                            : "text-gray-700"
-                        }`}
+                        className="px-4 py-2 text-left text-xs font-medium whitespace-nowrap bg-blue-50 text-blue-700 border-l-2 border-blue-300"
                       >
                         {displayHeader}
                       </th>
                     )
                   })}
+                  {/* Charge Category Columns */}
+                  {getChargeCategories().map((category) => (
+                    <th
+                      key={`category-${category}`}
+                      className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
+                    >
+                      {category.replace(/_/g, " ")}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -285,7 +327,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
 
                       // Apply status color styling to the status column
                       const isStatusColumn = column === "status"
-                      const isCharge = isChargeColumn(column)
                       const statusClass = isStatusColumn
                         ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block`
                         : ""
@@ -293,15 +334,25 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                       return (
                         <td
                           key={`${index}-${column}`}
-                          className={`px-4 py-2 text-sm text-gray-900 whitespace-nowrap ${
-                            isCharge ? "bg-blue-50 font-semibold text-blue-900" : ""
-                          }`}
+                          className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap bg-blue-50 font-semibold text-blue-900"
                         >
                           {isStatusColumn ? (
                             <span className={statusClass}>{displayValue}</span>
                           ) : (
                             displayValue
                           )}
+                        </td>
+                      )
+                    })}
+                    {/* Charge Category Totals */}
+                    {getChargeCategories().map((category) => {
+                      const total = getTotalForCategory(row, category)
+                      return (
+                        <td
+                          key={`${index}-category-${category}`}
+                          className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${getCategoryCellColor(category)}`}
+                        >
+                          ${total.toFixed(2)}
                         </td>
                       )
                     })}

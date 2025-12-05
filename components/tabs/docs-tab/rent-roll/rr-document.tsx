@@ -117,7 +117,9 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   const [columns, setColumns] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [metadata, setMetadata] = useState<Metadata | null>(null)
   const [dynamicConfig, setDynamicConfig] = useState<RentRollConfig>(config)
+  const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     fetchRentRollData()
@@ -128,7 +130,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
       setLoading(true)
       setError(null)
 
-      const documentId = "00a647b4-3b2c-4b96-b217-c2ff00bffb2e"
+      const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
       const response = await fetch(`/api/documents/${documentId}`)
 
       if (!response.ok) {
@@ -154,8 +156,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         setData(mappedData)
         setColumns(headers)
 
-        // Build dynamic config from metadata
+        // Store metadata and charges mapping
         if (metadata) {
+          setMetadata(metadata)
+          setChargesMapping(metadata["Mapping for the charges"] || {})
           const builtConfig = buildConfigFromMetadata(metadata)
           setDynamicConfig(builtConfig)
         }
@@ -188,6 +192,38 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     }
   }
 
+  const getDisplayColumns = () => {
+    // Display all columns from the API response headers in their original order
+    return columns
+  }
+
+  const getChargeCategory = (column: string): string | null => {
+    // Find which charge category this column belongs to
+    for (const [category, codes] of Object.entries(chargesMapping)) {
+      if (Array.isArray(codes) && codes.includes(column)) {
+        return category
+      }
+    }
+    return null
+  }
+
+  const isChargeColumn = (column: string): boolean => {
+    return getChargeCategory(column) !== null
+  }
+
+  const formatHeaderName = (column: string): string => {
+    // If it's a charge column, use the category name from mapping
+    const category = getChargeCategory(column)
+    if (category) {
+      return category
+    }
+    // Otherwise format the column name
+    return column
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  }
+
   return (
     <div className="relative w-full h-full flex bg-white" data-rr-container>
       {/* Table Container - Left side with independent scrolling */}
@@ -214,36 +250,58 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50">
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {columns.map((column) => (
-                    <th
-                      key={column}
-                      className="px-4 py-2 text-left text-xs font-medium text-gray-700 whitespace-nowrap"
-                    >
-                      {column}
-                    </th>
-                  ))}
+                  {getDisplayColumns().map((column) => {
+                    const displayHeader = formatHeaderName(column)
+                    const isCharge = isChargeColumn(column)
+
+                    return (
+                      <th
+                        key={column}
+                        className={`px-4 py-2 text-left text-xs font-medium whitespace-nowrap ${
+                          isCharge
+                            ? "bg-blue-50 text-blue-700 border-l-2 border-blue-300"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {displayHeader}
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {data.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {columns.map((column) => {
+                    {getDisplayColumns().map((column) => {
                       const value = row[column]
-                      const displayValue = 
-                        value === null || 
-                        value === undefined || 
-                        value === "NA" || 
-                        value === "N/A" || 
+                      const displayValue =
+                        value === null ||
+                        value === undefined ||
+                        value === "NA" ||
+                        value === "N/A" ||
                         String(value).toUpperCase() === "NA"
                           ? "-"
                           : String(value)
-                      
+
+                      // Apply status color styling to the status column
+                      const isStatusColumn = column === "status"
+                      const isCharge = isChargeColumn(column)
+                      const statusClass = isStatusColumn
+                        ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block`
+                        : ""
+
                       return (
                         <td
                           key={`${index}-${column}`}
-                          className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap"
+                          className={`px-4 py-2 text-sm text-gray-900 whitespace-nowrap ${
+                            isCharge ? "bg-blue-50 font-semibold text-blue-900" : ""
+                          }`}
                         >
-                          {displayValue}
+                          {isStatusColumn ? (
+                            <span className={statusClass}>{displayValue}</span>
+                          ) : (
+                            displayValue
+                          )}
                         </td>
                       )
                     })}

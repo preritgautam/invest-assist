@@ -194,11 +194,6 @@ export default function SignUpPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Footer */}
-      <div className="mt-8 text-center text-xs text-slate-500">
-        <p>Join thousands of investors analyzing properties with confidence</p>
-      </div>
     </div>
   )
 }

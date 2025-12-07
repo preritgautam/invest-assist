@@ -225,33 +225,11 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   }
 
   const getCategoryHeaderColor = (category: string) => {
-    switch (category) {
-      case "Monthly Rent":
-        return "bg-green-600 text-white"
-      case "utility_reimbursement":
-        return "bg-blue-600 text-white"
-      case "laundry":
-        return "bg-orange-600 text-white"
-      case "other_charges":
-        return "bg-purple-600 text-white"
-      default:
-        return "bg-gray-600 text-white"
-    }
+    return "bg-blue-600 text-white"
   }
 
   const getCategoryCellColor = (category: string) => {
-    switch (category) {
-      case "Monthly Rent":
-        return "bg-green-50"
-      case "utility_reimbursement":
-        return "bg-blue-50"
-      case "laundry":
-        return "bg-orange-50"
-      case "other_charges":
-        return "bg-purple-50"
-      default:
-        return "bg-gray-50"
-    }
+    return "bg-blue-50"
   }
 
   const getTotalForCategory = (row: RentRollUnit, category: string): number => {

@@ -126,6 +126,11 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     fetchRentRollData()
   }, [])
 
+  // Sync config changes from parent/RRConfigure to local state
+  useEffect(() => {
+    setDynamicConfig(config)
+  }, [config])
+
   const fetchRentRollData = async () => {
     try {
       setLoading(true)
@@ -224,6 +229,22 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     return Object.keys(chargesMapping)
   }
 
+  // Get unique category names from config.tenantCharges by apiField
+  const getConfigCategories = (): string[] => {
+    const categories = new Set<string>()
+    dynamicConfig.tenantCharges.forEach(charge => {
+      if (charge.apiField) {
+        categories.add(charge.apiField)
+      }
+    })
+    return Array.from(categories).sort()
+  }
+
+  // Get all charges that map to a specific category
+  const getChargesForCategory = (category: string): TenantChargeConfig[] => {
+    return dynamicConfig.tenantCharges.filter(charge => charge.apiField === category)
+  }
+
   const getCategoryHeaderColor = (category: string) => {
     return "bg-blue-600 text-white"
   }
@@ -233,9 +254,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   }
 
   const getTotalForCategory = (row: RentRollUnit, category: string): number => {
-    const headers = chargesMapping[category] || []
-    return headers.reduce((total, header) => {
-      const value = parseFloat(String(row[header]).replace(/[^0-9.-]/g, "")) || 0
+    // Get all charges with this apiField and sum their values from the row
+    const charges = getChargesForCategory(category)
+    return charges.reduce((total, charge) => {
+      const value = parseFloat(String(row[charge.name]).replace(/[^0-9.-]/g, "")) || 0
       return total + value
     }, 0)
   }
@@ -279,7 +301,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                     )
                   })}
                   {/* Charge Category Columns */}
-                  {getChargeCategories().map((category) => (
+                  {getConfigCategories().map((category) => (
                     <th
                       key={`category-${category}`}
                       className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
@@ -323,7 +345,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                       )
                     })}
                     {/* Charge Category Totals */}
-                    {getChargeCategories().map((category) => {
+                    {getConfigCategories().map((category) => {
                       const total = getTotalForCategory(row, category)
                       return (
                         <td

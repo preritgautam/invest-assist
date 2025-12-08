@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { RRConfigure } from "./rr-configure"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 
 type RentRollUnit = Record<string, any>
 
@@ -344,9 +345,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   }
 
   return (
-    <div className="relative w-full h-full flex bg-white" data-rr-container>
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="w-full h-full bg-white"
+      data-rr-container
+    >
       {/* Table Container - Left side with independent scrolling */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <ResizablePanel defaultSize={75} minSize={40} className="flex flex-col overflow-hidden">
         {loading && (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -365,7 +370,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         )}
 
         {!loading && (
-          <div className="w-full h-96 flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
+          <div className="w-full h-full flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
             <div className="flex-1 overflow-x-auto overflow-y-auto">
               <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50">
@@ -445,16 +450,24 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
             </div>
           </div>
         )}
-      </div>
+      </ResizablePanel>
 
-      {/* Configure Modal - Fixed positioning overlay within relative parent */}
-      <RRConfigure
-        isOpen={isOpen}
-        onClose={onClose}
-        config={dynamicConfig}
-        onConfigChange={onConfigChange}
-        originalConfig={originalConfig}
-      />
-    </div>
+      <ResizableHandle withHandle />
+
+      {/* Configure Modal - Right side panel */}
+
+      {isOpen && (
+ <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">
+        <RRConfigure
+          isOpen={isOpen}
+          onClose={onClose}
+          config={dynamicConfig}
+          onConfigChange={onConfigChange}
+          originalConfig={originalConfig}
+        />
+      </ResizablePanel>
+      )}
+     
+    </ResizablePanelGroup>
   )
 }

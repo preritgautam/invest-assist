@@ -164,29 +164,14 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     onConfigChange(resetConfig)
   }
 
-  // Get the RRDocument parent container position to calculate modal position
-  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 })
-
-  useEffect(() => {
-    // Get the position of the RRDocument container
-    const rrDocContainer = document.querySelector('[data-rr-container]') as HTMLElement
-    if (rrDocContainer && isOpen) {
-      const rect = rrDocContainer.getBoundingClientRect()
-      setModalPosition({
-        top: rect.top,
-        right: window.innerWidth - rect.right,
-      })
-    }
-  }, [isOpen])
-
   if (!isOpen) return null
 
   return (
     <>
-      {/* Modal - Fixed positioning that stays in place when table scrolls */}
+      {/* Modal - Now positioned within ResizablePanel */}
       {isOpen && (
         <div 
-          className="fixed top-0 right-0 bottom-0 h-screen bg-white shadow-lg border-l border-gray-200 transform transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 z-50 overflow-hidden w-1/3 pointer-events-auto"
+          className="w-full h-full bg-white flex flex-col overflow-hidden"
         >
           {/* Header - Sticky */}
           <div className="sticky top-0 z-10 bg-white items-center justify-between px-3 py-2 border-b border-gray-200">
@@ -254,16 +239,18 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Map To
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+
+                        {/* //commenting now may use later */}
+                        {/* <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           <div className="flex items-center gap-1">
                             Frequency Conversion
                             <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-500 text-xs">
                               i
                             </span>
                           </div>
-                        </th>
+                        </th> */}
                       </tr>
-                      <tr className="border-b border-gray-200 bg-gray-50">
+                      {/* <tr className="border-b border-gray-200 bg-gray-50">
                         <th className="px-4 py-2"></th>
                         <th className="px-4 py-2"></th>
                         <th className="px-4 py-2">
@@ -272,7 +259,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                             <span className="flex-1">NORMALIZED</span>
                           </div>
                         </th>
-                      </tr>
+                      </tr> */}
                     </thead>
                     <tbody className="bg-white">
                       {(localConfig?.tenantCharges || []).map((charge, index) => (
@@ -353,7 +340,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          {/* <td className="px-4 py-3">
                             <div className="flex items-center gap-4">
                               <div className="flex-1">
                                 <span className="text-sm text-gray-700">{charge.frequency}</span>
@@ -371,7 +358,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                                 </select>
                               </div>
                             </div>
-                          </td>
+                          </td> */}
                         </tr>
                       ))}
                     </tbody>

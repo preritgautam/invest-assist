@@ -44,6 +44,7 @@ import { mockBrokerData } from "./mock-data"
 import { generateRentRollUnits } from "./utils"
 import LineItemRow, { type LineItem as LineItemType } from "./LineItemRow"
 import { RentRollConfig, RRConfigure } from "./rent-roll/rr-configure"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // near the other imports at the top of the file
 
@@ -92,10 +93,6 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
 
   const [extractedData, setExtractedData] = useState<LineItem[]>(mockBrokerData)
 
-  const [dragActive, setDragActive] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<number>(0)
-  const [isUploading, setIsUploading] = useState(false)
-
   const activeDocument = documents.find((d) => d.id === selectedDoc)
 
   const [activeSection, setActiveSection] = useState<"t12" | "normalized" | "summary">("t12")
@@ -130,87 +127,6 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
       { id: "4", name: "WASH/DRY", apiField: "laundry", frequency: "Monthly", targetFrequency: "Monthly" },
     ],
   })
-
-  const renderBreadcrumb = () => {
-    const steps = [
-      { id: "t12", label: "Upload", icon: FileSpreadsheet, enabled: true },
-      { id: "normalized", label: "Analyze", icon: TrendingUp, enabled: allDocsValidated },
-      { id: "summary", label: "Report", icon: BarChart3, enabled: allDocsValidated },
-    ]
-
-    return (
-      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
-        {/* </CHANGE> */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {steps.map((step, index) => {
-            const Icon = step.icon
-            const isActive = activeSection === step.id
-            const isCompleted =
-              (step.id === "t12" && allDocsValidated) || (step.id === "normalized" && activeSection === "summary")
-
-            return (
-              <React.Fragment key={step.id}>
-                <button
-                  onClick={() => step.enabled && setActiveSection(step.id as typeof activeSection)}
-                  disabled={!step.enabled}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow-md"
-                      : isCompleted
-                        ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-300"
-                        : step.enabled
-                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          : "bg-gray-50 text-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="whitespace-nowrap">{step.label}</span>
-                  {isCompleted && <CheckCircle2 className="w-4 h-4" />}
-                  {!step.enabled && <Lock className="w-3 h-3" />}
-                </button>
-                {index < steps.length - 1 && <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-              </React.Fragment>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-  // </CHANGE>
-
-  const handleFileUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) return
-    setIsUploading(true)
-    setUploadProgress(0)
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setIsUploading(false)
-          return 100
-        }
-        return prev + 10
-      })
-    }, 300)
-  }
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
-    } else if (e.type === "dragleave") {
-      setDragActive(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-    handleFileUpload(e.dataTransfer.files)
-  }
-
   const toggleExpand = (itemId: string) => {
     setExtractedData((prevData) => {
       const updateItem = (items: LineItem[]): LineItem[] => {
@@ -245,46 +161,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
     })
   }
 
-  const getDocumentIcon = (type: DocumentType) => {
-    switch (type) {
-      case "OS":
-        return FileSpreadsheet // Operating Statement - spreadsheet icon
-      case "RR":
-        return Users // Rent Roll - users/tenants icon
-      case "OM":
-        return BookOpen // Offering Memorandum - open book icon
-      case "Appraisal":
-        return Home
-      case "Insurance":
-        return Shield
-      default:
-        return FileText
-    }
-  }
 
-  const getDocumentTypeLabel = (type: DocumentType) => {
-    switch (type) {
-      case "OS":
-        return "Operating Statement / Cashflow"
-      case "RR":
-        return "Rent Roll"
-      case "OM":
-        return "Offering Memorandum / Brochure"
-      case "Appraisal":
-        return "Appraisal Report"
-      case "Insurance":
-        return "Insurance Document"
-      default:
-        return "Document"
-    }
-  }
-
-  const getPropertyName = (filename: string) => {
-    const name = filename.split("_")[0] || filename.split(".")[0]
-    return name.replace(/-/g, " ").replace(/_/g, " ")
-  }
-
-  const propertyName = activeDocument ? getPropertyName(activeDocument.name) : "Unknown Property"
 
   const renderLineItem = (item: LineItem, depth = 0): ReactNode => {
     const paddingLeft = depth * 24
@@ -295,9 +172,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
     return (
       <React.Fragment key={item.id}>
         <tr
-          className={`border-b border-gray-200 hover:bg-gray-50 ${
-            isMajorCategory ? "bg-blue-50 font-bold" : isSubcategory ? "bg-gray-50 font-semibold" : ""
-          }`}
+          className={`border-b border-gray-200 hover:bg-gray-50 ${isMajorCategory ? "bg-blue-50 font-bold" : isSubcategory ? "bg-gray-50 font-semibold" : ""
+            }`}
         >
           {/* Expand/Collapse + Line Item Name */}
           <td className="border-r border-gray-200 p-2 sticky left-0 bg-inherit z-10" style={{ paddingLeft }}>
@@ -431,7 +307,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
   }
 
 
-  const calculateSummary = ()  => {
+  const calculateSummary = () => {
     if (!extractedData) return null
 
     const totalIncome = extractedData.find((item) => item.id === "total-income")
@@ -448,313 +324,6 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
 
   const summary = calculateSummary()
 
-  const renderRentRollTable = () => {
-    if (!activeDocument?.rentRollData) return null
-
-    return (
-      <div className="overflow-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead className="sticky top-0 z-20 bg-gray-100 border-b-2 border-gray-300">
-            <tr>
-              <th colSpan={9} className="bg-blue-100 border-r border-gray-300 p-2 text-left font-bold text-gray-900">
-                UNIT INFORMATION
-              </th>
-              <th colSpan={8} className="bg-green-100 border-r border-gray-300 p-2 text-left font-bold text-gray-900">
-                LEASE TERMS
-              </th>
-              <th colSpan={6} className="bg-orange-100 border-r border-gray-300 p-2 text-left font-bold text-gray-900">
-                RENT & CHARGES
-              </th>
-              <th colSpan={13} className="bg-purple-100 border-r border-gray-300 p-2 text-left font-bold text-gray-900">
-                MONTHLY CHARGES
-              </th>
-              <th colSpan={7} className="bg-pink-100 border-r border-gray-300 p-2 text-left font-bold text-gray-900">
-                ADDITIONAL CHARGES
-              </th>
-              <th colSpan={10} className="bg-yellow-100 p-2 text-left font-bold text-gray-900">
-                INCOME ITEMS
-              </th>
-            </tr>
-            <tr className="bg-white">
-              {/* Unit Information */}
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Floor Plan</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Square Feet</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Suite Number</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Building Id</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Unit Type</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Bed</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Bath</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Renovated</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700 bg-blue-50">Status</th>
-
-              {/* Lease Terms */}
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Start Date</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">End Date</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Move In Date</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Move Out Date</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Tenant Name</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Lease Description</th>
-              <th className="border-r border-gray-300 p-2 text-left font-semibold text-gray-700">Month To Month</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700 bg-green-50">
-                Market Rent
-              </th>
-
-              {/* Rent & Charges */}
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Base Rent</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">
-                Total Charges Paid
-              </th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">
-                Total Contractual Rent
-              </th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Balance</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Deposit</th>
-              <th className="border-r border-gray-200 p-2 text-right font-semibold text-gray-700 bg-orange-50">RENT</th>
-
-              {/* Monthly Charges */}
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">WATER</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Unit Upgrades</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">WASH/DRY</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">GARAGE</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">MTOM</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">PETFEE</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">CORP</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">EMPLOYED</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">CONC</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Vacancy</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">laundry</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">parking</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700 bg-purple-50">
-                Utility Reimbursement
-              </th>
-
-              {/* Additional Charges */}
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Concessions</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Monthly Rent</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Other Charges</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Corporate Unit</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Employee Discount</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">
-                Month To Month Fees
-              </th>
-              <th className="border-r border-gray-200 p-2 text-right font-semibold text-gray-700 bg-pink-50">
-                Pet Fee
-              </th>
-
-              {/* Income Items */}
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Storage</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Subsidy</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Late Fee</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Insurance</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Rent Premium</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Trash Income</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Garage Income</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">Non Revenue Unit</th>
-              <th className="border-r border-gray-300 p-2 text-right font-semibold text-gray-700">
-                Pest Control Income
-              </th>
-              <th className="p-2 text-right font-semibold text-gray-700 bg-yellow-50">Cable Internet Income</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeDocument.rentRollData.map((unit, idx) => (
-              <tr
-                key={unit.id}
-                className={`border-b border-gray-200 hover:bg-blue-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-              >
-                {/* Unit Information */}
-                <td className="border-r border-gray-200 p-2">{unit.floorPlan}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  {unit.squareFeet.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2">{unit.suiteNumber}</td>
-                <td className="border-r border-gray-200 p-2">{unit.buildingId}</td>
-                <td className="border-r border-gray-200 p-2">{unit.unitType}</td>
-                <td className="border-r border-gray-200 p-2 text-center">{unit.bed}</td>
-                <td className="border-r border-gray-200 p-2 text-center">{unit.bath}</td>
-                <td className="border-r border-gray-200 p-2">{unit.renovated}</td>
-                <td className="border-r border-gray-200 p-2">
-                  <Badge
-                    variant={unit.status === "Occupied" ? "default" : "secondary"}
-                    className={`text-xs ${
-                      unit.status === "Occupied"
-                        ? "bg-green-100 text-green-800"
-                        : unit.status === "Occupied-NTVL"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {unit.status}
-                  </Badge>
-                </td>
-
-                {/* Lease Terms */}
-                <td className="border-r border-gray-200 p-2 text-xs">{unit.startDate || "-"}</td>
-                <td className="border-r border-gray-200 p-2 text-xs">{unit.endDate || "-"}</td>
-                <td className="border-r border-gray-200 p-2 text-xs">{unit.moveInDate || "-"}</td>
-                <td className="border-r border-gray-200 p-2 text-xs">{unit.moveOutDate || "-"}</td>
-                <td className="border-r border-gray-200 p-2">{unit.tenantName}</td>
-                <td className="border-r border-gray-200 p-2 text-xs">{unit.leaseDescription || "-"}</td>
-                <td className="border-r border-gray-200 p-2 text-center">{unit.monthToMonth || "-"}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.marketRent.toLocaleString()}
-                </td>
-
-                {/* Rent & Charges */}
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.baseRent.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.totalChargesPaid.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.totalContractualRent.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.balance.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.deposit.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.rent.toLocaleString()}</td>
-
-                {/* Monthly Charges */}
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.water.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.unitUpgrades.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.washDry.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.garage.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.mtom.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.petFee.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.corp.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.employed.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.conc.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.vacancy.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.laundry.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.parking.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.utilityReimbursement.toLocaleString()}
-                </td>
-
-                {/* Additional Charges */}
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.concessions.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.monthlyRent.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.otherCharges.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.corporateUnit.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.employeeDiscount.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.monthToMonthFees.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.petFee.toLocaleString()}</td>
-
-                {/* Income Items */}
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.storage.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.subsidy.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">${unit.lateFee.toLocaleString()}</td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.insurance.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.rentPremium.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.trashIncome.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.garageIncome.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.nonRevenueUnit.toLocaleString()}
-                </td>
-                <td className="border-r border-gray-200 p-2 text-right font-mono">
-                  ${unit.pestControlIncome.toLocaleString()}
-                </td>
-                <td className="p-2 text-right font-mono">${unit.cableInternetIncome.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
-  const renderSummaryView = () => {
-    if (activeDocument?.type === "RR" && activeDocument.rentRollData) {
-      const totalUnits = activeDocument.rentRollData.length
-      const occupiedUnits = activeDocument.rentRollData.filter((u) => u.status === "Occupied").length
-      const occupancyRate = (occupiedUnits / totalUnits) * 100
-      const totalMarketRent = activeDocument.rentRollData.reduce((sum, u) => sum + u.marketRent, 0)
-      const totalActualRent = activeDocument.rentRollData.reduce((sum, u) => sum + u.baseRent, 0)
-      const lossToLease = totalMarketRent - totalActualRent
-
-      return (
-        <div className="p-6 space-y-6">
-          <h3 className="text-lg font-bold text-gray-900">Rent Roll Summary</h3>
-          <div className="grid grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">Total Units</p>
-                <p className="text-2xl font-bold text-gray-900">{totalUnits}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">Occupied Units</p>
-                <p className="text-2xl font-bold text-green-600">{occupiedUnits}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">Occupancy Rate</p>
-                <p className="text-2xl font-bold text-blue-600">{occupancyRate.toFixed(1)}%</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">Loss to Lease</p>
-                <p className="text-2xl font-bold text-red-600">${lossToLease.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )
-    }
-
-    if (activeDocument?.type === "OS" && summary) {
-      return (
-        <div className="p-6 space-y-6">
-          <h3 className="text-lg font-bold text-gray-900">Operating Statement Summary</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">Total Income</p>
-                <p className="text-2xl font-bold text-gray-900">${summary.totalIncome.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">Net Operating Income</p>
-                <p className="text-2xl font-bold text-green-600">${summary.noi.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-1">NOI Margin</p>
-                <p className="text-2xl font-bold text-blue-600">{summary.noiMargin.toFixed(1)}%</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )
-    }
-
-    return null
-  }
 
   if (!property) {
     return (
@@ -923,9 +492,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
               setActiveSection("t12")
               setMenuExpanded(false)
             }}
-            className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${
-              activeSection === "t12" ? "text-blue-600" : "text-gray-700 hover:text-gray-900"
-            }`}
+            className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${activeSection === "t12" ? "text-blue-600" : "text-gray-700 hover:text-gray-900"
+              }`}
             title="Upload Documents"
           >
             <FileSpreadsheet className="w-5 h-5" />
@@ -937,13 +505,12 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
             <button
               onClick={() => allDocsValidated && setActiveSection("normalized")}
               disabled={!allDocsValidated}
-              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${
-                activeSection === "normalized"
-                  ? "text-blue-600"
-                  : allDocsValidated
-                    ? "text-gray-700 hover:text-gray-900"
-                    : "text-gray-400 cursor-not-allowed"
-              }`}
+              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${activeSection === "normalized"
+                ? "text-blue-600"
+                : allDocsValidated
+                  ? "text-gray-700 hover:text-gray-900"
+                  : "text-gray-400 cursor-not-allowed"
+                }`}
               title={allDocsValidated ? "Analyze" : "Complete all validations to unlock"}
             >
               <TrendingUp className="w-5 h-5" />
@@ -961,13 +528,12 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
             <button
               onClick={() => allDocsValidated && setActiveSection("summary")}
               disabled={!allDocsValidated}
-              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${
-                activeSection === "summary"
-                  ? "text-blue-600"
-                  : allDocsValidated
-                    ? "text-gray-700 hover:text-gray-900"
-                    : "text-gray-400 cursor-not-allowed"
-              }`}
+              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${activeSection === "summary"
+                ? "text-blue-600"
+                : allDocsValidated
+                  ? "text-gray-700 hover:text-gray-900"
+                  : "text-gray-400 cursor-not-allowed"
+                }`}
               title={allDocsValidated ? "Report" : "Complete all validations to unlock"}
             >
               <BarChart3 className="w-5 h-5" />
@@ -1019,14 +585,13 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleDocTypeChange("OS")}
-                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${
-                      activeDocType === "OS"
-                        ? "bg-blue-600 text-white shadow-md"
-                        : osValidated
-                          ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                    
+                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${activeDocType === "OS"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : osValidated
+                        ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+
                   >
                     <FileSpreadsheetIcon className="w-4 h-4" />
                     <span className="hidden sm:inline">T-12 / OS</span>
@@ -1038,15 +603,14 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                     <button
                       onClick={() => osValidated && handleDocTypeChange("RR")}
                       disabled={!osValidated}
-                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${
-                        activeDocType === "RR"
-                          ? "bg-blue-600 text-white shadow-md"
-                          : rrValidated
-                            ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
-                            : osValidated
-                              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      }`}
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${activeDocType === "RR"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : rrValidated
+                          ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
+                          : osValidated
+                            ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        }`}
                     >
                       <UsersIcon className="w-4 h-4" />
                       <span className="hidden sm:inline">Rent Roll</span>
@@ -1064,15 +628,14 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                     <button
                       onClick={() => rrValidated && handleDocTypeChange("OM")}
                       disabled={!rrValidated}
-                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${
-                        activeDocType === "OM"
-                          ? "bg-blue-600 text-white shadow-md"
-                          : omValidated
-                            ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
-                            : rrValidated
-                              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      }`}
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${activeDocType === "OM"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : omValidated
+                          ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
+                          : rrValidated
+                            ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        }`}
                     >
                       <BookOpenIcon className="w-4 h-4" />
                       <span className="hidden sm:inline">Offering Memorandum</span>
@@ -1086,22 +649,44 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                     )}
                   </div>
                 </div>
-                {activeDocType === "RR" && ( <button
-                  onClick={() => setRrConfigOpen(true)}
-                  className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
-                  title="Configure Rent Roll"
-                >
-                  <InspectionPanel className="w-5 h-5" />
-                </button>)}                 
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {activeDocType === "RR" && (<button
+                        onClick={() => setRrConfigOpen(true)}
+                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
+                      >
+                        <InspectionPanel className="w-5 h-5" />
+                      </button>)}
 
-                {/* Right side: Add button */}
-                <button
-                  onClick={() => {}}
-                  className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
-                  title="Add New Document"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Configure Rent Roll</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                </TooltipProvider>
+
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+
+                      <button
+                        onClick={() => { }}
+                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Add New Document</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                </TooltipProvider>
+
               </div>
             </div>
           )}
@@ -1118,7 +703,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
               )}
 
               {activeSection === "t12" && activeDocType === "RR" && activeDocument?.rentRollData && (
-                <div className="flex-1 flex flex-col overflow-hidden relative">
+                <div className="flex-1 flex flex-col overflow-hidden h-[100%] relative">
                   <div className="bg-white rounded-lg border p-2 shadow-sm m-2">
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-600">
@@ -1144,11 +729,10 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                         <button
                           onClick={handleValidateRR}
                           disabled={rrValidated}
-                          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                            rrValidated
-                              ? "bg-green-100 text-green-700 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
+                          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${rrValidated
+                            ? "bg-green-100 text-green-700 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                         >
                           {rrValidated ? "✓ Validated" : "Validate Data"}
                         </button>
@@ -1157,11 +741,11 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                   </div>
                   <div className="relative flex flex-1 overflow-hidden">
                     <div className="flex-1 overflow-auto">
-                      <RRDocument 
-                       isOpen={rrConfigOpen}
-                      onClose={() => setRrConfigOpen(false)}
-                      config={rrConfig}
-                      onConfigChange={setRrConfig}
+                      <RRDocument
+                        isOpen={rrConfigOpen}
+                        onClose={() => setRrConfigOpen(false)}
+                        config={rrConfig}
+                        onConfigChange={setRrConfig}
                       />
                     </div>
                   </div>
@@ -1194,11 +778,10 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                         <button
                           onClick={handleValidateOM}
                           disabled={omValidated}
-                          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                            omValidated
-                              ? "bg-green-100 text-green-700 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
+                          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${omValidated
+                            ? "bg-green-100 text-green-700 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                         >
                           {omValidated ? "✓ Validated" : "Validate Data"}
                         </button>
@@ -1293,7 +876,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
         </div>
       </div>
 
-    
+
     </div>
   )
 }

@@ -146,9 +146,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         console.warn("Missing data for updateDataWithConfig")
         return
       }
-
-      console.log("Updating data with config - floorPlans:", cfg.floorPlans)
-      
       const floorPlanLookup = (cfg.floorPlans || []).reduce((acc, fp) => {
         acc[fp.name] = fp
         return acc
@@ -196,7 +193,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
       setLoading(true)
       setError(null)
 
-      const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
+      const documentId = "00a647b4-3b2c-4b96-b217-c2ff00bffb2e"
       const response = await fetch(`/api/documents/${documentId}`)
 
       if (!response.ok) {
@@ -386,7 +383,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         )}
 
         {!loading && (
-          <div className="w-full h-full flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
+          <div className="w-full flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
             <div className="flex-1 overflow-x-auto overflow-y-auto">
               <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50">

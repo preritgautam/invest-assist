@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { RRConfigure } from "./rr-configure"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 
 type RentRollUnit = Record<string, any>
 
@@ -46,12 +47,12 @@ interface Metadata {
   "Mapping for the charges"?: Record<string, string[]>
 }
 
-function buildConfigFromMetadata(metadata: Metadata): RentRollConfig {
+function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []): RentRollConfig {
   // Build tenant charges from Transaction Codes and Mapping for the charges
   const transactionCodes = metadata["Transaction Codes"] || []
   const chargesMapping = metadata["Mapping for the charges"] || {}
 
-  const tenantCharges: TenantChargeConfig[] = transactionCodes.map((code, idx) => {
+  const tenantCharges: TenantChargeConfig[] = transactionCodes?.map((code, idx) => {
     // Find the apiField that maps to this transaction code
     let apiField = code.toLowerCase().replace(/\s+/g, "_")
     for (const [field, codes] of Object.entries(chargesMapping)) {
@@ -73,7 +74,7 @@ function buildConfigFromMetadata(metadata: Metadata): RentRollConfig {
 
   // Build floor plans from Floor Plan Analysis
   const floorPlanAnalysis = metadata["Floor Plan Analysis"]?.floor_plans || {}
-  const floorPlans: FloorPlan[] = Object.entries(floorPlanAnalysis).map(([name, data], idx) => {
+  const floorPlans: FloorPlan[] = Object.entries(floorPlanAnalysis)?.map(([name, data], idx) => {
     const fpData = data as any
     return {
       id: (idx + 1).toString(),
@@ -88,14 +89,15 @@ function buildConfigFromMetadata(metadata: Metadata): RentRollConfig {
   const occupancyMapping = metadata["Occupancy Mapping"] || {}
   const occupancyMappings: OccupancyMapping[] = Object.entries(occupancyMapping)
     .filter(([key]) => key !== "validation")
-    .map(([rawStatus, normalizedStatus], idx) => ({
+    ?.map(([rawStatus, normalizedStatus], idx) => ({
       id: (idx + 1).toString(),
       rawStatus: rawStatus,
       normalizedStatus: normalizedStatus as string,
     }))
 
-  // Available columns from the charges mapping keys
-  const availableColumns = Object.keys(chargesMapping)
+  // Note: availableColumns will be populated from the actual API headers when data is fetched
+  // For now, include charge mapping keys as a fallback
+  const availableColumns = allHeaders.length > 0 ? allHeaders : Object.keys(chargesMapping)
 
   return {
     tenantCharges,
@@ -103,6 +105,11 @@ function buildConfigFromMetadata(metadata: Metadata): RentRollConfig {
     occupancyMappings,
     availableColumns,
   }
+}
+
+// Helper function for consistent number formatting
+const formatCurrency = (value: number): string => {
+  return `$${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`
 }
 
 interface RRDocumentProps {
@@ -117,11 +124,69 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   const [columns, setColumns] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [metadata, setMetadata] = useState<Metadata | null>(null)
   const [dynamicConfig, setDynamicConfig] = useState<RentRollConfig>(config)
+  const [originalConfig, setOriginalConfig] = useState<RentRollConfig>(config)
+  const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
+  const [rawData, setRawData] = useState<any[]>([])
+  const [baseHeaders, setBaseHeaders] = useState<string[]>([])
 
   useEffect(() => {
     fetchRentRollData()
   }, [])
+
+  // Sync config changes from parent/RRConfigure to local state and update table data
+  useEffect(() => {
+    setDynamicConfig(config)
+  }, [config])
+
+  const updateDataWithConfig = useCallback((units: any[], cfg: RentRollConfig, headers: string[]) => {
+    try {
+      if (!units || !cfg || !headers) {
+        console.warn("Missing data for updateDataWithConfig")
+        return
+      }
+      const floorPlanLookup = (cfg.floorPlans || []).reduce((acc, fp) => {
+        acc[fp.name] = fp
+        return acc
+      }, {} as Record<string, FloorPlan>)
+
+      const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
+        const unitMap: Record<string, any> = {}
+        headers.forEach((header: string, index: number) => {
+          unitMap[header] = unit[index]
+        })
+        
+        // Add new columns using updated config: bed, bath, renovated
+        const floorPlan = unitMap["Floor Plan"]
+        
+        if (floorPlan && floorPlanLookup && floorPlanLookup[floorPlan]) {
+          const fpData = floorPlanLookup[floorPlan]
+          unitMap["bed"] = fpData.bedrooms ?? 0
+          unitMap["bath"] = fpData.bathrooms ?? 0
+          unitMap["renovated"] = fpData.isRenovated ? "Yes" : "No"
+        } else {
+          unitMap["bed"] = 0
+          unitMap["bath"] = 0
+          unitMap["renovated"] = "No"
+        }
+        
+        return unitMap
+      })
+      
+      setData(mappedData)
+    } catch (error) {
+      console.error("Error in updateDataWithConfig:", error)
+    }
+  }, [])
+
+  // Trigger recalculation when config changes
+  useEffect(() => {
+    if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0 && config && config.floorPlans) {
+      console.log("Config changed, recalculating data")
+      updateDataWithConfig(rawData, config, baseHeaders)
+    }
+  }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
 
   const fetchRentRollData = async () => {
     try {
@@ -143,20 +208,44 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         const metadata = result.document.extraction_result.data.metadataMappings as Metadata
 
         // Map API data using headers as keys
-        const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
+        const mappedData: RentRollUnit[] = units?.map((unit: any[]) => {
           const unitMap: Record<string, any> = {}
-          headers.forEach((header: string, index: number) => {
+          headers?.forEach((header: string, index: number) => {
             unitMap[header] = unit[index]
           })
+          
+          // Add new columns: bed, bath, renovated
+          const floorPlan = unitMap["Floor Plan"]
+          const floorPlanAnalysis = metadata?.["Floor Plan Analysis"]?.floor_plans || {}
+          
+          if (floorPlan && floorPlanAnalysis[floorPlan]) {
+            const fpData = floorPlanAnalysis[floorPlan]
+            unitMap["bed"] = fpData.bedrooms || 0
+            unitMap["bath"] = fpData.bathrooms || 0
+            unitMap["renovated"] = fpData.renovation_status === "renovated" ? "Yes" : "No"
+          } else {
+            unitMap["bed"] = 0
+            unitMap["bath"] = 0
+            unitMap["renovated"] = "No"
+          }
+          
           return unitMap
         })
 
         setData(mappedData)
-        setColumns(headers)
+        // Add new columns to the headers array
+        const updatedHeaders = [...headers, "bed", "bath", "renovated"]
+        setColumns(updatedHeaders)
+        // Store base headers and raw units for later recalculation
+        setBaseHeaders(headers)
+        setRawData(units)
 
-        // Build dynamic config from metadata
+        // Store metadata and charges mapping
         if (metadata) {
-          const builtConfig = buildConfigFromMetadata(metadata)
+          setMetadata(metadata)
+          setChargesMapping(metadata["Mapping for the charges"] || {})
+          const builtConfig = buildConfigFromMetadata(metadata, headers)
+          setOriginalConfig(builtConfig)
           setDynamicConfig(builtConfig)
         }
       } else {
@@ -188,10 +277,94 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     }
   }
 
+  const getDisplayColumns = () => {
+    // Display all columns from the API response headers in their original order
+    return columns
+  }
+
+  const getChargeCategory = (column: string): string | null => {
+    // Find which charge category this column belongs to
+    for (const [category, codes] of Object.entries(chargesMapping)) {
+      if (Array.isArray(codes) && codes.includes(column)) {
+        return category
+      }
+    }
+    return null
+  }
+
+  const isChargeColumn = (column: string): boolean => {
+    return getChargeCategory(column) !== null
+  }
+
+  const formatHeaderName = (column: string): string => {
+    // Format the column name by capitalizing words
+    return column
+      .split("_")
+      ?.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  }
+
+  const getChargeCategories = (): string[] => {
+    return Object.keys(chargesMapping)
+  }
+
+  // Get unique category names from config.tenantCharges by apiField
+  const getConfigCategories = (): string[] => {
+    const categories = new Set<string>()
+    dynamicConfig.tenantCharges?.forEach(charge => {
+      if (charge.apiField) {
+        categories.add(charge.apiField)
+      }
+    })
+    return Array.from(categories).sort()
+  }
+
+  // Get ALL available categories from the API mapping (for display even if $0.00)
+  const getAllCategories = (): string[] => {
+    const categories = new Set<string>()
+    // Add configured categories
+    dynamicConfig.tenantCharges?.forEach(charge => {
+      if (charge.apiField) {
+        categories.add(charge.apiField)
+      }
+    })
+    // Add original categories from API mapping (for categories that might show $0.00)
+    Object.keys(chargesMapping)?.forEach(category => {
+      categories.add(category)
+    })
+    return Array.from(categories).sort()
+  }
+
+  // Get all charges that map to a specific category
+  const getChargesForCategory = (category: string): TenantChargeConfig[] => {
+    return dynamicConfig.tenantCharges.filter(charge => charge.apiField === category)
+  }
+
+  const getCategoryHeaderColor = (category: string) => {
+    return "bg-blue-600 text-white"
+  }
+
+  const getCategoryCellColor = (category: string) => {
+    return "bg-blue-50"
+  }
+
+  const getTotalForCategory = (row: RentRollUnit, category: string): number => {
+    // Get all charges with this apiField and sum their values from the row
+    const charges = getChargesForCategory(category)
+    return charges.reduce((total, charge) => {
+      const value = parseFloat(String(row[charge.name]).replace(/[^0-9.-]/g, "")) || 0
+      return total + value
+    }, 0)
+  }
+
   return (
-    <div className="relative w-full h-full flex bg-white" data-rr-container>
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="w-full h-full bg-white"
+      data-rr-container
+    >
       {/* Table Container - Left side with independent scrolling */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <ResizablePanel defaultSize={75} minSize={40} className="flex flex-col overflow-hidden">
         {loading && (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -210,40 +383,76 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         )}
 
         {!loading && (
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-w-0">
-            <table className="w-full border-collapse text-sm">
+          <div className="w-full flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
+              <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50">
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {columns.map((column) => (
+                  {getDisplayColumns()?.map((column) => {
+                    const displayHeader = formatHeaderName(column)
+
+                    return (
+                      <th
+                        key={column}
+                        className="px-4 py-2 text-left text-xs font-medium whitespace-nowrap bg-blue-50 text-blue-700 border-l-2 border-blue-300"
+                      >
+                        {displayHeader}
+                      </th>
+                    )
+                  })}
+                  {/* Charge Category Columns */}
+                  {getAllCategories()?.map((category) => (
                     <th
-                      key={column}
-                      className="px-4 py-2 text-left text-xs font-medium text-gray-700 whitespace-nowrap"
+                      key={`category-${category}`}
+                      className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
                     >
-                      {column}
+                      {category.replace(/_/g, " ")}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {data.map((row, index) => (
+                {data?.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {columns.map((column) => {
+                    {getDisplayColumns()?.map((column) => {
                       const value = row[column]
-                      const displayValue = 
-                        value === null || 
-                        value === undefined || 
-                        value === "NA" || 
-                        value === "N/A" || 
+                      const displayValue =
+                        value === null ||
+                        value === undefined ||
+                        value === "NA" ||
+                        value === "N/A" ||
                         String(value).toUpperCase() === "NA"
                           ? "-"
                           : String(value)
-                      
+
+                      // Apply status color styling to the status column
+                      const isStatusColumn = column === "status"
+                      const statusClass = isStatusColumn
+                        ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block`
+                        : ""
+
                       return (
                         <td
                           key={`${index}-${column}`}
-                          className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap"
+                          className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap bg-blue-50 font-semibold text-blue-900"
                         >
-                          {displayValue}
+                          {isStatusColumn ? (
+                            <span className={statusClass}>{displayValue}</span>
+                          ) : (
+                            displayValue
+                          )}
+                        </td>
+                      )
+                    })}
+                    {/* Charge Category Totals */}
+                    {getAllCategories()?.map((category) => {
+                      const total = getTotalForCategory(row, category)
+                      return (
+                        <td
+                          key={`${index}-category-${category}`}
+                          className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${getCategoryCellColor(category)}`}
+                        >
+                          {formatCurrency(total)}
                         </td>
                       )
                     })}
@@ -251,17 +460,27 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
-      </div>
+      </ResizablePanel>
 
-      {/* Configure Modal - Fixed positioning overlay within relative parent */}
-      <RRConfigure
-        isOpen={isOpen}
-        onClose={onClose}
-        config={dynamicConfig}
-        onConfigChange={onConfigChange}
-      />
-    </div>
+      <ResizableHandle withHandle />
+
+      {/* Configure Modal - Right side panel */}
+
+      {isOpen && (
+ <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">
+        <RRConfigure
+          isOpen={isOpen}
+          onClose={onClose}
+          config={dynamicConfig}
+          onConfigChange={onConfigChange}
+          originalConfig={originalConfig}
+        />
+      </ResizablePanel>
+      )}
+     
+    </ResizablePanelGroup>
   )
 }

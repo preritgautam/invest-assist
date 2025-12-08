@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { RRConfigure } from "./rr-configure"
 
 type RentRollUnit = Record<string, any>
@@ -122,15 +122,57 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   const [dynamicConfig, setDynamicConfig] = useState<RentRollConfig>(config)
   const [originalConfig, setOriginalConfig] = useState<RentRollConfig>(config)
   const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
+  const [rawData, setRawData] = useState<any[]>([])
+  const [baseHeaders, setBaseHeaders] = useState<string[]>([])
 
   useEffect(() => {
     fetchRentRollData()
   }, [])
 
-  // Sync config changes from parent/RRConfigure to local state
+  // Sync config changes from parent/RRConfigure to local state and update table data
   useEffect(() => {
     setDynamicConfig(config)
   }, [config])
+
+  const updateDataWithConfig = useCallback((units: any[], cfg: RentRollConfig, headers: string[]) => {
+    console.log("Updating data with config - floorPlans:", cfg.floorPlans)
+    const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
+      const unitMap: Record<string, any> = {}
+      headers.forEach((header: string, index: number) => {
+        unitMap[header] = unit[index]
+      })
+      
+      // Add new columns using updated config: bed, bath, renovated
+      const floorPlan = unitMap["Floor Plan"]
+      const floorPlanLookup = cfg.floorPlans.reduce((acc, fp) => {
+        acc[fp.name] = fp
+        return acc
+      }, {} as Record<string, FloorPlan>)
+      
+      if (floorPlan && floorPlanLookup[floorPlan]) {
+        const fpData = floorPlanLookup[floorPlan]
+        unitMap["bed"] = fpData.bedrooms
+        unitMap["bath"] = fpData.bathrooms
+        unitMap["renovated"] = fpData.isRenovated ? "Yes" : "No"
+      } else {
+        unitMap["bed"] = 0
+        unitMap["bath"] = 0
+        unitMap["renovated"] = "No"
+      }
+      
+      return unitMap
+    })
+    
+    setData(mappedData)
+  }, [])
+
+  // Trigger recalculation when config changes
+  useEffect(() => {
+    if (rawData.length > 0 && baseHeaders.length > 0) {
+      console.log("Config changed, recalculating data")
+      updateDataWithConfig(rawData, config, baseHeaders)
+    }
+  }, [config.floorPlans, rawData, baseHeaders, updateDataWithConfig])
 
   const fetchRentRollData = async () => {
     try {
@@ -157,11 +199,32 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           headers.forEach((header: string, index: number) => {
             unitMap[header] = unit[index]
           })
+          
+          // Add new columns: bed, bath, renovated
+          const floorPlan = unitMap["Floor Plan"]
+          const floorPlanAnalysis = metadata?.["Floor Plan Analysis"]?.floor_plans || {}
+          
+          if (floorPlan && floorPlanAnalysis[floorPlan]) {
+            const fpData = floorPlanAnalysis[floorPlan]
+            unitMap["bed"] = fpData.bedrooms || 0
+            unitMap["bath"] = fpData.bathrooms || 0
+            unitMap["renovated"] = fpData.renovation_status === "renovated" ? "Yes" : "No"
+          } else {
+            unitMap["bed"] = 0
+            unitMap["bath"] = 0
+            unitMap["renovated"] = "No"
+          }
+          
           return unitMap
         })
 
         setData(mappedData)
-        setColumns(headers)
+        // Add new columns to the headers array
+        const updatedHeaders = [...headers, "bed", "bath", "renovated"]
+        setColumns(updatedHeaders)
+        // Store base headers and raw units for later recalculation
+        setBaseHeaders(headers)
+        setRawData(units)
 
         // Store metadata and charges mapping
         if (metadata) {

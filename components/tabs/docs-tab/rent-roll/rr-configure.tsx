@@ -287,7 +287,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                             <div className="relative">
                               <input
                                 type="text"
-                                value={mapToSearchQuery[charge.id] || charge.apiField}
+                                value={mapToSearchQuery[charge.id] !== undefined ? mapToSearchQuery[charge.id] : charge.apiField}
                                 onChange={(e) => {
                                   setMapToSearchQuery(prev => ({
                                     ...prev,
@@ -295,6 +295,10 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                                   }))
                                 }}
                                 onFocus={() => {
+                                  setMapToSearchQuery(prev => ({
+                                    ...prev,
+                                    [charge.id]: ""
+                                  }))
                                   setShowMapToDropdown(prev => ({
                                     ...prev,
                                     [charge.id]: true

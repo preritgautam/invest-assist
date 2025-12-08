@@ -52,7 +52,7 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
   const transactionCodes = metadata["Transaction Codes"] || []
   const chargesMapping = metadata["Mapping for the charges"] || {}
 
-  const tenantCharges: TenantChargeConfig[] = transactionCodes.map((code, idx) => {
+  const tenantCharges: TenantChargeConfig[] = transactionCodes?.map((code, idx) => {
     // Find the apiField that maps to this transaction code
     let apiField = code.toLowerCase().replace(/\s+/g, "_")
     for (const [field, codes] of Object.entries(chargesMapping)) {
@@ -74,7 +74,7 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
 
   // Build floor plans from Floor Plan Analysis
   const floorPlanAnalysis = metadata["Floor Plan Analysis"]?.floor_plans || {}
-  const floorPlans: FloorPlan[] = Object.entries(floorPlanAnalysis).map(([name, data], idx) => {
+  const floorPlans: FloorPlan[] = Object.entries(floorPlanAnalysis)?.map(([name, data], idx) => {
     const fpData = data as any
     return {
       id: (idx + 1).toString(),
@@ -89,7 +89,7 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
   const occupancyMapping = metadata["Occupancy Mapping"] || {}
   const occupancyMappings: OccupancyMapping[] = Object.entries(occupancyMapping)
     .filter(([key]) => key !== "validation")
-    .map(([rawStatus, normalizedStatus], idx) => ({
+    ?.map(([rawStatus, normalizedStatus], idx) => ({
       id: (idx + 1).toString(),
       rawStatus: rawStatus,
       normalizedStatus: normalizedStatus as string,
@@ -105,6 +105,11 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
     occupancyMappings,
     availableColumns,
   }
+}
+
+// Helper function for consistent number formatting
+const formatCurrency = (value: number): string => {
+  return `$${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`
 }
 
 interface RRDocumentProps {
@@ -136,44 +141,55 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   }, [config])
 
   const updateDataWithConfig = useCallback((units: any[], cfg: RentRollConfig, headers: string[]) => {
-    console.log("Updating data with config - floorPlans:", cfg.floorPlans)
-    const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
-      const unitMap: Record<string, any> = {}
-      headers.forEach((header: string, index: number) => {
-        unitMap[header] = unit[index]
-      })
+    try {
+      if (!units || !cfg || !headers) {
+        console.warn("Missing data for updateDataWithConfig")
+        return
+      }
+
+      console.log("Updating data with config - floorPlans:", cfg.floorPlans)
       
-      // Add new columns using updated config: bed, bath, renovated
-      const floorPlan = unitMap["Floor Plan"]
-      const floorPlanLookup = cfg.floorPlans.reduce((acc, fp) => {
+      const floorPlanLookup = (cfg.floorPlans || []).reduce((acc, fp) => {
         acc[fp.name] = fp
         return acc
       }, {} as Record<string, FloorPlan>)
+
+      const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
+        const unitMap: Record<string, any> = {}
+        headers.forEach((header: string, index: number) => {
+          unitMap[header] = unit[index]
+        })
+        
+        // Add new columns using updated config: bed, bath, renovated
+        const floorPlan = unitMap["Floor Plan"]
+        
+        if (floorPlan && floorPlanLookup && floorPlanLookup[floorPlan]) {
+          const fpData = floorPlanLookup[floorPlan]
+          unitMap["bed"] = fpData.bedrooms ?? 0
+          unitMap["bath"] = fpData.bathrooms ?? 0
+          unitMap["renovated"] = fpData.isRenovated ? "Yes" : "No"
+        } else {
+          unitMap["bed"] = 0
+          unitMap["bath"] = 0
+          unitMap["renovated"] = "No"
+        }
+        
+        return unitMap
+      })
       
-      if (floorPlan && floorPlanLookup[floorPlan]) {
-        const fpData = floorPlanLookup[floorPlan]
-        unitMap["bed"] = fpData.bedrooms
-        unitMap["bath"] = fpData.bathrooms
-        unitMap["renovated"] = fpData.isRenovated ? "Yes" : "No"
-      } else {
-        unitMap["bed"] = 0
-        unitMap["bath"] = 0
-        unitMap["renovated"] = "No"
-      }
-      
-      return unitMap
-    })
-    
-    setData(mappedData)
+      setData(mappedData)
+    } catch (error) {
+      console.error("Error in updateDataWithConfig:", error)
+    }
   }, [])
 
   // Trigger recalculation when config changes
   useEffect(() => {
-    if (rawData.length > 0 && baseHeaders.length > 0) {
+    if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0 && config && config.floorPlans) {
       console.log("Config changed, recalculating data")
       updateDataWithConfig(rawData, config, baseHeaders)
     }
-  }, [config.floorPlans, rawData, baseHeaders, updateDataWithConfig])
+  }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
 
   const fetchRentRollData = async () => {
     try {
@@ -195,9 +211,9 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         const metadata = result.document.extraction_result.data.metadataMappings as Metadata
 
         // Map API data using headers as keys
-        const mappedData: RentRollUnit[] = units.map((unit: any[]) => {
+        const mappedData: RentRollUnit[] = units?.map((unit: any[]) => {
           const unitMap: Record<string, any> = {}
-          headers.forEach((header: string, index: number) => {
+          headers?.forEach((header: string, index: number) => {
             unitMap[header] = unit[index]
           })
           
@@ -287,7 +303,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     // Format the column name by capitalizing words
     return column
       .split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      ?.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ")
   }
 
@@ -298,7 +314,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   // Get unique category names from config.tenantCharges by apiField
   const getConfigCategories = (): string[] => {
     const categories = new Set<string>()
-    dynamicConfig.tenantCharges.forEach(charge => {
+    dynamicConfig.tenantCharges?.forEach(charge => {
       if (charge.apiField) {
         categories.add(charge.apiField)
       }
@@ -310,13 +326,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   const getAllCategories = (): string[] => {
     const categories = new Set<string>()
     // Add configured categories
-    dynamicConfig.tenantCharges.forEach(charge => {
+    dynamicConfig.tenantCharges?.forEach(charge => {
       if (charge.apiField) {
         categories.add(charge.apiField)
       }
     })
     // Add original categories from API mapping (for categories that might show $0.00)
-    Object.keys(chargesMapping).forEach(category => {
+    Object.keys(chargesMapping)?.forEach(category => {
       categories.add(category)
     })
     return Array.from(categories).sort()
@@ -375,7 +391,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
               <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50">
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {getDisplayColumns().map((column) => {
+                  {getDisplayColumns()?.map((column) => {
                     const displayHeader = formatHeaderName(column)
 
                     return (
@@ -388,7 +404,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                     )
                   })}
                   {/* Charge Category Columns */}
-                  {getAllCategories().map((category) => (
+                  {getAllCategories()?.map((category) => (
                     <th
                       key={`category-${category}`}
                       className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
@@ -399,9 +415,9 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {data.map((row, index) => (
+                {data?.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {getDisplayColumns().map((column) => {
+                    {getDisplayColumns()?.map((column) => {
                       const value = row[column]
                       const displayValue =
                         value === null ||
@@ -432,14 +448,14 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                       )
                     })}
                     {/* Charge Category Totals */}
-                    {getAllCategories().map((category) => {
+                    {getAllCategories()?.map((category) => {
                       const total = getTotalForCategory(row, category)
                       return (
                         <td
                           key={`${index}-category-${category}`}
                           className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${getCategoryCellColor(category)}`}
                         >
-                          ${total.toFixed(2)}
+                          {formatCurrency(total)}
                         </td>
                       )
                     })}

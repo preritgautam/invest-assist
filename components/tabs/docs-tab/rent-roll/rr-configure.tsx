@@ -39,11 +39,12 @@ interface RRConfigureProps {
   onClose: () => void
   config: RentRollConfig
   onConfigChange: (config: RentRollConfig) => void
+  originalConfig?: RentRollConfig
 }
 
 type TabType = "tenant-charges" | "floor-plans" | "occupancy"
 
-export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfigureProps) {
+export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalConfig }: RRConfigureProps) {
   const defaultConfig: RentRollConfig = {
     tenantCharges: [],
     floorPlans: [],
@@ -63,6 +64,15 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
       setLocalConfig(config)
     }
   }, [config])
+
+  // Reset local config when modal opens
+  useEffect(() => {
+    if (isOpen && config) {
+      setLocalConfig(config)
+      setMapToSearchQuery({})
+      setShowMapToDropdown({})
+    }
+  }, [isOpen])
 
   // Dynamically get available columns and API fields from config
   const availableColumns = localConfig?.availableColumns || []
@@ -144,9 +154,14 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange }: RRConfi
   }
 
   const handleReset = () => {
-    setLocalConfig(config)
+    // Reset to original config if provided, otherwise reset to current config
+    const resetTo = originalConfig || config
+    const resetConfig = JSON.parse(JSON.stringify(resetTo))
+    setLocalConfig(resetConfig)
     setMapToSearchQuery({})
     setShowMapToDropdown({})
+    // Notify parent of the reset
+    onConfigChange(resetConfig)
   }
 
   // Get the RRDocument parent container position to calculate modal position

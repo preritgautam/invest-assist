@@ -120,6 +120,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   const [error, setError] = useState<string | null>(null)
   const [metadata, setMetadata] = useState<Metadata | null>(null)
   const [dynamicConfig, setDynamicConfig] = useState<RentRollConfig>(config)
+  const [originalConfig, setOriginalConfig] = useState<RentRollConfig>(config)
   const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
       setLoading(true)
       setError(null)
 
-      const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
+      const documentId = "00a647b4-3B2C-4b96-b217-c2ff00bffb2e"
       const response = await fetch(`/api/documents/${documentId}`)
 
       if (!response.ok) {
@@ -167,6 +168,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           setMetadata(metadata)
           setChargesMapping(metadata["Mapping for the charges"] || {})
           const builtConfig = buildConfigFromMetadata(metadata, headers)
+          setOriginalConfig(builtConfig)
           setDynamicConfig(builtConfig)
         }
       } else {
@@ -240,6 +242,22 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     return Array.from(categories).sort()
   }
 
+  // Get ALL available categories from the API mapping (for display even if $0.00)
+  const getAllCategories = (): string[] => {
+    const categories = new Set<string>()
+    // Add configured categories
+    dynamicConfig.tenantCharges.forEach(charge => {
+      if (charge.apiField) {
+        categories.add(charge.apiField)
+      }
+    })
+    // Add original categories from API mapping (for categories that might show $0.00)
+    Object.keys(chargesMapping).forEach(category => {
+      categories.add(category)
+    })
+    return Array.from(categories).sort()
+  }
+
   // Get all charges that map to a specific category
   const getChargesForCategory = (category: string): TenantChargeConfig[] => {
     return dynamicConfig.tenantCharges.filter(charge => charge.apiField === category)
@@ -301,7 +319,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                     )
                   })}
                   {/* Charge Category Columns */}
-                  {getConfigCategories().map((category) => (
+                  {getAllCategories().map((category) => (
                     <th
                       key={`category-${category}`}
                       className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
@@ -345,7 +363,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                       )
                     })}
                     {/* Charge Category Totals */}
-                    {getConfigCategories().map((category) => {
+                    {getAllCategories().map((category) => {
                       const total = getTotalForCategory(row, category)
                       return (
                         <td
@@ -370,6 +388,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
         onClose={onClose}
         config={dynamicConfig}
         onConfigChange={onConfigChange}
+        originalConfig={originalConfig}
       />
     </div>
   )

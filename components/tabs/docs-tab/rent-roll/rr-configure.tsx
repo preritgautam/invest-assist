@@ -183,14 +183,42 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
       }
 
       // Convert tenant charges to API format (mapping)
+      // Build complete mapping for all charges (mapped and unmapped)
       const tenantChargesData: Record<string, string[]> = {}
+      
       if (localConfig.tenantCharges && localConfig.tenantCharges.length > 0) {
-        localConfig.tenantCharges.forEach((charge) => {
+        // First, add all original transaction codes with empty arrays
+        // This ensures all charges are included even if unmapped
+        const allChargeNames = new Set(localConfig.tenantCharges.map(c => c.name))
+        
+        // Initialize all possible API fields with empty arrays to preserve structure
+        const allApiFields = new Set<string>()
+        localConfig.tenantCharges.forEach(charge => {
           if (charge.apiField) {
+            allApiFields.add(charge.apiField)
+          }
+        })
+        
+        // Initialize each category with empty array
+        allApiFields.forEach(field => {
+          tenantChargesData[field] = []
+        })
+        
+        // Now populate with actual mappings
+        localConfig.tenantCharges.forEach((charge) => {
+          if (charge.apiField && charge.apiField.trim() !== '') {
+            // Only add charges that have a valid apiField
             if (!tenantChargesData[charge.apiField]) {
               tenantChargesData[charge.apiField] = []
             }
             tenantChargesData[charge.apiField].push(charge.name)
+          }
+        })
+        
+        // Remove empty categories (unmapped charges)
+        Object.keys(tenantChargesData).forEach(key => {
+          if (tenantChargesData[key].length === 0) {
+            delete tenantChargesData[key]
           }
         })
       }
@@ -577,7 +605,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                         </td>
                         <td className="px-4 py-3">
                           <select
-                            value={plan.renovation_status || 'not_specified'}
+                            value={plan.renovation_status  ==='not_specified' ? 'No' : plan.renovation_status}
                             onChange={(e) => handleFloorPlanChange(plan.id, 'renovation_status', e.target.value)}
                             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
                           >
@@ -600,7 +628,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Raw Status
+                        Document Status
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Normalized

@@ -172,7 +172,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
           const fpData = floorPlanLookup[floorPlan]
           unitMap["bed"] = fpData.bedrooms ?? 0
           unitMap["bath"] = fpData.bathrooms ?? 0
-          unitMap["renovated"] = fpData.renovation_status === "yes" ? "Yes" : "No"
+          unitMap["renovated"] = fpData.renovation_status === "not_specified" ? "No" : "Yes"
         } else {
           unitMap["bed"] = 0
           unitMap["bath"] = 0
@@ -207,7 +207,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
       
-  const documentId = "fc6bfbf0-6131-44cf-89b0-e70451e20e97"
+  const documentId = "11adfae4-272f-4e87-adb7-8c3195dc1871"
 
 
   const fetchRentRollData = async () => {

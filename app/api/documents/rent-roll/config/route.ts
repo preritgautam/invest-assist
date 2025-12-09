@@ -56,12 +56,28 @@ export async function POST(request: NextRequest) {
       extractionResult.data.metadataMappings = {};
     }
 
-    // Update tenant charges configuration
+    // Update tenant charges configuration - preserve all original categories
     if (tenantChargesData) {
-      if (!extractionResult.data.metadataMappings['Mapping for the charges']) {
-        extractionResult.data.metadataMappings['Mapping for the charges'] = {};
-      }
-      extractionResult.data.metadataMappings['Mapping for the charges'] = tenantChargesData;
+      // Get existing mapping to preserve original category structure
+      const existingMapping = extractionResult.data.metadataMappings['Mapping for the charges'] || {};
+      
+      // Create merged mapping that preserves all original categories
+      const mergedMapping: Record<string, string[]> = {};
+      
+      // First, initialize all original categories with empty arrays
+      Object.keys(existingMapping).forEach(category => {
+        mergedMapping[category] = [];
+      });
+      
+      // Then apply the new mappings from the request
+      Object.entries(tenantChargesData).forEach(([category, codes]) => {
+        mergedMapping[category] = Array.isArray(codes) ? codes : [];
+      });
+      
+      // Keep all original categories, even if they end up empty after remapping
+      extractionResult.data.metadataMappings['Mapping for the charges'] = mergedMapping;
+      
+      console.log('[Rent Roll Config API] Updated mapping for the charges:', mergedMapping);
     }
 
     // Update occupancy mappings configuration

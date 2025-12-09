@@ -33,7 +33,7 @@ export default function DocumentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const documentIds = params.id as string;
-  const documentId = 'fc6bfbf0-6131-44cf-89b0-e70451e20e97'
+  const documentId = '11adfae4-272f-4e87-adb7-8c3195dc1871'
 
 
   const [document, setDocument] = useState<Document | null>(null);
@@ -46,7 +46,7 @@ export default function DocumentDetailPage() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/documents/fc6bfbf0-6131-44cf-89b0-e70451e20e97`);
+        const response = await fetch(`/api/documents/11adfae4-272f-4e87-adb7-8c3195dc1871`);
         
         if (!response.ok) {
           if (response.status === 404) {

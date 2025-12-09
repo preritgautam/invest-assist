@@ -22,7 +22,9 @@ export interface FloorPlan {
   name: string
   bedrooms: number
   bathrooms: number
-  isRenovated: boolean
+  base_floor_plan: string
+  renovation_status: 'not_specified' | 'yes' | 'no' | 'partial'
+  bed_bath_confidence: string
 }
 
 export interface OccupancyMapping {
@@ -81,7 +83,9 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
       name: name,
       bedrooms: fpData.bedrooms || 0,
       bathrooms: fpData.bathrooms || 0,
-      isRenovated: fpData.renovation_status === "renovated",
+      base_floor_plan: fpData.base_floor_plan || name,
+      renovation_status: fpData.renovation_status || 'not_specified',
+      bed_bath_confidence: fpData.bed_bath_confidence || 'unknown',
     }
   })
 
@@ -117,9 +121,11 @@ interface RRDocumentProps {
   onClose: () => void
   config: RentRollConfig
   onConfigChange: (config: RentRollConfig) => void
+  documentId?: string
+  processId?: string
 }
 
-export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocumentProps) {
+export function RRDocument({isOpen, onClose, config, onConfigChange, processId}: RRDocumentProps) {
   const [data, setData] = useState<RentRollUnit[]>(mockRentRollData)
   const [columns, setColumns] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -164,7 +170,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           const fpData = floorPlanLookup[floorPlan]
           unitMap["bed"] = fpData.bedrooms ?? 0
           unitMap["bath"] = fpData.bathrooms ?? 0
-          unitMap["renovated"] = fpData.isRenovated ? "Yes" : "No"
+          unitMap["renovated"] = fpData.renovation_status === "yes" ? "Yes" : "No"
         } else {
           unitMap["bed"] = 0
           unitMap["bath"] = 0
@@ -198,13 +204,15 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
       updateDataWithConfig(rawData, config, baseHeaders)
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
+      
+  const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
+
 
   const fetchRentRollData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const documentId = "00a647b4-3b2c-4b96-b217-c2ff00bffb2e"
       const response = await fetch(`/api/documents/${documentId}`)
 
       if (!response.ok) {
@@ -233,7 +241,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
             const fpData = floorPlanAnalysis[floorPlan]
             unitMap["bed"] = fpData.bedrooms || 0
             unitMap["bath"] = fpData.bathrooms || 0
-            unitMap["renovated"] = fpData.renovation_status === "renovated" ? "Yes" : "No"
+            unitMap["renovated"] = fpData.renovation_status
           } else {
             unitMap["bed"] = 0
             unitMap["bath"] = 0
@@ -488,6 +496,8 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           config={dynamicConfig}
           onConfigChange={handleConfigChange}
           originalConfig={originalConfig}
+          documentId={documentId}
+          processId={processId}
         />
       </ResizablePanel>
       )}

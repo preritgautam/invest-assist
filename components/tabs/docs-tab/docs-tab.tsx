@@ -126,6 +126,9 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
       { id: "3", name: "Unit Upgrades", apiField: "other_charges", frequency: "Monthly", targetFrequency: "Monthly" },
       { id: "4", name: "WASH/DRY", apiField: "laundry", frequency: "Monthly", targetFrequency: "Monthly" },
     ],
+    floorPlans: [],
+    occupancyMappings: [],
+    availableColumns: [],
   })
   const toggleExpand = (itemId: string) => {
     setExtractedData((prevData) => {
@@ -746,6 +749,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                         onClose={() => setRrConfigOpen(false)}
                         config={rrConfig}
                         onConfigChange={setRrConfig}
+                        documentId={selectedDoc || undefined}
+                        processId={selectedDoc || undefined}
                       />
                     </div>
                   </div>

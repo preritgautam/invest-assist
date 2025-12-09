@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { X } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 
 export interface TenantChargeConfig {
   id: string
@@ -18,7 +18,9 @@ export interface FloorPlan {
   name: string
   bedrooms: number
   bathrooms: number
-  isRenovated: boolean
+  base_floor_plan: string
+  renovation_status: 'not_specified' | 'yes' | 'no' | 'partial'
+  bed_bath_confidence: string
 }
 
 export interface OccupancyMapping {
@@ -40,11 +42,13 @@ interface RRConfigureProps {
   config: RentRollConfig
   onConfigChange: (config: RentRollConfig) => void
   originalConfig?: RentRollConfig
+  documentId?: string
+  processId?: string
 }
 
 type TabType = "tenant-charges" | "floor-plans" | "occupancy"
 
-export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalConfig }: RRConfigureProps) {
+export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalConfig, documentId, processId }: RRConfigureProps) {
   const defaultConfig: RentRollConfig = {
     tenantCharges: [],
     floorPlans: [],
@@ -53,11 +57,13 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
   }
   
   const [localConfig, setLocalConfig] = useState<RentRollConfig>(config || defaultConfig)
-  const [activeTab, setActiveTab] = useState<TabType>("tenant-charges")
+  const [activeTab, setActiveTab] = useState<TabType>("floor-plans")
   const [showColumnSelector, setShowColumnSelector] = useState(false)
   const [columnSearchQuery, setColumnSearchQuery] = useState("")
   const [mapToSearchQuery, setMapToSearchQuery] = useState<{[key: string]: string}>({})
   const [showMapToDropdown, setShowMapToDropdown] = useState<{[key: string]: boolean}>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (config) {
@@ -148,9 +154,58 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     }))
   }
 
-  const handleSave = () => {
-    onConfigChange(localConfig)
-    onClose()
+  const handleSave = async () => {
+    setSaveError(null)
+    setIsSaving(true)
+
+    try {
+      // Only save floor plans if we have a documentId
+      if (documentId && localConfig.floorPlans && localConfig.floorPlans.length > 0) {
+        console.log('[RRConfigure] Saving floor plan changes for document:', documentId)
+
+        // Convert internal floor plan array to API format
+        const floorPlansData: any = {
+          floor_plans: {}
+        }
+
+        localConfig.floorPlans.forEach((plan) => {
+          floorPlansData.floor_plans[plan.name] = {
+            bedrooms: plan.bedrooms,
+            bathrooms: plan.bathrooms,
+            base_floor_plan: plan.base_floor_plan,
+            renovation_status: plan.renovation_status,
+            bed_bath_confidence: plan.bed_bath_confidence,
+          }
+        })
+
+        const response = await fetch('/api/documents/floor-plans/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId,
+            floorPlansData,
+          }),
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to save floor plan changes')
+        }
+
+        const result = await response.json()
+        console.log('[RRConfigure] Floor plan changes saved successfully:', result)
+      }
+
+      // Notify parent component of config changes
+      onConfigChange(localConfig)
+      onClose()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save changes'
+      console.error('[RRConfigure] Save error:', errorMessage)
+      setSaveError(errorMessage)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleReset = () => {
@@ -442,10 +497,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                         Bathrooms
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Renovated
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        RE...
+                        Renovation Status
                       </th>
                     </tr>
                   </thead>
@@ -458,31 +510,30 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                         <td className="px-4 py-3">
                           <input
                             type="number"
+                            step="0.5"
                             value={plan.bedrooms}
-                            onChange={(e) => handleFloorPlanChange(plan.id, 'bedrooms', parseInt(e.target.value))}
-                            className="w-20 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
+                            onChange={(e) => handleFloorPlanChange(plan.id, 'bedrooms', parseFloat(e.target.value) || 0)}
+                            className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
                           />
                         </td>
                         <td className="px-4 py-3">
                           <input
                             type="number"
+                            step="0.5"
                             value={plan.bathrooms}
-                            onChange={(e) => handleFloorPlanChange(plan.id, 'bathrooms', parseInt(e.target.value))}
-                            className="w-20 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
+                            onChange={(e) => handleFloorPlanChange(plan.id, 'bathrooms', parseFloat(e.target.value) || 0)}
+                            className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-sm text-gray-700">
-                            {plan.isRenovated ? "Renovated" : "Not Renovated"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={plan.isRenovated}
-                            onChange={(e) => handleFloorPlanChange(plan.id, 'isRenovated', e.target.checked)}
-                            className="w-5 h-5 border-2 border-orange-500 rounded"
-                          />
+                          <select
+                            value={plan.renovation_status || 'not_specified'}
+                            onChange={(e) => handleFloorPlanChange(plan.id, 'renovation_status', e.target.value)}
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                          >
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                          </select>
                         </td>
                       </tr>
                     ))}
@@ -541,9 +592,15 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
 
           {/* Footer - Sticky */}
           <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 flex justify-between items-center bg-gray-50">
+            {saveError && (
+              <div className="absolute left-6 bottom-full mb-2 px-4 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {saveError}
+              </div>
+            )}
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -557,17 +614,27 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                />
-              </svg>
-              Save Changes
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                    />
+                  </svg>
+                  Save Changes
+                </>
+              )}
             </button>
           </div>
         </div>

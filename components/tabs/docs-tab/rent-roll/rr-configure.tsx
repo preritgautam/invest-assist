@@ -65,6 +65,8 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+
+  console.log('localconfig', localConfig)
   useEffect(() => {
     if (config) {
       setLocalConfig(config)
@@ -605,7 +607,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                         </td>
                         <td className="px-4 py-3">
                           <select
-                            value={plan.renovation_status  ==='not_specified' ? 'No' : plan.renovation_status}
+                            value={plan.renovation_status  === 'not_specified' ? 'no' : 'yes'}
                             onChange={(e) => handleFloorPlanChange(plan.id, 'renovation_status', e.target.value)}
                             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
                           >

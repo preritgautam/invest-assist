@@ -1,209 +1,293 @@
 "use client"
+
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useClerk, useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight, ArrowLeft } from "lucide-react"
-
-// CLERK BYPASSED - using local form for v0 Vercel compatibility
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [code, setCode] = useState("")
-  const [successfulCreation, setSuccessfulCreation] = useState(false)
-  const [complete, setComplete] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-
+  const { client } = useClerk()
+  const { isSignedIn } = useAuth()
   const router = useRouter()
 
-  // Send password reset code to user's email
-  async function sendResetCode(e: React.FormEvent) {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [code, setCode] = useState("")
+  const [step, setStep] = useState<"email" | "code" | "password">("email")
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.push("/")
+    }
+  }, [isSignedIn, router])
+
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    if (!client || !email) return
+
     setError("")
+    setIsLoading(true)
 
     try {
-      // Simulate sending reset code
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setSuccessfulCreation(true)
+      await client.signIn?.create({
+        strategy: "reset_password_email_code",
+        identifier: email,
+      })
+      setStep("code")
     } catch (err: any) {
-      console.error("Error:", err)
-      setError("Failed to send reset code")
+      console.error("Error sending reset code:", err)
+      setError(err.errors?.[0]?.message || "Failed to send reset code")
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  // Reset password using the code
-  async function resetPassword(e: React.FormEvent) {
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    if (!client || !code) return
+
     setError("")
+    setIsLoading(true)
 
     try {
-      if (!email || !code || !password) {
-        setError("Please fill in all fields")
-        setLoading(false)
+      // Attempt to set the code first - this validates it
+      await client.signIn?.attemptFirstFactor({
+        strategy: "reset_password_email_code",
+        code: code,
+      })
+      setStep("password")
+    } catch (err: any) {
+      console.error("Error verifying code:", err)
+      setError(err.errors?.[0]?.message || "Invalid verification code")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!client || !password) return
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    setError("")
+    setIsLoading(true)
+
+    try {
+      const signInAttempt = client.signIn
+      
+      if (!signInAttempt) {
+        setError("Sign in session not found")
+        setIsLoading(false)
         return
       }
 
-      // Simulate password reset
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setComplete(true)
-      setTimeout(() => router.push("/sign-in"), 2000)
+      // After email code verification for password reset, the status is "needs_new_password"
+      // We complete the reset by calling attemptFirstFactor with the new password
+      const result = await signInAttempt.attemptFirstFactor({
+        strategy: "password",
+        password: password,
+      })
+
+      // Check if sign-in is complete or if we need to do another step
+      if (result?.status === "complete") {
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        window.location.href = "/"
+      } else {
+        // If still not complete, try completing the session creation
+        setError("Password reset failed. Please try again.")
+      }
     } catch (err: any) {
-      console.error("Error:", err)
-      setError("Failed to reset password")
+      console.error("Error resetting password:", err)
+      setError(err.errors?.[0]?.message || "Failed to reset password")
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[oklch(0.25_0.03_240)] flex flex-col">
-      {/* Header */}
-      <header className="p-4 sm:p-6">
-        <div className="flex items-center gap-2 text-white">
-          <Building2 className="w-6 h-6 sm:w-8 sm:h-8" />
-          <span className="text-lg sm:text-xl font-bold">Invest Assist</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col items-center justify-center p-4">
+      {/* Header with Logo */}
+      <div className="mb-12 flex flex-col items-center">
+        <div className="bg-white rounded-2xl shadow-lg px-8 py-5 mb-4 border border-blue-100">
+          <Image
+            src="/investassist-logo.png"
+            alt="Invest Assist Logo"
+            width={200}
+            height={80}
+            priority
+            className="h-14 w-auto"
+          />
         </div>
-      </header>
+        <p className="text-center text-sm text-slate-600">Professional investment deal management platform</p>
+      </div>
 
-      {/* Main Content - Centered Card */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md">
-          {/* Welcome Text - Mobile First */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">Reset Password</h1>
-            <p className="text-sm sm:text-base text-white/70">
-              {!successfulCreation
-                ? "Enter your email to receive a reset code"
-                : complete
-                  ? "Password reset successful"
-                  : "Enter the code and your new password"}
-            </p>
+      {/* Forgot Password Form */}
+      <div className="w-full max-w-lg bg-white rounded-lg shadow-lg p-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-slate-900">Reset password</h2>
+          <p className="text-slate-600 text-sm mt-1">
+            {step === "email" && "Enter your email to receive a reset code"}
+            {step === "code" && "Enter the code sent to your email"}
+            {step === "password" && "Create a new password"}
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
+        )}
 
-          {/* Auth Card */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
-            {error && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            {!successfulCreation && !complete && (
-              <form onSubmit={sendResetCode} className="space-y-4 sm:space-y-5">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <Input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Enter your email"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-                >
-                  {loading ? (
-                    "Sending..."
-                  ) : (
-                    <>
-                      <span>Send Reset Code</span>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-
-                <Link
-                  href="/sign-in"
-                  className="flex items-center justify-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Sign In
-                </Link>
-              </form>
-            )}
-
-            {successfulCreation && !complete && (
-              <form onSubmit={resetPassword} className="space-y-4 sm:space-y-5">
-                <div>
-                  <label htmlFor="code" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Reset Code
-                  </label>
-                  <Input
-                    type="text"
-                    id="code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    required
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Enter 6-digit code"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                    New Password
-                  </label>
-                  <Input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Minimum 8 characters"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-                >
-                  {loading ? (
-                    "Resetting..."
-                  ) : (
-                    <>
-                      <span>Reset Password</span>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {complete && (
-              <div className="text-center py-4">
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-                  <p className="text-sm text-green-600 font-medium">
-                    Password reset successful! Redirecting to sign in...
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Trust Indicators */}
-          {!complete && (
-            <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-xs sm:text-sm text-white/50">Secure password reset process</p>
+        {step === "email" && (
+          <form onSubmit={handleSendCode} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-slate-900">
+                Email address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                required
+                className="h-11 border-slate-300 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
             </div>
-          )}
-        </div>
+
+            <Button
+              type="submit"
+              className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-sm transition-all disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? "Sending..." : "Send reset code"}
+            </Button>
+
+            <div className="text-center text-sm text-slate-600">
+              <Link
+                href="/sign-in"
+                className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"
+              >
+                Back to sign in
+              </Link>
+            </div>
+          </form>
+        )}
+
+        {step === "code" && (
+          <form onSubmit={handleVerifyCode} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="code" className="text-sm font-semibold text-slate-900">
+                Verification Code
+              </Label>
+              <Input
+                id="code"
+                type="text"
+                placeholder="Enter 6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                disabled={isLoading}
+                required
+                maxLength={6}
+                className="h-11 border-slate-300 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-center text-lg tracking-widest font-semibold"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-sm transition-all disabled:opacity-50"
+              disabled={isLoading || code.length !== 6}
+            >
+              {isLoading ? "Verifying..." : "Verify code"}
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("email")
+                  setCode("")
+                  setError("")
+                }}
+                className="text-sm text-blue-600 font-semibold hover:text-blue-700 transition-colors"
+              >
+                Back
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === "password" && (
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-semibold text-slate-900">
+                New Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                className="h-11 border-slate-300 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm font-semibold text-slate-900">
+                Confirm Password
+              </Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                className="h-11 border-slate-300 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-sm transition-all disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? "Resetting..." : "Reset password"}
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("code")
+                  setPassword("")
+                  setConfirmPassword("")
+                  setError("")
+                }}
+                className="text-sm text-blue-600 font-semibold hover:text-blue-700 transition-colors"
+              >
+                Back
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

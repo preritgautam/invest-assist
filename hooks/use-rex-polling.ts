@@ -19,47 +19,78 @@ interface PollState {
 interface PersistedPollState {
   processId: string;
   config: PollConfig;
+  documentId?: string; // Store documentId for re-attaching callbacks on resume
   startTime: number;
   attempt: number;
 }
 
-const POLLING_STATE_KEY = 'rex_polling_state';
+interface PersistedPollingQueue {
+  processes: PersistedPollState[];
+  lastUpdated: number;
+}
 
-// Helper to get persisted polling state from sessionStorage
-const getPersistedPollingState = (): PersistedPollState | null => {
+const POLLING_STATE_KEY = 'rex_polling_state';
+const POLLING_QUEUE_KEY = 'rex_polling_queue';
+
+// Helper to get persisted polling queue from sessionStorage
+const getPersistedPollingQueue = (): PersistedPollingQueue | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = sessionStorage.getItem(POLLING_STATE_KEY);
+    const stored = sessionStorage.getItem(POLLING_QUEUE_KEY);
     return stored ? JSON.parse(stored) : null;
   } catch (err) {
-    console.error('[Polling] Error reading persisted state:', err);
+    console.error('[Polling] Error reading persisted queue:', err);
     return null;
   }
 };
 
-// Helper to save polling state to sessionStorage
-const savePollingState = (processId: string, config: PollConfig, attempt: number): void => {
+// Helper to save polling state to queue in sessionStorage
+const addToPollingQueue = (processId: string, config: PollConfig, attempt: number, documentId?: string): void => {
   if (typeof window === 'undefined') return;
   try {
-    const state: PersistedPollState = {
+    const queue = getPersistedPollingQueue() || { processes: [], lastUpdated: Date.now() };
+    
+    // Check if process already exists, update it
+    const existingIndex = queue.processes.findIndex(p => p.processId === processId);
+    const newState: PersistedPollState = {
       processId,
       config,
+      documentId,
       startTime: Date.now(),
       attempt,
     };
-    sessionStorage.setItem(POLLING_STATE_KEY, JSON.stringify(state));
+    
+    if (existingIndex >= 0) {
+      queue.processes[existingIndex] = newState;
+    } else {
+      queue.processes.push(newState);
+    }
+    
+    queue.lastUpdated = Date.now();
+    sessionStorage.setItem(POLLING_QUEUE_KEY, JSON.stringify(queue));
+    console.log('[Polling] Queue updated, now tracking:', queue.processes.map(p => p.processId));
   } catch (err) {
-    console.error('[Polling] Error saving polling state:', err);
+    console.error('[Polling] Error saving to queue:', err);
   }
 };
 
-// Helper to clear persisted polling state
-const clearPersistedPollingState = (): void => {
+// Helper to remove from queue
+const removeFromPollingQueue = (processId: string): void => {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.removeItem(POLLING_STATE_KEY);
+    const queue = getPersistedPollingQueue();
+    if (queue) {
+      queue.processes = queue.processes.filter(p => p.processId !== processId);
+      queue.lastUpdated = Date.now();
+      if (queue.processes.length > 0) {
+        sessionStorage.setItem(POLLING_QUEUE_KEY, JSON.stringify(queue));
+      } else {
+        sessionStorage.removeItem(POLLING_QUEUE_KEY);
+      }
+      console.log('[Polling] Removed from queue, remaining:', queue.processes.map(p => p.processId));
+    }
   } catch (err) {
-    console.error('[Polling] Error clearing polling state:', err);
+    console.error('[Polling] Error removing from queue:', err);
   }
 };
 
@@ -72,57 +103,55 @@ export const useRexPolling = () => {
     attempt: 0,
   });
 
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const configRef = useRef<PollConfig>({});
-  const processIdRef = useRef<string | null>(null);
-  const isPollingRef = useRef<boolean>(false);
+  // Track multiple process polls
+  const pollIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const configsRef = useRef<Map<string, PollConfig>>(new Map());
+  const attemptsRef = useRef<Map<string, number>>(new Map());
 
-  const stopPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+  const stopPollingForProcess = useCallback((processId: string) => {
+    const interval = pollIntervalsRef.current.get(processId);
+    if (interval) {
+      clearInterval(interval);
+      pollIntervalsRef.current.delete(processId);
     }
-    isPollingRef.current = false;
-    setState((prev) => ({ ...prev, isPolling: false }));
-    clearPersistedPollingState();
+    configsRef.current.delete(processId);
+    attemptsRef.current.delete(processId);
+    removeFromPollingQueue(processId);
+    
+    // Update state - set isPolling to true if there are still processes polling
+    const hasActivePolls = pollIntervalsRef.current.size > 0;
+    setState((prev) => ({ ...prev, isPolling: hasActivePolls }));
   }, []);
 
   const startPolling = useCallback(
-    (processId: string, config: PollConfig = {}) => {
+    (processId: string, config: PollConfig = {}, documentId?: string) => {
       const {
         maxAttempts = 120, // 10 minutes with 5-second interval
-        interval = 5000,
+        interval = 10000, // 10 second interval
         onStatusUpdate,
         onCompleted,
         onError,
       } = config;
 
-      configRef.current = config;
-      processIdRef.current = processId;
-      isPollingRef.current = true;
+      // Store config for this process
+      configsRef.current.set(processId, config);
+      let attempts = attemptsRef.current.get(processId) || 0;
+
+      console.log(`[Polling] Starting poll for process: ${processId}`);
 
       setState((prev) => ({
         ...prev,
         isPolling: true,
         error: null,
-        attempt: 0,
       }));
 
-      let attempts = 0;
-
       const poll = async () => {
-        // Check if polling has been stopped
-        if (!isPollingRef.current) {
-          console.log('[Polling] Polling stopped, skipping poll');
-          return;
-        }
-
         try {
           attempts++;
-          setState((prev) => ({ ...prev, attempt: attempts }));
+          attemptsRef.current.set(processId, attempts);
           
           // Persist polling state so it can be resumed if page refreshes
-          savePollingState(processId, config, attempts);
+          addToPollingQueue(processId, config, attempts, documentId);
 
           // Check status
           const statusResponse = await fetch(
@@ -136,14 +165,14 @@ export const useRexPolling = () => {
           }
 
           const statusData = await statusResponse.json();
-          console.log('[Polling] Status:', statusData);
+          console.log(`[Polling] Process ${processId} Status:`, statusData);
 
           setState((prev) => ({ ...prev, status: statusData }));
           onStatusUpdate?.(statusData);
 
           // Check if completed
           if (statusData.status === 'completed') {
-            console.log('[Polling] Status is completed, fetching results...');
+            console.log(`[Polling] Process ${processId} completed, fetching results...`);
 
             // Fetch results
             const resultResponse = await fetch(
@@ -157,26 +186,75 @@ export const useRexPolling = () => {
             }
 
             const resultData = await resultResponse.json();
-            console.log('[Polling] Results:', resultData);
+            console.log(`[Polling] Process ${processId} Results:`, resultData);
 
             setState((prev) => ({ ...prev, result: resultData }));
+            
+            // CRITICAL: Always persist results to database when completed
+            // This ensures results are saved even if callbacks are missing (e.g., after page refresh)
+            try {
+              const { updateDocumentStatus } = await import('@/lib/document-utils');
+              await updateDocumentStatus(
+                processId,
+                'completed',
+                resultData,
+                undefined,
+                resultData.documentId
+              );
+              console.log(`[Polling] Process ${processId} result persisted to database`);
+            } catch (err) {
+              console.error(`[Polling] Failed to persist result for process ${processId}:`, err);
+            }
+            
+            // Also call the callback if provided
             onCompleted?.(resultData);
 
-            stopPolling();
+            stopPollingForProcess(processId);
           } else if (attempts >= maxAttempts) {
             const error = new Error(
-              `Polling timeout: Max attempts (${maxAttempts}) reached`
+              `Polling timeout: Max attempts (${maxAttempts}) reached for process ${processId}`
             );
+            console.error('[Polling]', error.message);
             setState((prev) => ({ ...prev, error }));
+            
+            // Persist timeout error to database
+            try {
+              const { updateDocumentStatus } = await import('@/lib/document-utils');
+              await updateDocumentStatus(
+                processId,
+                'failed',
+                undefined,
+                error.message
+              );
+              console.log(`[Polling] Process ${processId} failure persisted to database`);
+            } catch (err) {
+              console.error(`[Polling] Failed to persist error for process ${processId}:`, err);
+            }
+            
             onError?.(error);
-            stopPolling();
+            stopPollingForProcess(processId);
           }
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
-          console.error('[Polling] Error:', err);
+          console.error(`[Polling] Error for process ${processId}:`, err);
           setState((prev) => ({ ...prev, error: err }));
+          
+          // Persist error to database
+          try {
+            const { updateDocumentStatus } = await import('@/lib/document-utils');
+            await updateDocumentStatus(
+              processId,
+              'failed',
+              undefined,
+              err.message
+            );
+            console.log(`[Polling] Process ${processId} error persisted to database`);
+          } catch (persistErr) {
+            console.error(`[Polling] Failed to persist error for process ${processId}:`, persistErr);
+          }
+          
           onError?.(err);
-          stopPolling();
+          stopPollingForProcess(processId);
         }
       };
 
@@ -184,25 +262,65 @@ export const useRexPolling = () => {
       poll();
 
       // Then poll at interval
-      pollIntervalRef.current = setInterval(poll, interval);
+      const pollInterval = setInterval(poll, interval);
+      pollIntervalsRef.current.set(processId, pollInterval);
     },
-    [stopPolling]
+    [stopPollingForProcess]
   );
 
-  // On mount, check if there's a persisted polling state and resume it
+  // On mount, check if there are persisted polling processes and resume them
   useEffect(() => {
-    const persistedState = getPersistedPollingState();
+    const resumePolling = () => {
+      const persistedQueue = getPersistedPollingQueue();
+      
+      if (persistedQueue && persistedQueue.processes.length > 0) {
+        console.log('[Polling] Resuming polling queue from previous session:', 
+          persistedQueue.processes.map(p => p.processId));
+        
+        // Resume polling for all queued processes
+        persistedQueue.processes.forEach((pollState) => {
+          console.log(`[Polling] Resuming process: ${pollState.processId}`);
+          startPolling(pollState.processId, pollState.config);
+        });
+      }
+    };
+
+    // Resume immediately on mount
+    resumePolling();
+
+    // Also set up a listener for storage changes (for multi-tab scenarios)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === POLLING_QUEUE_KEY && e.newValue) {
+        console.log('[Polling] Queue updated in another tab, syncing...');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
     
-    if (persistedState && !state.isPolling) {
-      console.log('[Polling] Resuming polling from previous session:', persistedState.processId);
-      // Resume polling from where it left off
-      startPolling(persistedState.processId, persistedState.config);
-    }
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [startPolling]);
+
+  const stopPolling = useCallback(() => {
+    // Stop all polls but PRESERVE the queue in sessionStorage
+    // This allows polling to resume even if component unmounts
+    pollIntervalsRef.current.forEach((interval) => {
+      clearInterval(interval);
+    });
+    pollIntervalsRef.current.clear();
+    configsRef.current.clear();
+    attemptsRef.current.clear();
+    setState((prev) => ({ ...prev, isPolling: false }));
+    // NOTE: We intentionally do NOT clear POLLING_QUEUE_KEY
+    // The queue will persist and resume on component remount or page refresh
+    console.log('[Polling] Stopped local polling intervals, but queue persists in sessionStorage');
   }, []);
 
   return {
     ...state,
     startPolling,
     stopPolling,
+    stopPollingForProcess,
   };
 };

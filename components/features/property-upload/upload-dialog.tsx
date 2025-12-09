@@ -40,10 +40,23 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   const [processId, setProcessId] = useState<string | null>(null);
   const { isPolling, status, result, error: pollingError, startPolling, stopPolling } = useRexPolling();
 
-
   // two separate refs: one for zip picker, one for regular files
   const fileInputZipRef = useRef<HTMLInputElement>(null)
   const fileInputFilesRef = useRef<HTMLInputElement>(null)
+
+  // Reset dialog state when it closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset all state when dialog closes
+      setUploadedFiles([])
+      setIsDragging(false)
+      setIsProcessing(false)
+      setUploadMethod(null)
+      setError(null)
+      setUploadSuccess(false)
+      setProcessId(null)
+    }
+  }, [isOpen])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes"

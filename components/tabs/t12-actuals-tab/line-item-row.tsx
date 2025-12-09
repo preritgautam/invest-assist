@@ -140,7 +140,7 @@ export function LineItemRow({
             <span className="text-gray-400">-</span>
           ) : item.isCalculated ? (
             <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-              ${(item.perUnit ?? 0).toLocaleString()}
+              ${(item.perUnit ?? 0).toLocaleString('en-US')}
             </span>
           ) : (
             <Input
@@ -162,7 +162,7 @@ export function LineItemRow({
               {item.docTotal !== undefined && (
                 <>
                   <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                    ${item.docTotal.toLocaleString()}
+                    ${item.docTotal.toLocaleString('en-US')}
                   </span>
                   {hasMismatch ? (
                     <div className="flex items-center gap-1">
@@ -173,11 +173,11 @@ export function LineItemRow({
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">
-                              Discrepancy: ${Math.abs(validation.discrepancy).toLocaleString()}
+                              Discrepancy: ${Math.abs(validation.discrepancy).toLocaleString('en-US')}
                               <br />
-                              Doc Total: ${item.docTotal.toLocaleString()}
+                              Doc Total: ${item.docTotal.toLocaleString('en-US')}
                               <br />
-                              Calc Total: ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString()}
+                              Calc Total: ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString('en-US')}
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -217,7 +217,7 @@ export function LineItemRow({
             <span className="text-gray-400">-</span>
           ) : (
             <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-              ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString()}
+              ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString('en-US')}
             </span>
           )}
         </td>
@@ -233,7 +233,7 @@ export function LineItemRow({
                 <span className="text-gray-400">-</span>
               ) : (
                 <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                  {item.monthlyData?.[month] !== undefined ? item.monthlyData[month].toLocaleString() : "-"}
+                  {item.monthlyData?.[month] !== undefined ? item.monthlyData[month].toLocaleString('en-US') : "-"}
                 </span>
               )}
             </td>

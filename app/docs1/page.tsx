@@ -171,7 +171,7 @@ export default function DocumentDetailPage() {
               <p className="font-medium mt-1">
                 {(parseInt(document.file_size) / 1024).toFixed(2)} KB
                 <span className="text-gray-500 text-sm ml-2">
-                  ({parseInt(document.file_size).toLocaleString()} bytes)
+                  ({parseInt(document.file_size).toLocaleString('en-US')} bytes)
                 </span>
               </p>
             </div>

@@ -118,7 +118,7 @@ function SimpleBarChart({
                 >
                   <span className="text-white text-xs font-semibold text-gray-600 font-medium">
                     {valuePrefix}
-                    {item.value.toLocaleString()}
+                    {item.value.toLocaleString('en-US')}
                     {valueSuffix}
                   </span>
                 </div>

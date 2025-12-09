@@ -1386,7 +1386,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
 
     // Automatically add a note about the accepted discrepancy
     const discrepancy = (docTotal ?? 0) - (calcTotal ?? 0)
-    const note = `Accepted discrepancy: $${Math.abs(discrepancy).toLocaleString()} difference (Doc: $${(docTotal ?? 0).toLocaleString()}, Calc: $${(calcTotal ?? 0).toLocaleString()})`
+    const note = `Accepted discrepancy: $${Math.abs(discrepancy).toLocaleString('en-US')} difference (Doc: $${(docTotal ?? 0).toLocaleString('en-US')}, Calc: $${(calcTotal ?? 0).toLocaleString('en-US')})`
 
     // Update the notes for this item
     const updateNotes = (items: LineItem[]): LineItem[] => {
@@ -1827,7 +1827,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               <span className="text-gray-400">-</span>
             ) : item.isCalculated ? (
               <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                ${(item.perUnit ?? 0).toLocaleString()}
+                ${(item.perUnit ?? 0).toLocaleString('en-US')}
               </span>
             ) : (
               <Input
@@ -1849,7 +1849,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 {item.docTotal !== undefined && (
                   <>
                     <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                      ${item.docTotal.toLocaleString()}
+                      ${item.docTotal.toLocaleString('en-US')}
                     </span>
 
                     {hasMismatch ? (
@@ -1861,11 +1861,11 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                             </TooltipTrigger>
                             <TooltipContent>
                               <p className="text-xs">
-                                Discrepancy: ${Math.abs(validation.discrepancy).toLocaleString()}
+                                Discrepancy: ${Math.abs(validation.discrepancy).toLocaleString('en-US')}
                                 <br />
-                                Doc Total: ${item.docTotal.toLocaleString()}
+                                Doc Total: ${item.docTotal.toLocaleString('en-US')}
                                 <br />
-                                Calc Total: ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString()}
+                                Calc Total: ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString('en-US')}
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -1905,7 +1905,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               <span className="text-gray-400">-</span>
             ) : (
               <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString()}
+                ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString('en-US')}
               </span>
             )}
           </td>
@@ -1921,7 +1921,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                   <span className="text-gray-400">-</span>
                 ) : (
                   <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                    {item.monthlyData?.[month] !== undefined ? item.monthlyData[month].toLocaleString() : "-"}
+                    {item.monthlyData?.[month] !== undefined ? item.monthlyData[month].toLocaleString('en-US') : "-"}
                   </span>
                 )}
               </td>
@@ -2470,7 +2470,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                 <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
                   Net Operating Income
                 </h3>
-                <span className="text-base font-semibold text-gray-900">${calculateNOI().toLocaleString()}</span>
+                <span className="text-base font-semibold text-gray-900">${calculateNOI().toLocaleString('en-US')}</span>
               </div>
               <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
                 <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
@@ -2484,7 +2484,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">Net Cash Flow</h3>
-                <span className="text-base font-semibold text-gray-900">${calculateNCF().toLocaleString()}</span>
+                <span className="text-base font-semibold text-gray-900">${calculateNCF().toLocaleString('en-US')}</span>
               </div>
               <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-600" />

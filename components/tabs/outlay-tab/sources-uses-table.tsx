@@ -89,7 +89,7 @@ export function SourcesUsesTable({ title, icon, items, showPerUnit = false, onUp
               ))}
               <TableRow className="border-t-2 border-gray-200 font-bold">
                 <TableCell className="text-xs font-bold">{title}</TableCell>
-                <TableCell className="text-xs font-bold text-right">${total.toLocaleString()}</TableCell>
+                <TableCell className="text-xs font-bold text-right">${total.toLocaleString('en-US')}</TableCell>
                 {showPerUnit && <TableCell className="text-xs font-bold text-right">-</TableCell>}
                 <TableCell className="text-xs font-bold text-right">100.0%</TableCell>
               </TableRow>

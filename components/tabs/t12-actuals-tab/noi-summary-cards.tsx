@@ -16,7 +16,7 @@ export function NOISummaryCards({ noi, ncf, mobileSection }: NOISummaryCardsProp
               <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
                 Net Operating Income
               </h3>
-              <span className="text-base font-semibold text-gray-900">${noi.toLocaleString()}</span>
+              <span className="text-base font-semibold text-gray-900">${noi.toLocaleString('en-US')}</span>
             </div>
             <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
               <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
@@ -28,7 +28,7 @@ export function NOISummaryCards({ noi, ncf, mobileSection }: NOISummaryCardsProp
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">Net Cash Flow</h3>
-              <span className="text-base font-semibold text-gray-900">${ncf.toLocaleString()}</span>
+              <span className="text-base font-semibold text-gray-900">${ncf.toLocaleString('en-US')}</span>
             </div>
             <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
               <DollarSign className="w-3.5 h-3.5 text-emerald-600" />

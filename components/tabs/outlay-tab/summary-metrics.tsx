@@ -31,7 +31,7 @@ export function SummaryMetrics({
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-600">Total Sources</p>
-              <p className="text-sm font-bold text-gray-900">${totalSources.toLocaleString()}</p>
+              <p className="text-sm font-bold text-gray-900">${totalSources.toLocaleString('en-US')}</p>
               <p className="text-xs text-gray-500">100%</p>
             </div>
           </div>
@@ -46,7 +46,7 @@ export function SummaryMetrics({
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-600">Total Uses</p>
-              <p className="text-sm font-bold text-gray-900">${totalUses.toLocaleString()}</p>
+              <p className="text-sm font-bold text-gray-900">${totalUses.toLocaleString('en-US')}</p>
               <p className="text-xs text-gray-500">100%</p>
             </div>
           </div>
@@ -61,7 +61,7 @@ export function SummaryMetrics({
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-600">Net Debt Financing</p>
-              <p className="text-sm font-bold text-gray-900">${netDebtFinancing.toLocaleString()}</p>
+              <p className="text-sm font-bold text-gray-900">${netDebtFinancing.toLocaleString('en-US')}</p>
               <p className="text-xs text-gray-500">
                 {totalSources > 0 ? ((netDebtFinancing / totalSources) * 100).toFixed(1) : 0}%
               </p>
@@ -78,7 +78,7 @@ export function SummaryMetrics({
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-600">Equity Contribution</p>
-              <p className="text-sm font-bold text-gray-900">${equityContribution.toLocaleString()}</p>
+              <p className="text-sm font-bold text-gray-900">${equityContribution.toLocaleString('en-US')}</p>
               <p className="text-xs text-gray-500">
                 {totalSources > 0 ? ((equityContribution / totalSources) * 100).toFixed(1) : 0}%
               </p>
@@ -95,7 +95,7 @@ export function SummaryMetrics({
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-600">Cash Flow Funded</p>
-              <p className="text-sm font-bold text-gray-900">${cashFlowFunded.toLocaleString()}</p>
+              <p className="text-sm font-bold text-gray-900">${cashFlowFunded.toLocaleString('en-US')}</p>
               <p className="text-xs text-gray-500">Hold Period</p>
             </div>
           </div>

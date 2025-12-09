@@ -82,7 +82,7 @@ export function AnalysisSection({ metrics, documentData, assumptions }: Analysis
               const height = 40 + year * 10
               return (
                 <div key={year} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="text-xs font-bold text-slate-700">${(45000 + year * 7000).toLocaleString()}</div>
+                  <div className="text-xs font-bold text-slate-700">${(45000 + year * 7000).toLocaleString('en-US')}</div>
                   <div
                     className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all duration-500 shadow-sm"
                     style={{ height: `${height}%` }}

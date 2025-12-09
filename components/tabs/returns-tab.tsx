@@ -178,10 +178,10 @@ export function ReturnsTab({ property }: ReturnsTabProps) {
                   <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 text-xs font-medium text-gray-900">{row.year}</td>
                     <td className="py-3 px-4 text-right text-xs text-green-600 font-semibold">
-                      ${row.cashFlow.toLocaleString()}
+                      ${row.cashFlow.toLocaleString('en-US')}
                     </td>
                     <td className="py-3 px-4 text-right text-xs text-gray-900 font-semibold">
-                      ${row.cumulative.toLocaleString()}
+                      ${row.cumulative.toLocaleString('en-US')}
                     </td>
                   </tr>
                 ))}
@@ -202,15 +202,15 @@ export function ReturnsTab({ property }: ReturnsTabProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-600">Initial Investment</p>
-                <p className="text-base font-semibold text-gray-900">${initialInvestment.toLocaleString()}</p>
+                <p className="text-base font-semibold text-gray-900">${initialInvestment.toLocaleString('en-US')}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">Total Return</p>
-                <p className="text-xs font-semibold text-green-600">${totalReturn.toLocaleString()}</p>
+                <p className="text-xs font-semibold text-green-600">${totalReturn.toLocaleString('en-US')}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">Net Profit</p>
-                <p className="text-xs font-semibold text-green-600">${netProfit.toLocaleString()}</p>
+                <p className="text-xs font-semibold text-green-600">${netProfit.toLocaleString('en-US')}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">ROI</p>

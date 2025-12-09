@@ -209,7 +209,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
           <MetricCard
             icon={<BarChart3 className="w-4 h-4 text-gray-600" />}
             label="Total Units"
-            value={totalUnits.toLocaleString()}
+            value={totalUnits.toLocaleString('en-US')}
           />
         </div>
       </AppCard>

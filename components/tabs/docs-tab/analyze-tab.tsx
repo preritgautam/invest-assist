@@ -82,8 +82,8 @@ export function AnalyzeTab({ property }: AnalyzeTabProps) {
 
     return {
       capRate: capRate.toFixed(2),
-      noi: noi.toLocaleString(),
-      cashFlow: cashFlow.toLocaleString(),
+      noi: noi.toLocaleString('en-US'),
+      cashFlow: cashFlow.toLocaleString('en-US'),
       cocReturn: cocReturn.toFixed(2),
       dscr: (noi / (debtService || 1)).toFixed(2),
     }

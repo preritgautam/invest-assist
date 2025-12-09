@@ -66,7 +66,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
   const [saveError, setSaveError] = useState<string | null>(null)
 
 
-  console.log('localconfig', localConfig)
+  console.log('localconfig', config)
   useEffect(() => {
     if (config) {
       setLocalConfig(config)
@@ -82,13 +82,35 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     }
   }, [isOpen])
 
-  // Dynamically get available columns and API fields from config
-  const availableColumns = localConfig?.availableColumns || []
+  // Dynamically get available columns and API fields from cofig
+  const availableColumns = [
+  "corporate_unit",
+  "non_revenue_unit",
+  "employee_discount",
+  "month_to_month_fees",
+  "pest_control_income",
+  "cable_internet_income",
+  "utility_reimbursement",
+  "late_fee",
+  "insurance",
+  "concessions",
+  "monthly_rent",
+  "Rent Premium",
+  "trash_income",
+  "garage_income",
+  "other_charges",
+  "laundry",
+  "parking",
+  "pet_fee",
+  "storage",
+  "subsidy",
+  "vacancy"
+]
 
   const availableApiFields = [
     ...new Set([
       ...(localConfig?.tenantCharges || []).map(charge => charge.apiField),
-      ...(localConfig?.availableColumns || []),
+      ...(availableColumns|| []),
     ])
   ]
 
@@ -127,16 +149,6 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     }))
   }
 
-  const handleFrequencyChange = (chargeId: string, newFrequency: string) => {
-    setLocalConfig((prev) => ({
-      ...prev,
-      tenantCharges: prev.tenantCharges.map((charge) =>
-        charge.id === chargeId
-          ? { ...charge, targetFrequency: newFrequency as typeof charge.targetFrequency }
-          : charge,
-      ),
-    }))
-  }
 
   const handleFloorPlanChange = (planId: string, field: string, value: any) => {
     setLocalConfig(prev => ({

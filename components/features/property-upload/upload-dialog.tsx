@@ -324,7 +324,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     // The polling state is persisted in sessionStorage and will resume
     // when the component remounts or page refreshes. Only stopPolling()
     // is called by the hook when polling completes or errors.
-  }, [processId, documentId, startPolling, onClose]);
+  }, [processId, documentId, onClose]);
 
 
   const handleManualEntry = useCallback(() => {

@@ -125,6 +125,12 @@ export const useRexPolling = () => {
 
   const startPolling = useCallback(
     (processId: string, config: PollConfig = {}, documentId?: string) => {
+      // Guard: Don't start polling if already polling this process
+      if (pollIntervalsRef.current.has(processId)) {
+        console.log(`[Polling] Process ${processId} is already polling, skipping duplicate start`);
+        return;
+      }
+
       const {
         maxAttempts = 120, // 10 minutes with 5-second interval
         interval = 10000, // 10 second interval
@@ -149,9 +155,6 @@ export const useRexPolling = () => {
         try {
           attempts++;
           attemptsRef.current.set(processId, attempts);
-          
-          // Persist polling state so it can be resumed if page refreshes
-          addToPollingQueue(processId, config, attempts, documentId);
 
           // Check status
           const statusResponse = await fetch(
@@ -233,6 +236,9 @@ export const useRexPolling = () => {
             
             onError?.(error);
             stopPollingForProcess(processId);
+          } else {
+            // Only persist to queue if still polling (not completed or errored)
+            addToPollingQueue(processId, config, attempts, documentId);
           }
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
@@ -279,8 +285,14 @@ export const useRexPolling = () => {
         
         // Resume polling for all queued processes
         persistedQueue.processes.forEach((pollState) => {
-          console.log(`[Polling] Resuming process: ${pollState.processId}`);
-          startPolling(pollState.processId, pollState.config);
+          // Check if this process is already being tracked locally
+          // to avoid duplicate polling if component remounts while polling is active
+          if (!pollIntervalsRef.current.has(pollState.processId)) {
+            console.log(`[Polling] Resuming process: ${pollState.processId}`);
+            startPolling(pollState.processId, pollState.config, pollState.documentId);
+          } else {
+            console.log(`[Polling] Process ${pollState.processId} already running, skipping resume`);
+          }
         });
       }
     };

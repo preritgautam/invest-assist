@@ -137,6 +137,8 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   const [rawData, setRawData] = useState<any[]>([])
   const [baseHeaders, setBaseHeaders] = useState<string[]>([])
 
+  console.log("RRbaseHeaders", baseHeaders)
+
   useEffect(() => {
     fetchRentRollData()
   }, [])
@@ -205,7 +207,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
       
-  const documentId = "878e830c-8995-4c84-9da9-aabc0d7139e9"
+  const documentId = "fc6bfbf0-6131-44cf-89b0-e70451e20e97"
 
 
   const fetchRentRollData = async () => {
@@ -299,16 +301,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   const getDisplayColumns = () => {
     // Display all columns from the API response headers in their original order
     return columns
-  }
-
-  const getChargeCategory = (column: string): string | null => {
-    // Find which charge category this column belongs to
-    for (const [category, codes] of Object.entries(chargesMapping)) {
-      if (Array.isArray(codes) && codes.includes(column)) {
-        return category
-      }
-    }
-    return null
   }
 
 
@@ -449,6 +441,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                     {/* Charge Category Totals */}
                     {getAllCategories()?.map((category) => {
                       const total = getTotalForCategory(row, category)
+                      
                       return (
                         <td
                           key={`${index}-category-${category}`}

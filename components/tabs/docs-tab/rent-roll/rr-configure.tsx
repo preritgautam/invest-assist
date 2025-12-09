@@ -159,15 +159,18 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     setIsSaving(true)
 
     try {
-      // Only save floor plans if we have a documentId
-      if (documentId && localConfig.floorPlans && localConfig.floorPlans.length > 0) {
-        console.log('[RRConfigure] Saving floor plan changes for document:', documentId)
+      if (!documentId) {
+        throw new Error('Document ID is required')
+      }
 
-        // Convert internal floor plan array to API format
-        const floorPlansData: any = {
-          floor_plans: {}
-        }
+      console.log('[RRConfigure] Saving configuration changes for document:', documentId)
 
+      // Convert internal floor plan array to API format
+      const floorPlansData: any = {
+        floor_plans: {}
+      }
+
+      if (localConfig.floorPlans && localConfig.floorPlans.length > 0) {
         localConfig.floorPlans.forEach((plan) => {
           floorPlansData.floor_plans[plan.name] = {
             bedrooms: plan.bedrooms,
@@ -177,8 +180,33 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
             bed_bath_confidence: plan.bed_bath_confidence,
           }
         })
+      }
 
-        const response = await fetch('/api/documents/floor-plans/update', {
+      // Convert tenant charges to API format (mapping)
+      const tenantChargesData: Record<string, string[]> = {}
+      if (localConfig.tenantCharges && localConfig.tenantCharges.length > 0) {
+        localConfig.tenantCharges.forEach((charge) => {
+          if (charge.apiField) {
+            if (!tenantChargesData[charge.apiField]) {
+              tenantChargesData[charge.apiField] = []
+            }
+            tenantChargesData[charge.apiField].push(charge.name)
+          }
+        })
+      }
+
+      // Convert occupancy mappings to API format
+      const occupancyMappingsData: Record<string, string> = {}
+      if (localConfig.occupancyMappings && localConfig.occupancyMappings.length > 0) {
+        localConfig.occupancyMappings.forEach((mapping) => {
+          occupancyMappingsData[mapping.rawStatus] = mapping.normalizedStatus
+        })
+      }
+
+      // Save floor plans
+      if (Object.keys(floorPlansData.floor_plans).length > 0) {
+        console.log('[RRConfigure] Saving floor plan changes')
+        const floorPlanResponse = await fetch('/api/documents/floor-plans/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -187,13 +215,35 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
           }),
         })
 
-        if (!response.ok) {
-          const error = await response.json()
+        if (!floorPlanResponse.ok) {
+          const error = await floorPlanResponse.json()
           throw new Error(error.error || 'Failed to save floor plan changes')
         }
 
-        const result = await response.json()
+        const result = await floorPlanResponse.json()
         console.log('[RRConfigure] Floor plan changes saved successfully:', result)
+      }
+
+      // Save rent roll configurations (tenant charges and occupancy mappings)
+      if (Object.keys(tenantChargesData).length > 0 || Object.keys(occupancyMappingsData).length > 0) {
+        console.log('[RRConfigure] Saving rent roll configurations')
+        const configResponse = await fetch('/api/documents/rent-roll/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId,
+            tenantChargesData: Object.keys(tenantChargesData).length > 0 ? tenantChargesData : undefined,
+            occupancyMappingsData: Object.keys(occupancyMappingsData).length > 0 ? occupancyMappingsData : undefined,
+          }),
+        })
+
+        if (!configResponse.ok) {
+          const error = await configResponse.json()
+          throw new Error(error.error || 'Failed to save rent roll configurations')
+        }
+
+        const result = await configResponse.json()
+        console.log('[RRConfigure] Rent roll configurations saved successfully:', result)
       }
 
       // Notify parent component of config changes

@@ -310,23 +310,6 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
   }
 
 
-  const calculateSummary = () => {
-    if (!extractedData) return null
-
-    const totalIncome = extractedData.find((item) => item.id === "total-income")
-    const noi = extractedData.find((item) => item.id === "noi")
-
-    return {
-      totalIncome: totalIncome?.underwriting || totalIncome?.t12Actual || 0,
-      noi: noi?.underwriting || noi?.t12Actual || 0,
-      noiMargin: totalIncome
-        ? ((noi?.underwriting || noi?.t12Actual || 0) / (totalIncome.underwriting || totalIncome.t12Actual)) * 100
-        : 0,
-    }
-  }
-
-  const summary = calculateSummary()
-
 
   if (!property) {
     return (

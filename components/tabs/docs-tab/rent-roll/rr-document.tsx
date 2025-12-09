@@ -311,9 +311,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     return null
   }
 
-  const isChargeColumn = (column: string): boolean => {
-    return getChargeCategory(column) !== null
-  }
+
 
   const formatHeaderName = (column: string): string => {
     // Format the column name by capitalizing words
@@ -321,21 +319,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       .split("_")
       ?.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ")
-  }
-
-  const getChargeCategories = (): string[] => {
-    return Object.keys(chargesMapping)
-  }
-
-  // Get unique category names from config.tenantCharges by apiField
-  const getConfigCategories = (): string[] => {
-    const categories = new Set<string>()
-    dynamicConfig.tenantCharges?.forEach(charge => {
-      if (charge.apiField) {
-        categories.add(charge.apiField)
-      }
-    })
-    return Array.from(categories).sort()
   }
 
   // Get ALL available categories from the API mapping (for display even if $0.00)

@@ -180,7 +180,18 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     }
   }, [])
 
-  // Trigger recalculation when config changes
+  // Handle config changes from the modal - update local state and recalculate data
+  const handleConfigChange = useCallback((newConfig: RentRollConfig) => {
+    setDynamicConfig(newConfig)
+    // Recalculate data with the new config
+    if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0) {
+      updateDataWithConfig(rawData, newConfig, baseHeaders)
+    }
+    // Notify parent component
+    onConfigChange(newConfig)
+  }, [rawData, baseHeaders, updateDataWithConfig, onConfigChange])
+
+  // Trigger recalculation when parent config changes
   useEffect(() => {
     if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0 && config && config.floorPlans) {
       console.log("Config changed, recalculating data")
@@ -475,7 +486,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           isOpen={isOpen}
           onClose={onClose}
           config={dynamicConfig}
-          onConfigChange={onConfigChange}
+          onConfigChange={handleConfigChange}
           originalConfig={originalConfig}
         />
       </ResizablePanel>

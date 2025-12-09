@@ -313,20 +313,11 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       .join(" ")
   }
 
-  // Get ALL available categories from the API mapping (for display even if $0.00)
+  // Get ALL available categories from the original API mapping (for display even if $0.00)
   const getAllCategories = (): string[] => {
-    const categories = new Set<string>()
-    // Add configured categories
-    dynamicConfig.tenantCharges?.forEach(charge => {
-      if (charge.apiField) {
-        categories.add(charge.apiField)
-      }
-    })
-    // Add original categories from API mapping (for categories that might show $0.00)
-    Object.keys(chargesMapping)?.forEach(category => {
-      categories.add(category)
-    })
-    return Array.from(categories).sort()
+    // Always show all original categories from the API response
+    // This ensures categories show even if no charges are mapped to them
+    return Object.keys(chargesMapping).sort()
   }
 
   // Get all charges that map to a specific category
@@ -343,8 +334,15 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   }
 
   const getTotalForCategory = (row: RentRollUnit, category: string): number => {
-    // Get all charges with this apiField and sum their values from the row
+    // Get all charges that map to this category
     const charges = getChargesForCategory(category)
+    
+    // If no charges map to this category, return 0
+    if (charges.length === 0) {
+      return 0
+    }
+    
+    // Sum all charge values for this category
     return charges.reduce((total, charge) => {
       const value = parseFloat(String(row[charge.name]).replace(/[^0-9.-]/g, "")) || 0
       return total + value

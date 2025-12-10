@@ -54,10 +54,19 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
   const transactionCodes = metadata["Transaction Codes"] || []
   const chargesMapping = metadata["Mapping for the charges"] || {}
 
+  // Normalize chargesMapping keys to lowercase with underscores for consistent matching
+  const normalizedChargesMapping: Record<string, string[]> = {}
+  const normalizedKeyMap: Record<string, string> = {} // Map normalized -> original
+  for (const [field, codes] of Object.entries(chargesMapping)) {
+    const normalized = field.toLowerCase().replace(/\s+/g, "_")
+    normalizedChargesMapping[normalized] = codes
+    normalizedKeyMap[normalized] = field
+  }
+
   const tenantCharges: TenantChargeConfig[] = transactionCodes?.map((code, idx) => {
-    // Find the apiField that maps to this transaction code
+    // Find the normalized apiField that maps to this transaction code
     let apiField = code.toLowerCase().replace(/\s+/g, "_")
-    for (const [field, codes] of Object.entries(chargesMapping)) {
+    for (const [field, codes] of Object.entries(normalizedChargesMapping)) {
       if (Array.isArray(codes) && codes.includes(code)) {
         apiField = field
         break
@@ -136,6 +145,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
   const [rawData, setRawData] = useState<any[]>([])
   const [baseHeaders, setBaseHeaders] = useState<string[]>([])
+  const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>({}) // For display: normalized -> original
 
   console.log("RRbaseHeaders", baseHeaders)
 
@@ -172,7 +182,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
           const fpData = floorPlanLookup[floorPlan]
           unitMap["bed"] = fpData.bedrooms ?? 0
           unitMap["bath"] = fpData.bathrooms ?? 0
-          unitMap["renovated"] = fpData.renovation_status === "not_specified" ? "No" : "Yes"
+          unitMap["renovated"] = fpData.renovation_status
         } else {
           unitMap["bed"] = 0
           unitMap["bath"] = 0
@@ -207,7 +217,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
       
-  const documentId = "11adfae4-272f-4e87-adb7-8c3195dc1871"
+  const documentId = "eeb58615-78c9-433b-a7a7-c250617afd55"
 
 
   const fetchRentRollData = async () => {
@@ -264,7 +274,19 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
         // Store metadata and charges mapping
         if (metadata) {
           setMetadata(metadata)
-          setChargesMapping(metadata["Mapping for the charges"] || {})
+          
+          // Normalize chargesMapping keys
+          const originalMapping = metadata["Mapping for the charges"] || {}
+          const normalized: Record<string, string[]> = {}
+          const keyMap: Record<string, string> = {}
+          for (const [field, codes] of Object.entries(originalMapping)) {
+            const normalizedKey = field.toLowerCase().replace(/\s+/g, "_")
+            normalized[normalizedKey] = codes
+            keyMap[normalizedKey] = field
+          }
+          
+          setChargesMapping(normalized)
+          setNormalizedChargesMapping(keyMap)
           const builtConfig = buildConfigFromMetadata(metadata, headers)
           setOriginalConfig(builtConfig)
           setDynamicConfig(builtConfig)
@@ -315,9 +337,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
 
   // Get ALL available categories from the original API mapping (for display even if $0.00)
   const getAllCategories = (): string[] => {
-    // Always show all original categories from the API response
-    // This ensures categories show even if no charges are mapped to them
+    // Return normalized keys from chargesMapping
     return Object.keys(chargesMapping).sort()
+  }
+
+  // Get display name for a category
+  const getCategoryDisplayName = (category: string): string => {
+    return normalizedChargesMapping[category] || category.replace(/_/g, " ")
   }
 
   // Get all charges that map to a specific category
@@ -398,7 +424,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                       key={`category-${category}`}
                       className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
                     >
-                      {category.replace(/_/g, " ")}
+                      {getCategoryDisplayName(category)}
                     </th>
                   ))}
                 </tr>

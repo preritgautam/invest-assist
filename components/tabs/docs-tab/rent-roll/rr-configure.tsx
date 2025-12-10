@@ -55,13 +55,13 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     occupancyMappings: [],
     availableColumns: [],
   }
-  
+
   const [localConfig, setLocalConfig] = useState<RentRollConfig>(config || defaultConfig)
   const [activeTab, setActiveTab] = useState<TabType>("floor-plans")
   const [showColumnSelector, setShowColumnSelector] = useState(false)
   const [columnSearchQuery, setColumnSearchQuery] = useState("")
-  const [mapToSearchQuery, setMapToSearchQuery] = useState<{[key: string]: string}>({})
-  const [showMapToDropdown, setShowMapToDropdown] = useState<{[key: string]: boolean}>({})
+  const [mapToSearchQuery, setMapToSearchQuery] = useState<{ [key: string]: string }>({})
+  const [showMapToDropdown, setShowMapToDropdown] = useState<{ [key: string]: boolean }>({})
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -84,33 +84,33 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
 
   // Dynamically get available columns and API fields from cofig
   const availableColumns = [
-  "corporate_unit",
-  "non_revenue_unit",
-  "employee_discount",
-  "month_to_month_fees",
-  "pest_control_income",
-  "cable_internet_income",
-  "utility_reimbursement",
-  "late_fee",
-  "insurance",
-  "concessions",
-  "monthly_rent",
-  "Rent Premium",
-  "trash_income",
-  "garage_income",
-  "other_charges",
-  "laundry",
-  "parking",
-  "pet_fee",
-  "storage",
-  "subsidy",
-  "vacancy"
-]
+    "corporate_unit",
+    "non_revenue_unit",
+    "employee_discount",
+    "month_to_month_fees",
+    "pest_control_income",
+    "cable_internet_income",
+    "utility_reimbursement",
+    "late_fee",
+    "insurance",
+    "concessions",
+    "monthly_rent",
+    "Rent Premium",
+    "trash_income",
+    "garage_income",
+    "other_charges",
+    "laundry",
+    "parking",
+    "pet_fee",
+    "storage",
+    "subsidy",
+    "vacancy"
+  ]
 
   const availableApiFields = [
     ...new Set([
       ...(localConfig?.tenantCharges || []).map(charge => charge.apiField),
-      ...(availableColumns|| []),
+      ...(availableColumns || []),
     ])
   ]
 
@@ -199,12 +199,12 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
       // Convert tenant charges to API format (mapping)
       // Build complete mapping for all charges (mapped and unmapped)
       const tenantChargesData: Record<string, string[]> = {}
-      
+
       if (localConfig.tenantCharges && localConfig.tenantCharges.length > 0) {
         // First, add all original transaction codes with empty arrays
         // This ensures all charges are included even if unmapped
         const allChargeNames = new Set(localConfig.tenantCharges.map(c => c.name))
-        
+
         // Initialize all possible API fields with empty arrays to preserve structure
         const allApiFields = new Set<string>()
         localConfig.tenantCharges.forEach(charge => {
@@ -212,12 +212,12 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
             allApiFields.add(charge.apiField)
           }
         })
-        
+
         // Initialize each category with empty array
         allApiFields.forEach(field => {
           tenantChargesData[field] = []
         })
-        
+
         // Now populate with actual mappings
         localConfig.tenantCharges.forEach((charge) => {
           if (charge.apiField && charge.apiField.trim() !== '') {
@@ -228,7 +228,7 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
             tenantChargesData[charge.apiField].push(charge.name)
           }
         })
-        
+
         // Remove empty categories (unmapped charges)
         Object.keys(tenantChargesData).forEach(key => {
           if (tenantChargesData[key].length === 0) {
@@ -317,54 +317,51 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
     <>
       {/* Modal - Now positioned within ResizablePanel */}
       {isOpen && (
-        <div 
+        <div
           className="w-full h-full bg-white flex flex-col overflow-hidden"
         >
           {/* Header - Sticky */}
           <div className="sticky top-0 z-10 bg-white items-center justify-between px-3 py-2 border-b border-gray-200">
             <div className="flex justify-between items-center w-full">
               <h2 className="text-xl font-semibold text-gray-900">Configurations</h2>
-               <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              title="Close"
-            >
-              <X className="w-5 h-5 text-gray-600" />
-            </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
             </div>
-              <p className="text-sm text-gray-500 mt-1">Map tenant charges, floor plans, and occupancy</p>
-           
+            <p className="text-sm text-gray-500 mt-1">Map tenant charges, floor plans, and occupancy</p>
+
           </div>
 
           {/* Tabs - Sticky */}
           <div className="sticky top-[84px] z-10 flex gap-1 px-3 pt-2 bg-gray-50 border-b border-gray-200">
             <button
               onClick={() => setActiveTab("tenant-charges")}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === "tenant-charges"
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === "tenant-charges"
                   ? "bg-white text-gray-900 border-t border-x border-gray-200"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
+                }`}
             >
               Tenant Charges
             </button>
             <button
               onClick={() => setActiveTab("floor-plans")}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === "floor-plans"
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === "floor-plans"
                   ? "bg-white text-gray-900 border-t border-x border-gray-200"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
+                }`}
             >
               Floor Plan Configuration
             </button>
             <button
               onClick={() => setActiveTab("occupancy")}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === "occupancy"
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === "occupancy"
                   ? "bg-white text-gray-900 border-t border-x border-gray-200"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
+                }`}
             >
               Occupancy Configuration
             </button>
@@ -373,22 +370,22 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
           {/* Content */}
           <div className="flex-1 overflow-auto min-h-0">
             <div className="p-6">
-            {activeTab === "tenant-charges" && (
-              <div>
-                {/* Table */}
-                <div className="relative min-w-max">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50">
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Tenant Charge
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Map To
-                        </th>
+              {activeTab === "tenant-charges" && (
+                <div>
+                  {/* Table */}
+                  <div className="relative min-w-max">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Tenant Charge
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Map To
+                          </th>
 
-                        {/* //commenting now may use later */}
-                        {/* <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {/* //commenting now may use later */}
+                          {/* <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           <div className="flex items-center gap-1">
                             Frequency Conversion
                             <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-500 text-xs">
@@ -396,8 +393,8 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                             </span>
                           </div>
                         </th> */}
-                      </tr>
-                      {/* <tr className="border-b border-gray-200 bg-gray-50">
+                        </tr>
+                        {/* <tr className="border-b border-gray-200 bg-gray-50">
                         <th className="px-4 py-2"></th>
                         <th className="px-4 py-2"></th>
                         <th className="px-4 py-2">
@@ -407,91 +404,90 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                           </div>
                         </th>
                       </tr> */}
-                    </thead>
-                    <tbody className="bg-white">
-                      {(localConfig?.tenantCharges || []).map((charge, index) => (
-                        <tr key={charge.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`w-2 h-2 rounded-full ${
-                                  charge.isActive !== false ? "bg-green-500" : "bg-red-500"
-                                }`}
-                              />
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{charge.name}</p>
-                              </div>
-                              <button
-                                onClick={() => handleRemoveCharge(charge.id)}
-                                className="ml-auto p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                title="Remove"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 relative">
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={mapToSearchQuery[charge.id] !== undefined ? mapToSearchQuery[charge.id] : charge.apiField}
-                                onChange={(e) => {
-                                  setMapToSearchQuery(prev => ({
-                                    ...prev,
-                                    [charge.id]: e.target.value
-                                  }))
-                                }}
-                                onFocus={() => {
-                                  setMapToSearchQuery(prev => ({
-                                    ...prev,
-                                    [charge.id]: ""
-                                  }))
-                                  setShowMapToDropdown(prev => ({
-                                    ...prev,
-                                    [charge.id]: true
-                                  }))
-                                }}
-                                placeholder="Search or select..."
-                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
-                              />
-                              
-                              {/* Dropdown */}
-                              {showMapToDropdown[charge.id] && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
-                                  {getFilteredApiFields(charge.id).map((field: string) => (
-                                    <button
-                                      key={field}
-                                      onClick={() => {
-                                        setLocalConfig(prev => ({
-                                          ...prev,
-                                          tenantCharges: prev.tenantCharges.map(c =>
-                                            c.id === charge.id ? { ...c, apiField: field } : c
-                                          )
-                                        }))
-                                        setMapToSearchQuery(prev => ({
-                                          ...prev,
-                                          [charge.id]: field
-                                        }))
-                                        setShowMapToDropdown(prev => ({
-                                          ...prev,
-                                          [charge.id]: false
-                                        }))
-                                      }}
-                                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                                    >
-                                      {field}
-                                    </button>
-                                  ))}
-                                  {getFilteredApiFields(charge.id).length === 0 && (
-                                    <div className="px-3 py-2 text-sm text-gray-500">
-                                      No matching fields
-                                    </div>
-                                  )}
+                      </thead>
+                      <tbody className="bg-white">
+                        {(localConfig?.tenantCharges || []).map((charge, index) => (
+                          <tr key={charge.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`w-2 h-2 rounded-full ${charge.isActive !== false ? "bg-green-500" : "bg-red-500"
+                                    }`}
+                                />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{charge.name}</p>
                                 </div>
-                              )}
-                            </div>
-                          </td>
-                          {/* <td className="px-4 py-3">
+                                <button
+                                  onClick={() => handleRemoveCharge(charge.id)}
+                                  className="ml-auto p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                  title="Remove"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 relative">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={mapToSearchQuery[charge.id] !== undefined ? mapToSearchQuery[charge.id] : charge.apiField}
+                                  onChange={(e) => {
+                                    setMapToSearchQuery(prev => ({
+                                      ...prev,
+                                      [charge.id]: e.target.value
+                                    }))
+                                  }}
+                                  onFocus={() => {
+                                    setMapToSearchQuery(prev => ({
+                                      ...prev,
+                                      [charge.id]: ""
+                                    }))
+                                    setShowMapToDropdown(prev => ({
+                                      ...prev,
+                                      [charge.id]: true
+                                    }))
+                                  }}
+                                  placeholder="Search or select..."
+                                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                                />
+
+                                {/* Dropdown */}
+                                {showMapToDropdown[charge.id] && (
+                                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+                                    {getFilteredApiFields(charge.id).map((field: string) => (
+                                      <button
+                                        key={field}
+                                        onClick={() => {
+                                          setLocalConfig(prev => ({
+                                            ...prev,
+                                            tenantCharges: prev.tenantCharges.map(c =>
+                                              c.id === charge.id ? { ...c, apiField: field } : c
+                                            )
+                                          }))
+                                          setMapToSearchQuery(prev => ({
+                                            ...prev,
+                                            [charge.id]: field
+                                          }))
+                                          setShowMapToDropdown(prev => ({
+                                            ...prev,
+                                            [charge.id]: false
+                                          }))
+                                        }}
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        {field}
+                                      </button>
+                                    ))}
+                                    {getFilteredApiFields(charge.id).length === 0 && (
+                                      <div className="px-3 py-2 text-sm text-gray-500">
+                                        No matching fields
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            {/* <td className="px-4 py-3">
                             <div className="flex items-center gap-4">
                               <div className="flex-1">
                                 <span className="text-sm text-gray-700">{charge.frequency}</span>
@@ -510,175 +506,174 @@ export function RRConfigure({ isOpen, onClose, config, onConfigChange, originalC
                               </div>
                             </div>
                           </td> */}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
 
-                  {/* Column Selector Dropdown */}
-                  {showColumnSelector && (
-                    <div className="absolute top-full left-4 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-                      <div className="p-2">
-                        <input
-                          type="text"
-                          placeholder="Search columns..."
-                          value={columnSearchQuery}
-                          onChange={(e) => setColumnSearchQuery(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                          autoFocus
-                        />
-                      </div>
-                      <div className="border-t border-gray-200">
-                        <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Available Columns</p>
-                        <div className="max-h-64 overflow-y-auto">
-                          <button
-                            onClick={() => {
-                              setShowColumnSelector(false)
-                              setColumnSearchQuery("")
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <span className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center">
-                              <X className="w-3 h-3" />
-                            </span>
-                            Clear Selection
-                          </button>
-                          {filteredColumns.map((column: string) => (
+                    {/* Column Selector Dropdown */}
+                    {showColumnSelector && (
+                      <div className="absolute top-full left-4 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                        <div className="p-2">
+                          <input
+                            type="text"
+                            placeholder="Search columns..."
+                            value={columnSearchQuery}
+                            onChange={(e) => setColumnSearchQuery(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="border-t border-gray-200">
+                          <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Available Columns</p>
+                          <div className="max-h-64 overflow-y-auto">
                             <button
-                              key={column}
-                              onClick={() => handleAddColumn(column)}
+                              onClick={() => {
+                                setShowColumnSelector(false)
+                                setColumnSearchQuery("")
+                              }}
                               className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                             >
-                              <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                                column === 'laundry' ? 'border-orange-500 text-orange-500' : 'border-gray-300'
-                              }`}>
-                                {column === 'laundry' && '○'}
+                              <span className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center">
+                                <X className="w-3 h-3" />
                               </span>
-                              {column}
+                              Clear Selection
                             </button>
-                          ))}
+                            {filteredColumns.map((column: string) => (
+                              <button
+                                key={column}
+                                onClick={() => handleAddColumn(column)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${column === 'laundry' ? 'border-orange-500 text-orange-500' : 'border-gray-300'
+                                  }`}>
+                                  {column === 'laundry' && '○'}
+                                </span>
+                                {column}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                {/* Info message with Add Column button */}
+                  {/* Info message with Add Column button */}
                   <div className="flex gap-2 text-sm text-gray-600 items-baseline">
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 text-gray-500 text-xs flex-shrink-0 mt-0.5">
                       i
                     </span>
                     <span>Tip: Target frequency changes automatically recalculate values</span>
                   </div>
-              </div>
-            )}
+                </div>
+              )}
 
-            {activeTab === "floor-plans" && (
-              <div>
-                <div className="min-w-max">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Floor Plan
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Bedrooms
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Bathrooms
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Renovation Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {(localConfig?.floorPlans || []).map((plan, index) => (
-                      <tr key={plan.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-medium text-gray-900">{plan.name}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="0.5"
-                            value={plan.bedrooms}
-                            onChange={(e) => handleFloorPlanChange(plan.id, 'bedrooms', parseFloat(e.target.value) || 0)}
-                            className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="0.5"
-                            value={plan.bathrooms}
-                            onChange={(e) => handleFloorPlanChange(plan.id, 'bathrooms', parseFloat(e.target.value) || 0)}
-                            className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={plan.renovation_status  === 'not_specified' ? 'no' : 'yes'}
-                            onChange={(e) => handleFloorPlanChange(plan.id, 'renovation_status', e.target.value)}
-                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
-                          >
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {activeTab === "floor-plans" && (
+                <div>
+                  <div className="min-w-max">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Floor Plan
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Bedrooms
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Bathrooms
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Renovation Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white">
+                        {(localConfig?.floorPlans || []).map((plan, index) => (
+                          <tr key={plan.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-medium text-gray-900">{plan.name}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={plan.bedrooms}
+                                onChange={(e) => handleFloorPlanChange(plan.id, 'bedrooms', parseFloat(e.target.value) || 0)}
+                                className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={plan.bathrooms}
+                                onChange={(e) => handleFloorPlanChange(plan.id, 'bathrooms', parseFloat(e.target.value) || 0)}
+                                className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-700"
+                              />
+                            </td>
+<td className="px-4 py-3">
+  <select
+    value={plan.renovation_status === 'not_specified' ? 'no' : (plan.renovation_status || 'no')}
+    onChange={(e) => handleFloorPlanChange(plan.id, 'renovation_status', e.target.value)}
+    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+  >
+    <option value="yes">Yes</option>
+    <option value="no">No</option>
+  </select>
+</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === "occupancy" && (
-              <div>
-                <div className="min-w-max">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Document Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Normalized
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {(localConfig?.occupancyMappings || []).map((mapping, index) => (
-                      <tr key={mapping.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-900">{mapping.rawStatus}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={mapping.normalizedStatus}
-                            onChange={(e) => handleOccupancyChange(mapping.id, e.target.value)}
-                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
-                          >
-                            <option value="Occupied">Occupied</option>
-                            <option value="Vacant">Vacant</option>
-                            <option value="Admin/Down">Admin/Down</option>
-                            <option value="Office">Office</option>
-                            <option value="Model">Model</option>
-                            <option value="Excluded">Excluded</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="mt-4 text-sm text-gray-600">
-                  <span className="font-medium">Validation:</span> All statuses mapped
+              {activeTab === "occupancy" && (
+                <div>
+                  <div className="min-w-max">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Document Status
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Normalized
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white">
+                        {(localConfig?.occupancyMappings || []).map((mapping, index) => (
+                          <tr key={mapping.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-900">{mapping.rawStatus}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={mapping.normalizedStatus}
+                                onChange={(e) => handleOccupancyChange(mapping.id, e.target.value)}
+                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:border-blue-500"
+                              >
+                                <option value="Occupied">Occupied</option>
+                                <option value="Vacant">Vacant</option>
+                                <option value="Admin/Down">Admin/Down</option>
+                                <option value="Office">Office</option>
+                                <option value="Model">Model</option>
+                                <option value="Excluded">Excluded</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="mt-4 text-sm text-gray-600">
+                      <span className="font-medium">Validation:</span> All statuses mapped
+                    </div>
+                  </div>
                 </div>
-                </div>
-              </div>
-            )}
+              )}
             </div>
           </div>
 

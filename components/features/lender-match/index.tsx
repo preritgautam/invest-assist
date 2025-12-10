@@ -151,7 +151,7 @@ export function LenderMatchSection({ onSelectLoan }: LenderMatchSectionProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Monthly Payment</span>
-                  <span className="text-sm font-semibold text-gray-900">${loan.monthlyPayment.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-gray-900">${loan.monthlyPayment.toLocaleString('en-US')}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">LTV</span>

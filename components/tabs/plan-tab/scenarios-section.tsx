@@ -137,7 +137,7 @@ export function ScenariosSection({ scenarios, onDeleteScenario, onLoadScenario }
                             const scenario = scenarios.find((s) => s.id === scenarioId)
                             return (
                               <td key={scenarioId} className="text-center p-3 text-sm text-gray-900">
-                                ${scenario?.assumptions.renovationBudget.toLocaleString()}/unit
+                                ${scenario?.assumptions.renovationBudget.toLocaleString('en-US')}/unit
                               </td>
                             )
                           })}
@@ -220,7 +220,7 @@ export function ScenariosSection({ scenarios, onDeleteScenario, onLoadScenario }
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Renovation:</span>
-                  <span className="font-medium">${scenario.assumptions.renovationBudget.toLocaleString()}/unit</span>
+                  <span className="font-medium">${scenario.assumptions.renovationBudget.toLocaleString('en-US')}/unit</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">IRR:</span>

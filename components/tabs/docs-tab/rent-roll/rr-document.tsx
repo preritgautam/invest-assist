@@ -22,7 +22,9 @@ export interface FloorPlan {
   name: string
   bedrooms: number
   bathrooms: number
-  isRenovated: boolean
+  base_floor_plan: string
+  renovation_status: 'not_specified' | 'yes' | 'no' | 'partial'
+  bed_bath_confidence: string
 }
 
 export interface OccupancyMapping {
@@ -81,7 +83,9 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
       name: name,
       bedrooms: fpData.bedrooms || 0,
       bathrooms: fpData.bathrooms || 0,
-      isRenovated: fpData.renovation_status === "renovated",
+      base_floor_plan: fpData.base_floor_plan || name,
+      renovation_status: fpData.renovation_status || 'not_specified',
+      bed_bath_confidence: fpData.bed_bath_confidence || 'unknown',
     }
   })
 
@@ -117,9 +121,11 @@ interface RRDocumentProps {
   onClose: () => void
   config: RentRollConfig
   onConfigChange: (config: RentRollConfig) => void
+  documentId?: string
+  processId?: string
 }
 
-export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocumentProps) {
+export function RRDocument({isOpen, onClose, config, onConfigChange, processId}: RRDocumentProps) {
   const [data, setData] = useState<RentRollUnit[]>(mockRentRollData)
   const [columns, setColumns] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,6 +136,8 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
   const [rawData, setRawData] = useState<any[]>([])
   const [baseHeaders, setBaseHeaders] = useState<string[]>([])
+
+  console.log("RRbaseHeaders", baseHeaders)
 
   useEffect(() => {
     fetchRentRollData()
@@ -164,7 +172,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           const fpData = floorPlanLookup[floorPlan]
           unitMap["bed"] = fpData.bedrooms ?? 0
           unitMap["bath"] = fpData.bathrooms ?? 0
-          unitMap["renovated"] = fpData.isRenovated ? "Yes" : "No"
+          unitMap["renovated"] = fpData.renovation_status === "not_specified" ? "No" : "Yes"
         } else {
           unitMap["bed"] = 0
           unitMap["bath"] = 0
@@ -180,20 +188,33 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     }
   }, [])
 
-  // Trigger recalculation when config changes
+  // Handle config changes from the modal - update local state and recalculate data
+  const handleConfigChange = useCallback((newConfig: RentRollConfig) => {
+    setDynamicConfig(newConfig)
+    // Recalculate data with the new config
+    if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0) {
+      updateDataWithConfig(rawData, newConfig, baseHeaders)
+    }
+    // Notify parent component
+    onConfigChange(newConfig)
+  }, [rawData, baseHeaders, updateDataWithConfig, onConfigChange])
+
+  // Trigger recalculation when parent config changes
   useEffect(() => {
     if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0 && config && config.floorPlans) {
       console.log("Config changed, recalculating data")
       updateDataWithConfig(rawData, config, baseHeaders)
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
+      
+  const documentId = "11adfae4-272f-4e87-adb7-8c3195dc1871"
+
 
   const fetchRentRollData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const documentId = "00a647b4-3b2c-4b96-b217-c2ff00bffb2e"
       const response = await fetch(`/api/documents/${documentId}`)
 
       if (!response.ok) {
@@ -222,7 +243,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
             const fpData = floorPlanAnalysis[floorPlan]
             unitMap["bed"] = fpData.bedrooms || 0
             unitMap["bath"] = fpData.bathrooms || 0
-            unitMap["renovated"] = fpData.renovation_status === "renovated" ? "Yes" : "No"
+            unitMap["renovated"] = fpData.renovation_status
           } else {
             unitMap["bed"] = 0
             unitMap["bath"] = 0
@@ -282,19 +303,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
     return columns
   }
 
-  const getChargeCategory = (column: string): string | null => {
-    // Find which charge category this column belongs to
-    for (const [category, codes] of Object.entries(chargesMapping)) {
-      if (Array.isArray(codes) && codes.includes(column)) {
-        return category
-      }
-    }
-    return null
-  }
 
-  const isChargeColumn = (column: string): boolean => {
-    return getChargeCategory(column) !== null
-  }
 
   const formatHeaderName = (column: string): string => {
     // Format the column name by capitalizing words
@@ -304,35 +313,11 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
       .join(" ")
   }
 
-  const getChargeCategories = (): string[] => {
-    return Object.keys(chargesMapping)
-  }
-
-  // Get unique category names from config.tenantCharges by apiField
-  const getConfigCategories = (): string[] => {
-    const categories = new Set<string>()
-    dynamicConfig.tenantCharges?.forEach(charge => {
-      if (charge.apiField) {
-        categories.add(charge.apiField)
-      }
-    })
-    return Array.from(categories).sort()
-  }
-
-  // Get ALL available categories from the API mapping (for display even if $0.00)
+  // Get ALL available categories from the original API mapping (for display even if $0.00)
   const getAllCategories = (): string[] => {
-    const categories = new Set<string>()
-    // Add configured categories
-    dynamicConfig.tenantCharges?.forEach(charge => {
-      if (charge.apiField) {
-        categories.add(charge.apiField)
-      }
-    })
-    // Add original categories from API mapping (for categories that might show $0.00)
-    Object.keys(chargesMapping)?.forEach(category => {
-      categories.add(category)
-    })
-    return Array.from(categories).sort()
+    // Always show all original categories from the API response
+    // This ensures categories show even if no charges are mapped to them
+    return Object.keys(chargesMapping).sort()
   }
 
   // Get all charges that map to a specific category
@@ -349,8 +334,15 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
   }
 
   const getTotalForCategory = (row: RentRollUnit, category: string): number => {
-    // Get all charges with this apiField and sum their values from the row
+    // Get all charges that map to this category
     const charges = getChargesForCategory(category)
+    
+    // If no charges map to this category, return 0
+    if (charges.length === 0) {
+      return 0
+    }
+    
+    // Sum all charge values for this category
     return charges.reduce((total, charge) => {
       const value = parseFloat(String(row[charge.name]).replace(/[^0-9.-]/g, "")) || 0
       return total + value
@@ -447,6 +439,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
                     {/* Charge Category Totals */}
                     {getAllCategories()?.map((category) => {
                       const total = getTotalForCategory(row, category)
+                      
                       return (
                         <td
                           key={`${index}-category-${category}`}
@@ -475,8 +468,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange}: RRDocument
           isOpen={isOpen}
           onClose={onClose}
           config={dynamicConfig}
-          onConfigChange={onConfigChange}
+          onConfigChange={handleConfigChange}
           originalConfig={originalConfig}
+          documentId={documentId}
+          processId={processId}
         />
       </ResizablePanel>
       )}

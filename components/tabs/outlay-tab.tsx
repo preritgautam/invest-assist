@@ -271,7 +271,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-600">Total Sources</p>
-                <p className="text-sm font-bold text-gray-900">${totalSources.toLocaleString()}</p>
+                <p className="text-sm font-bold text-gray-900">${totalSources.toLocaleString('en-US')}</p>
                 <p className="text-xs text-gray-500">100%</p>
               </div>
             </div>
@@ -286,7 +286,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-600">Total Uses</p>
-                <p className="text-sm font-bold text-gray-900">${totalUses.toLocaleString()}</p>
+                <p className="text-sm font-bold text-gray-900">${totalUses.toLocaleString('en-US')}</p>
                 <p className="text-xs text-gray-500">100%</p>
               </div>
             </div>
@@ -301,7 +301,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-600">Net Debt Financing</p>
-                <p className="text-sm font-bold text-gray-900">${netDebtFinancing.toLocaleString()}</p>
+                <p className="text-sm font-bold text-gray-900">${netDebtFinancing.toLocaleString('en-US')}</p>
                 <p className="text-xs text-gray-500">
                   {totalSources > 0 ? ((netDebtFinancing / totalSources) * 100).toFixed(1) : 0}%
                 </p>
@@ -318,7 +318,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-600">Equity Contribution</p>
-                <p className="text-sm font-bold text-gray-900">${equityContribution.toLocaleString()}</p>
+                <p className="text-sm font-bold text-gray-900">${equityContribution.toLocaleString('en-US')}</p>
                 <p className="text-xs text-gray-500">
                   {totalSources > 0 ? ((equityContribution / totalSources) * 100).toFixed(1) : 0}%
                 </p>
@@ -335,7 +335,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-600">Cash Flow Funded</p>
-                <p className="text-sm font-bold text-gray-900">${cashFlowFunded.toLocaleString()}</p>
+                <p className="text-sm font-bold text-gray-900">${cashFlowFunded.toLocaleString('en-US')}</p>
                 <p className="text-xs text-gray-500">Hold Period</p>
               </div>
             </div>
@@ -403,7 +403,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
                   <TableRow className="border-t-2 border-gray-200 font-bold">
                     <TableCell className="text-xs font-bold">Total Sources At Closing</TableCell>
                     <TableCell className="text-xs font-bold text-right">
-                      ${totalSourcesAtClosing.toLocaleString()}
+                      ${totalSourcesAtClosing.toLocaleString('en-US')}
                     </TableCell>
                     <TableCell className="text-xs font-bold text-right">100.0%</TableCell>
                   </TableRow>
@@ -484,7 +484,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
                   <TableRow className="border-t-2 border-gray-200 font-bold">
                     <TableCell className="text-xs font-bold">Total Uses At Closing</TableCell>
                     <TableCell className="text-xs font-bold text-right">
-                      ${totalUsesAtClosing.toLocaleString()}
+                      ${totalUsesAtClosing.toLocaleString('en-US')}
                     </TableCell>
                     <TableCell className="text-xs font-bold text-right">-</TableCell>
                     <TableCell className="text-xs font-bold text-right">100.0%</TableCell>
@@ -556,7 +556,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
                   <TableRow className="border-t-2 border-gray-200 font-bold">
                     <TableCell className="text-xs font-bold">Total Sources Over Hold Period</TableCell>
                     <TableCell className="text-xs font-bold text-right">
-                      ${totalSourcesOverHold.toLocaleString()}
+                      ${totalSourcesOverHold.toLocaleString('en-US')}
                     </TableCell>
                     <TableCell className="text-xs font-bold text-right">100.0%</TableCell>
                   </TableRow>
@@ -637,7 +637,7 @@ export function OutlayTab({ property }: SourcesUsesTabProps) {
                   <TableRow className="border-t-2 border-gray-200 font-bold">
                     <TableCell className="text-xs font-bold">Total Uses Over Hold Period</TableCell>
                     <TableCell className="text-xs font-bold text-right">
-                      ${totalUsesOverHold.toLocaleString()}
+                      ${totalUsesOverHold.toLocaleString('en-US')}
                     </TableCell>
                     <TableCell className="text-xs font-bold text-right">-</TableCell>
                     <TableCell className="text-xs font-bold text-right">100.0%</TableCell>

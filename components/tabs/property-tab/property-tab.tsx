@@ -306,19 +306,19 @@ export function PropertyTab({ property }: PropertyTabProps) {
                       <div className="text-center bg-white rounded-lg p-4 border border-gray-200">
                         <div className="text-sm text-gray-600 mb-1">Cap Rate</div>
                         <div className="text-xl font-bold text-gray-900">
-                          ${propertyData.whisperPrice.cap.toLocaleString()}
+                          ${propertyData.whisperPrice.cap.toLocaleString('en-US')}
                         </div>
                       </div>
                       <div className="text-center bg-white rounded-lg p-4 border border-gray-200">
                         <div className="text-sm text-gray-600 mb-1">Per Unit</div>
                         <div className="text-xl font-bold text-gray-900">
-                          ${propertyData.whisperPrice.perUnit.toLocaleString()}
+                          ${propertyData.whisperPrice.perUnit.toLocaleString('en-US')}
                         </div>
                       </div>
                       <div className="text-center bg-white rounded-lg p-4 border border-gray-200">
                         <div className="text-sm text-gray-600 mb-1">Total Value</div>
                         <div className="text-xl font-bold text-gray-900">
-                          ${propertyData.whisperPrice.total.toLocaleString()}
+                          ${propertyData.whisperPrice.total.toLocaleString('en-US')}
                         </div>
                       </div>
                     </div>

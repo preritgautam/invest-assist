@@ -33,7 +33,7 @@ export default function DocumentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const documentIds = params.id as string;
-  const documentId = '00a647b4-3b2c-4b96-b217-c2ff00bffb2e'
+  const documentId = '11adfae4-272f-4e87-adb7-8c3195dc1871'
 
 
   const [document, setDocument] = useState<Document | null>(null);
@@ -46,7 +46,7 @@ export default function DocumentDetailPage() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/documents/00a647b4-3b2c-4b96-b217-c2ff00bffb2e`);
+        const response = await fetch(`/api/documents/11adfae4-272f-4e87-adb7-8c3195dc1871`);
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -171,7 +171,7 @@ export default function DocumentDetailPage() {
               <p className="font-medium mt-1">
                 {(parseInt(document.file_size) / 1024).toFixed(2)} KB
                 <span className="text-gray-500 text-sm ml-2">
-                  ({parseInt(document.file_size).toLocaleString()} bytes)
+                  ({parseInt(document.file_size).toLocaleString('en-US')} bytes)
                 </span>
               </p>
             </div>

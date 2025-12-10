@@ -126,6 +126,9 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
       { id: "3", name: "Unit Upgrades", apiField: "other_charges", frequency: "Monthly", targetFrequency: "Monthly" },
       { id: "4", name: "WASH/DRY", apiField: "laundry", frequency: "Monthly", targetFrequency: "Monthly" },
     ],
+    floorPlans: [],
+    occupancyMappings: [],
+    availableColumns: [],
   })
   const toggleExpand = (itemId: string) => {
     setExtractedData((prevData) => {
@@ -206,8 +209,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
           <td className="border-r border-gray-200 p-2 text-right font-mono text-xs">
             <span className={item.t12Actual < 0 ? "text-red-600" : ""}>
               {item.t12Actual < 0
-                ? `($${Math.abs(item.t12Actual).toLocaleString()})`
-                : `$${item.t12Actual.toLocaleString()}`}
+                ? `($${Math.abs(item.t12Actual).toLocaleString('en-US')})`
+                : `$${item.t12Actual.toLocaleString('en-US')}`}
             </span>
           </td>
 
@@ -217,8 +220,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
               <span className={item.underwriting && item.underwriting < 0 ? "text-red-600" : ""}>
                 {item.underwriting
                   ? item.underwriting < 0
-                    ? `($${Math.abs(item.underwriting).toLocaleString()})`
-                    : `$${item.underwriting.toLocaleString()}`
+                    ? `($${Math.abs(item.underwriting).toLocaleString('en-US')})`
+                    : `$${item.underwriting.toLocaleString('en-US')}`
                   : "-"}
               </span>
               {item.underwritingNote && (
@@ -231,7 +234,7 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
           {item.proForma.map((value, idx) => (
             <td key={idx} className="border-r border-gray-200 p-2 text-right font-mono text-xs bg-green-50">
               <span className={value < 0 ? "text-red-600" : ""}>
-                {value < 0 ? `($${Math.abs(value).toLocaleString()})` : `$${value.toLocaleString()}`}
+                {value < 0 ? `($${Math.abs(value).toLocaleString('en-US')})` : `$${value.toLocaleString('en-US')}`}
               </span>
             </td>
           ))}
@@ -287,8 +290,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                             {value === 0
                               ? "$0"
                               : value < 0
-                                ? `($${Math.abs(value).toLocaleString()})`
-                                : `$${value.toLocaleString()}`}
+                                ? `($${Math.abs(value).toLocaleString('en-US')})`
+                                : `$${value.toLocaleString('en-US')}`}
                           </span>
                         </td>
                       ))}
@@ -306,23 +309,6 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
     )
   }
 
-
-  const calculateSummary = () => {
-    if (!extractedData) return null
-
-    const totalIncome = extractedData.find((item) => item.id === "total-income")
-    const noi = extractedData.find((item) => item.id === "noi")
-
-    return {
-      totalIncome: totalIncome?.underwriting || totalIncome?.t12Actual || 0,
-      noi: noi?.underwriting || noi?.t12Actual || 0,
-      noiMargin: totalIncome
-        ? ((noi?.underwriting || noi?.t12Actual || 0) / (totalIncome.underwriting || totalIncome.t12Actual)) * 100
-        : 0,
-    }
-  }
-
-  const summary = calculateSummary()
 
 
   if (!property) {
@@ -746,6 +732,8 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
                         onClose={() => setRrConfigOpen(false)}
                         config={rrConfig}
                         onConfigChange={setRrConfig}
+                        documentId={selectedDoc || undefined}
+                        processId={selectedDoc || undefined}
                       />
                     </div>
                   </div>

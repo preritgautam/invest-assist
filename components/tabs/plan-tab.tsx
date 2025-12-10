@@ -550,7 +550,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
                 <div>
                   <span className="text-gray-600">Renovation Budget:</span>
                   <span className="font-medium ml-2">
-                    ${frozenPlan.assumptions.renovationBudget.toLocaleString()}/unit
+                    ${frozenPlan.assumptions.renovationBudget.toLocaleString('en-US')}/unit
                   </span>
                 </div>
                 <div>
@@ -647,7 +647,7 @@ export function PlanTab({ property }: BusinessPlanTabProps) {
                     </div>
                     <div>
                       <span className="text-gray-700">Renovation:</span>
-                      <span className="font-medium ml-2">${assumptions.renovationBudget.toLocaleString()}/unit</span>
+                      <span className="font-medium ml-2">${assumptions.renovationBudget.toLocaleString('en-US')}/unit</span>
                     </div>
                     <div>
                       <span className="text-gray-700">IRR:</span>

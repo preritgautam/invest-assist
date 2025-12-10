@@ -52,7 +52,7 @@ export function SystemSuggestionCard({ suggestion }: SystemSuggestionCardProps) 
               <Info className="w-3 h-3 text-gray-400 cursor-help" title={suggestion.reasoning.renovationBudget} />
             </div>
             <div className="text-base font-bold text-gray-900">
-              ${suggestion.renovationBudget.toLocaleString()}/unit
+              ${suggestion.renovationBudget.toLocaleString('en-US')}/unit
             </div>
           </div>
 

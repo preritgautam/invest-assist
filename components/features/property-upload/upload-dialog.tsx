@@ -38,12 +38,30 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   const [error, setError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [processId, setProcessId] = useState<string | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const { isPolling, status, result, error: pollingError, startPolling, stopPolling } = useRexPolling();
-
 
   // two separate refs: one for zip picker, one for regular files
   const fileInputZipRef = useRef<HTMLInputElement>(null)
   const fileInputFilesRef = useRef<HTMLInputElement>(null)
+
+  // Reset dialog state when it closes, but NOT the polling queue
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset UI state when dialog closes, but preserve polling state
+      // This allows background polling to continue even when dialog is closed
+      setUploadedFiles([])
+      setIsDragging(false)
+      setIsProcessing(false)
+      setUploadMethod(null)
+      setError(null)
+      setUploadSuccess(false)
+      setProcessId(null)
+      setDocumentId(null)
+      // NOTE: We intentionally do NOT clear the polling state here
+      // The polling queue in sessionStorage will persist and resume on next page load
+    }
+  }, [isOpen])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes"
@@ -234,6 +252,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
       }
 
       setProcessId(result.processId)
+      setDocumentId(result.documentId)
       setUploadSuccess(true)
 
       // Optional: Call onComplete with the result
@@ -283,21 +302,8 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
         },
         onCompleted: async (result) => {
           console.log('[Polling] Extraction completed:', result);
-          
-          // Update document status in database with extraction results
-          try {
-            await updateDocumentStatus(
-              processId,
-              'completed',
-              result,
-              undefined,
-              result.documentId
-            );
-            console.log('[DB] Document status updated with extraction results');
-          } catch (err) {
-            console.error('[DB] Failed to update document status:', err);
-          }
-          
+          // Note: Result persistence is now handled in the polling hook itself
+          // This ensures results are saved even if this callback is lost on page refresh
           setUploadSuccess(true);
           // Optional: Close dialog or show results
           setTimeout(() => {
@@ -306,30 +312,19 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
         },
         onError: async (error) => {
           console.error('[Polling] Error:', error);
-          
-          // Update document status to failed in database
-          try {
-            await updateDocumentStatus(
-              processId,
-              'failed',
-              undefined,
-              error.message
-            );
-            console.log('[DB] Document status updated to failed');
-          } catch (err) {
-            console.error('[DB] Failed to update document error status:', err);
-          }
+          // Note: Error persistence is now handled in the polling hook itself
+          // This ensures errors are saved even if this callback is lost on page refresh
           
           setError(`Extraction failed: ${error.message}`);
         },
-      });
+      }, documentId || undefined);
     }
 
     // NOTE: Do NOT stop polling when component unmounts.
     // The polling state is persisted in sessionStorage and will resume
     // when the component remounts or page refreshes. Only stopPolling()
     // is called by the hook when polling completes or errors.
-  }, [processId, startPolling, onClose]);
+  }, [processId, documentId, onClose]);
 
 
   const handleManualEntry = useCallback(() => {

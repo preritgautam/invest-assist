@@ -65,7 +65,7 @@ export function InteractiveControls({ assumptions, isPlanFrozen, onUpdateAssumpt
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold text-gray-700">Renovation Budget</Label>
               <span className="text-xs font-bold text-gray-900">
-                ${assumptions.renovationBudget.toLocaleString()}/unit
+                ${assumptions.renovationBudget.toLocaleString('en-US')}/unit
               </span>
             </div>
             <Slider

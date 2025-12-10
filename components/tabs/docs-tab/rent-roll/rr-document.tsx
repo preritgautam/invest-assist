@@ -147,6 +147,8 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   const [rawData, setRawData] = useState<any[]>([])
   const [baseHeaders, setBaseHeaders] = useState<string[]>([])
   const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>({}) // For display: normalized -> original
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   console.log("RRbaseHeaders", baseHeaders)
 
@@ -424,6 +426,21 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     [documentId, data, rawData, baseHeaders]
   )
 
+  // Pagination helpers
+  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedData = data.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value)
+    setCurrentPage(1) // Reset to first page when changing items per page
+  }
+
   return (
     <ResizablePanelGroup
       direction="horizontal"
@@ -482,10 +499,12 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {data?.map((row, index) => (
-                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      {paginatedData?.map((row, index) => {
+                        const globalIndex = startIndex + index
+                        return (
+                        <tr key={globalIndex} className="hover:bg-gray-50 transition-colors">
                           <td className="p-2 text-sm font-semibold text-gray-900 border-r bg-gray-50 sticky left-0 z-10 min-w-[150px]">
-                            Unit {index + 1}
+                            Unit {globalIndex + 1}
                           </td>
                           {getDisplayColumns()?.map((column) => {
                             const value = row[column]
@@ -506,17 +525,17 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
 
                             return (
                               <td
-                                key={`${index}-${column}`}
+                                key={`${globalIndex}-${column}`}
                                 className="p-2 text-sm text-gray-900 border-r"
                               >
                                 <EditableCell
                                   value={displayValue}
-                                  rowIndex={index}
+                                  rowIndex={globalIndex}
                                   columnName={column}
                                   isStatusColumn={isStatusColumn}
                                   statusClass={statusClass}
                                   onSave={(newValue) =>
-                                    saveRowData(index, column, newValue)
+                                    saveRowData(globalIndex, column, newValue)
                                   }
                                 />
                               </td>
@@ -528,7 +547,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                             
                             return (
                               <td
-                                key={`${index}-category-${category}`}
+                                key={`${globalIndex}-category-${category}`}
                                 className="p-2 text-sm font-bold text-right text-blue-700 border-r"
                               >
                                 {formatCurrency(total)}
@@ -536,9 +555,72 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                             )
                           })}
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="bg-white rounded-lg border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <span className="text-gray-600">Rows per page:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+
+                <div className="text-xs sm:text-sm text-gray-600">
+                  Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} units
+                </div>
+
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    ← Prev
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum = i + 1
+                      if (totalPages > 5 && currentPage > 3) {
+                        pageNum = currentPage - 2 + i
+                      }
+                      if (pageNum > totalPages) return null
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded ${
+                            currentPage === pageNum
+                              ? "bg-blue-600 text-white"
+                              : "border border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Next →
+                  </button>
                 </div>
               </div>
             </>

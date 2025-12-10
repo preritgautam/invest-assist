@@ -218,7 +218,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
       
-  const documentId = "eeb58615-78c9-433b-a7a7-c250617afd55"
+  const documentId = "c2c91598-8d86-4d70-a4a3-08ad659e9ceb"
 
   const fetchRentRollData = async () => {
     try {
@@ -432,130 +432,136 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     >
       {/* Table Container - Left side with independent scrolling */}
       <ResizablePanel defaultSize={75} minSize={40} className="flex flex-col overflow-hidden">
-        {loading && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="mt-4 text-gray-600">Loading rent roll data...</p>
+        <div className="space-y-2 sm:space-y-4 p-1 sm:p-2 md:p-4 flex flex-col h-full overflow-hidden">
+          {/* Status Banner */}
+          {error && (
+            <div className="bg-white rounded-lg border p-2 sm:p-3 shadow-sm flex-shrink-0">
+              <div className="text-xs text-yellow-700">
+                <strong>Note:</strong> {error} - Displaying sample data instead.
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400">
-            <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> {error} - Displaying sample data instead.
-            </p>
-          </div>
-        )}
-
-        {!loading && (
-          <div className="w-full flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-gray-50">
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  {getDisplayColumns()?.map((column) => {
-                    const displayHeader = formatHeaderName(column)
-
-                    return (
-                      <th
-                        key={column}
-                        className="px-4 py-2 text-left text-xs font-medium whitespace-nowrap bg-blue-50 text-blue-700 border-l-2 border-blue-300"
-                      >
-                        {formatHeaderName(column)}
-                      </th>
-                    )
-                  })}
-                  {/* Charge Category Columns */}
-                  {getAllCategories()?.map((category) => (
-                    <th
-                      key={`category-${category}`}
-                      className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
-                    >
-                      {getCategoryDisplayName(category)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {data?.map((row, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {getDisplayColumns()?.map((column) => {
-                      const value = row[column]
-                      const displayValue =
-                        value === null ||
-                        value === undefined ||
-                        value === "NA" ||
-                        value === "N/A" ||
-                        String(value).toUpperCase() === "NA"
-                          ? "-"
-                          : String(value)
-
-                      // Apply status color styling to the status column
-                      const isStatusColumn = column === "status"
-                      const statusClass = isStatusColumn
-                        ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block`
-                        : ""
-
-                      return (
-                        <td
-                          key={`${index}-${column}`}
-                          className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap bg-blue-50 font-semibold text-blue-900"
-                        >
-                          <EditableCell
-                            value={displayValue}
-                            rowIndex={index}
-                            columnName={column}
-                            isStatusColumn={isStatusColumn}
-                            statusClass={statusClass}
-                            onSave={(newValue) =>
-                              saveRowData(index, column, newValue)
-                            }
-                          />
-                        </td>
-                      )
-                    })}
-                    {/* Charge Category Totals */}
-                    {getAllCategories()?.map((category) => {
-                      const total = getTotalForCategory(row, category)
-                      
-                      return (
-                        <td
-                          key={`${index}-category-${category}`}
-                          className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${getCategoryCellColor(category)}`}
-                        >
-                          {formatCurrency(total)}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {loading && (
+            <div className="bg-white rounded-lg border p-8 shadow-sm">
+              <div className="flex flex-col items-center justify-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="mt-4 text-gray-600 text-sm">Loading rent roll data...</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {!loading && (
+            <>
+              {/* Table Section */}
+              <div className="bg-white rounded-lg border overflow-hidden flex flex-col flex-1">
+                <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+                  <table className="w-full text-xs table-auto">
+                    <thead className="bg-gray-50 border-b sticky top-0 z-20">
+                      <tr>
+                        <th className="p-2 text-left font-semibold border-r bg-gray-50 text-gray-700 min-w-[150px]">
+                          Unit
+                        </th>
+                        {getDisplayColumns()?.map((column) => (
+                          <th
+                            key={column}
+                            className="p-2 text-left font-semibold border-r text-gray-700 min-w-[100px]"
+                          >
+                            {formatHeaderName(column)}
+                          </th>
+                        ))}
+                        {/* Charge Category Columns */}
+                        {getAllCategories()?.map((category) => (
+                          <th
+                            key={`category-${category}`}
+                            className="p-2 text-right font-semibold border-r text-blue-700 min-w-[120px]"
+                          >
+                            {getCategoryDisplayName(category)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {data?.map((row, index) => (
+                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-2 text-sm font-semibold text-gray-900 border-r bg-gray-50 sticky left-0 z-10 min-w-[150px]">
+                            Unit {index + 1}
+                          </td>
+                          {getDisplayColumns()?.map((column) => {
+                            const value = row[column]
+                            const displayValue =
+                              value === null ||
+                              value === undefined ||
+                              value === "NA" ||
+                              value === "N/A" ||
+                              String(value).toUpperCase() === "NA"
+                                ? "-"
+                                : String(value)
+
+                            // Apply status color styling to the status column
+                            const isStatusColumn = column === "status"
+                            const statusClass = isStatusColumn
+                              ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
+                              : ""
+
+                            return (
+                              <td
+                                key={`${index}-${column}`}
+                                className="p-2 text-sm text-gray-900 border-r"
+                              >
+                                <EditableCell
+                                  value={displayValue}
+                                  rowIndex={index}
+                                  columnName={column}
+                                  isStatusColumn={isStatusColumn}
+                                  statusClass={statusClass}
+                                  onSave={(newValue) =>
+                                    saveRowData(index, column, newValue)
+                                  }
+                                />
+                              </td>
+                            )
+                          })}
+                          {/* Charge Category Totals */}
+                          {getAllCategories()?.map((category) => {
+                            const total = getTotalForCategory(row, category)
+                            
+                            return (
+                              <td
+                                key={`${index}-category-${category}`}
+                                className="p-2 text-sm font-bold text-right text-blue-700 border-r"
+                              >
+                                {formatCurrency(total)}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </ResizablePanel>
 
       <ResizableHandle withHandle />
 
       {/* Configure Modal - Right side panel */}
-
       {isOpen && (
- <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">
-        <RRConfigure
-          isOpen={isOpen}
-          onClose={onClose}
-          config={dynamicConfig}
-          onConfigChange={handleConfigChange}
-          originalConfig={originalConfig}
-          documentId={documentId}
-          processId={processId}
-        />
-      </ResizablePanel>
+        <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">
+          <RRConfigure
+            isOpen={isOpen}
+            onClose={onClose}
+            config={dynamicConfig}
+            onConfigChange={handleConfigChange}
+            originalConfig={originalConfig}
+            documentId={documentId}
+            processId={processId}
+          />
+        </ResizablePanel>
       )}
-     
     </ResizablePanelGroup>
   )
 }

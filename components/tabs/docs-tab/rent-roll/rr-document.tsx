@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { RRConfigure } from "./rr-configure"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { EditableCell } from "./editable-cell"
 
 type RentRollUnit = Record<string, any>
 
@@ -219,7 +220,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       
   const documentId = "eeb58615-78c9-433b-a7a7-c250617afd55"
 
-
   const fetchRentRollData = async () => {
     try {
       setLoading(true)
@@ -343,7 +343,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
 
   // Get display name for a category
   const getCategoryDisplayName = (category: string): string => {
-    return normalizedChargesMapping[category] || category.replace(/_/g, " ")
+    return normalizedChargesMapping[category] || category
   }
 
   // Get all charges that map to a specific category
@@ -374,6 +374,55 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       return total + value
     }, 0)
   }
+
+  // Save row cell data to database
+  const saveRowData = useCallback(
+    async (rowIndex: number, columnName: string, newValue: string) => {
+      try {
+        const response = await fetch("/api/documents/rows/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentId,
+            rowIndex,
+            columnName,
+            newValue,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to save row data")
+        }
+
+        const result = await response.json()
+
+        // Update local data with the new value
+        const updatedData = [...data]
+        updatedData[rowIndex] = {
+          ...updatedData[rowIndex],
+          [columnName]: newValue,
+        }
+        setData(updatedData)
+
+        // Update raw data as well
+        if (baseHeaders.length > 0) {
+          const columnIndex = baseHeaders.indexOf(columnName)
+          if (columnIndex !== -1) {
+            const updatedRaw = [...rawData]
+            updatedRaw[rowIndex][columnIndex] = newValue
+            setRawData(updatedRaw)
+          }
+        }
+
+        console.log("[RR Document] Row data saved successfully")
+      } catch (error) {
+        console.error("Error saving row data:", error)
+        throw error
+      }
+    },
+    [documentId, data, rawData, baseHeaders]
+  )
 
   return (
     <ResizablePanelGroup
@@ -414,7 +463,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                         key={column}
                         className="px-4 py-2 text-left text-xs font-medium whitespace-nowrap bg-blue-50 text-blue-700 border-l-2 border-blue-300"
                       >
-                        {displayHeader}
+                        {formatHeaderName(column)}
                       </th>
                     )
                   })}
@@ -454,11 +503,16 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
                           key={`${index}-${column}`}
                           className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap bg-blue-50 font-semibold text-blue-900"
                         >
-                          {isStatusColumn ? (
-                            <span className={statusClass}>{displayValue}</span>
-                          ) : (
-                            displayValue
-                          )}
+                          <EditableCell
+                            value={displayValue}
+                            rowIndex={index}
+                            columnName={column}
+                            isStatusColumn={isStatusColumn}
+                            statusClass={statusClass}
+                            onSave={(newValue) =>
+                              saveRowData(index, column, newValue)
+                            }
+                          />
                         </td>
                       )
                     })}

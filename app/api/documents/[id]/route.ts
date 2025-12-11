@@ -2,6 +2,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+// Helper function to convert BigInt values to numbers/strings for JSON serialization
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      acc[key] = serializeBigInt(obj[key]);
+      return acc;
+    }, {} as any);
+  }
+  return obj;
+}
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const rawId = (params.id ?? '').trim();
@@ -45,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const document = result.rows[0];
     console.log(`[Document API] Found document: ${document.filename} (id=${document.id})`);
-    return NextResponse.json({ success: true, document });
+    return NextResponse.json({ success: true, document: serializeBigInt(document) });
   } catch (err) {
     console.error('[Document API] Error fetching document:', err);
     return NextResponse.json({ success: false, error: err instanceof Error ? err.message : 'Internal error' }, { status: 500 });

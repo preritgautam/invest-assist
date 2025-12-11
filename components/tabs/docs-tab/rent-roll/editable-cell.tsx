@@ -121,7 +121,7 @@ export function EditableCell({
       </div>
     )
   }
-console.log("rendering editable cell with value:");
+
   return (
     <div className="flex items-center justify-between gap-1 group py-1 px-2 rounded hover:bg-gray-100 transition-colors">
       <span className="flex-1 truncate text-sm">{displayValue}</span>

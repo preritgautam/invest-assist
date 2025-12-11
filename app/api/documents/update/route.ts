@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (extractionResult) {
-      updateFields.push(`extraction_result = $${paramIndex}`);
+      updateFields.push(`extraction_result = $${paramIndex}::jsonb`);
       updateParams.push(JSON.stringify(extractionResult));
       paramIndex++;
     }

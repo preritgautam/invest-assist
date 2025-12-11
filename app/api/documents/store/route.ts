@@ -4,6 +4,20 @@ import { query } from '@/lib/db';
 // CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
 const MOCK_USER_ID = 'user_bypass_12345';
 
+// Helper function to convert BigInt values to numbers/strings for JSON serialization
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      acc[key] = serializeBigInt(obj[key]);
+      return acc;
+    }, {} as any);
+  }
+  return obj;
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('[Documents API Store] Request received');
@@ -58,10 +72,13 @@ export async function POST(request: NextRequest) {
 
     console.log('[Documents API Store] Document stored:', document);
 
+    // Serialize BigInt values for JSON response
+    const serializedDocument = serializeBigInt(document);
+
     return NextResponse.json(
       {
         success: true,
-        document,
+        document: serializedDocument,
       },
       { status: 201 }
     );

@@ -1,18 +1,14 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  directUrl         = env("DIRECT_DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Remove directUrl - not needed for Prisma Accelerate
 }
 
-// Users table - managed by Clerk, referenced here for foreign keys
 model User {
   id        String   @id
   email     String   @unique
@@ -21,16 +17,17 @@ model User {
 
   scenarios  Scenario[]
   documents  Document[]
+  
+  @@map("users")
 }
 
-// Scenarios model - from your migrations
 model Scenario {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ownerId     String   @map("owner_id")
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  payload     Json     @default("{}")
+  payload     Json     @default("{}") @db.JsonB
   deleted     Boolean  @default(false)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
@@ -39,22 +36,21 @@ model Scenario {
   @@map("scenarios")
 }
 
-// Documents model - from your migrations
 model Document {
-  id                Int      @id @default(autoincrement())
-  userId            String   @map("user_id")
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  processId         String   @unique @map("process_id")
-  documentId        String?  @map("document_id")
+  id                Int       @id @default(autoincrement())
+  userId            String    @map("user_id")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  processId         String    @unique @map("process_id")
+  documentId        String?   @map("document_id")
   filename          String
-  documentType      String?  @map("document_type")
-  fileSize          BigInt?  @map("file_size")
-  uploadStatus      String   @default("pending") @map("upload_status")
-  extractionStatus  String   @default("pending") @map("extraction_status")
-  extractionResult  Json?    @map("extraction_result")
-  errorMessage      String?  @map("error_message")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  documentType      String?   @map("document_type")
+  fileSize          BigInt?   @map("file_size")
+  uploadStatus      String    @default("pending") @map("upload_status")
+  extractionStatus  String    @default("pending") @map("extraction_status")
+  extractionResult  Json?     @map("extraction_result") @db.JsonB
+  errorMessage      String?   @map("error_message")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
   deletedAt         DateTime? @map("deleted_at")
 
   @@unique([userId, processId])
@@ -66,3 +62,4 @@ model Document {
   @@index([deletedAt], name: "idx_documents_deleted_at")
   @@map("documents")
 }
+

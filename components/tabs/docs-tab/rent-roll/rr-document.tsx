@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { RRConfigure } from "./rr-configure"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { EditableCell } from "./editable-cell"
 
 type RentRollUnit = Record<string, any>
 
@@ -54,10 +55,19 @@ function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []):
   const transactionCodes = metadata["Transaction Codes"] || []
   const chargesMapping = metadata["Mapping for the charges"] || {}
 
+  // Normalize chargesMapping keys to lowercase with underscores for consistent matching
+  const normalizedChargesMapping: Record<string, string[]> = {}
+  const normalizedKeyMap: Record<string, string> = {} // Map normalized -> original
+  for (const [field, codes] of Object.entries(chargesMapping)) {
+    const normalized = field.toLowerCase().replace(/\s+/g, "_")
+    normalizedChargesMapping[normalized] = codes
+    normalizedKeyMap[normalized] = field
+  }
+
   const tenantCharges: TenantChargeConfig[] = transactionCodes?.map((code, idx) => {
-    // Find the apiField that maps to this transaction code
+    // Find the normalized apiField that maps to this transaction code
     let apiField = code.toLowerCase().replace(/\s+/g, "_")
-    for (const [field, codes] of Object.entries(chargesMapping)) {
+    for (const [field, codes] of Object.entries(normalizedChargesMapping)) {
       if (Array.isArray(codes) && codes.includes(code)) {
         apiField = field
         break
@@ -136,6 +146,9 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
   const [rawData, setRawData] = useState<any[]>([])
   const [baseHeaders, setBaseHeaders] = useState<string[]>([])
+  const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>({}) // For display: normalized -> original
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   console.log("RRbaseHeaders", baseHeaders)
 
@@ -172,7 +185,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
           const fpData = floorPlanLookup[floorPlan]
           unitMap["bed"] = fpData.bedrooms ?? 0
           unitMap["bath"] = fpData.bathrooms ?? 0
-          unitMap["renovated"] = fpData.renovation_status === "not_specified" ? "No" : "Yes"
+          unitMap["renovated"] = fpData.renovation_status
         } else {
           unitMap["bed"] = 0
           unitMap["bath"] = 0
@@ -207,8 +220,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
       
-  const documentId = "11adfae4-272f-4e87-adb7-8c3195dc1871"
-
+  const documentId = "88063c58-ebfb-4956-aa89-33ebabf3cf32"
 
   const fetchRentRollData = async () => {
     try {
@@ -264,7 +276,19 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
         // Store metadata and charges mapping
         if (metadata) {
           setMetadata(metadata)
-          setChargesMapping(metadata["Mapping for the charges"] || {})
+          
+          // Normalize chargesMapping keys
+          const originalMapping = metadata["Mapping for the charges"] || {}
+          const normalized: Record<string, string[]> = {}
+          const keyMap: Record<string, string> = {}
+          for (const [field, codes] of Object.entries(originalMapping)) {
+            const normalizedKey = field.toLowerCase().replace(/\s+/g, "_")
+            normalized[normalizedKey] = codes
+            keyMap[normalizedKey] = field
+          }
+          
+          setChargesMapping(normalized)
+          setNormalizedChargesMapping(keyMap)
           const builtConfig = buildConfigFromMetadata(metadata, headers)
           setOriginalConfig(builtConfig)
           setDynamicConfig(builtConfig)
@@ -315,9 +339,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
 
   // Get ALL available categories from the original API mapping (for display even if $0.00)
   const getAllCategories = (): string[] => {
-    // Always show all original categories from the API response
-    // This ensures categories show even if no charges are mapped to them
+    // Return normalized keys from chargesMapping
     return Object.keys(chargesMapping).sort()
+  }
+
+  // Get display name for a category
+  const getCategoryDisplayName = (category: string): string => {
+    return normalizedChargesMapping[category] || category
   }
 
   // Get all charges that map to a specific category
@@ -349,6 +377,70 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     }, 0)
   }
 
+  // Save row cell data to database
+  const saveRowData = useCallback(
+    async (rowIndex: number, columnName: string, newValue: string) => {
+      try {
+        const response = await fetch("/api/documents/rows/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentId,
+            rowIndex,
+            columnName,
+            newValue,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to save row data")
+        }
+
+        const result = await response.json()
+
+        // Update local data with the new value
+        const updatedData = [...data]
+        updatedData[rowIndex] = {
+          ...updatedData[rowIndex],
+          [columnName]: newValue,
+        }
+        setData(updatedData)
+
+        // Update raw data as well
+        if (baseHeaders.length > 0) {
+          const columnIndex = baseHeaders.indexOf(columnName)
+          if (columnIndex !== -1) {
+            const updatedRaw = [...rawData]
+            updatedRaw[rowIndex][columnIndex] = newValue
+            setRawData(updatedRaw)
+          }
+        }
+
+        console.log("[RR Document] Row data saved successfully")
+      } catch (error) {
+        console.error("Error saving row data:", error)
+        throw error
+      }
+    },
+    [documentId, data, rawData, baseHeaders]
+  )
+
+  // Pagination helpers
+  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedData = data.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value)
+    setCurrentPage(1) // Reset to first page when changing items per page
+  }
+
   return (
     <ResizablePanelGroup
       direction="horizontal"
@@ -357,125 +449,201 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     >
       {/* Table Container - Left side with independent scrolling */}
       <ResizablePanel defaultSize={75} minSize={40} className="flex flex-col overflow-hidden">
-        {loading && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="mt-4 text-gray-600">Loading rent roll data...</p>
+        <div className="space-y-2 sm:space-y-4 p-1 sm:p-2 md:p-4 flex flex-col h-full overflow-hidden">
+          {/* Status Banner */}
+          {error && (
+            <div className="bg-white rounded-lg border p-2 sm:p-3 shadow-sm flex-shrink-0">
+              <div className="text-xs text-yellow-700">
+                <strong>Note:</strong> {error} - Displaying sample data instead.
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400">
-            <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> {error} - Displaying sample data instead.
-            </p>
-          </div>
-        )}
+          {loading && (
+            <div className="bg-white rounded-lg border p-8 shadow-sm">
+              <div className="flex flex-col items-center justify-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="mt-4 text-gray-600 text-sm">Loading rent roll data...</p>
+              </div>
+            </div>
+          )}
 
-        {!loading && (
-          <div className="w-full flex flex-col min-w-0 overflow-hidden border border-gray-200 rounded-lg">
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-gray-50">
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  {getDisplayColumns()?.map((column) => {
-                    const displayHeader = formatHeaderName(column)
+          {!loading && (
+            <>
+              {/* Table Section */}
+              <div className="bg-white rounded-lg border overflow-hidden flex flex-col flex-1">
+                <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+                  <table className="w-full text-xs table-auto">
+                    <thead className="bg-gray-50 border-b sticky top-0 z-20">
+                      <tr>
+                        <th className="p-2 text-left font-semibold border-r bg-gray-50 text-gray-700 min-w-[150px]">
+                          Unit
+                        </th>
+                        {getDisplayColumns()?.map((column) => (
+                          <th
+                            key={column}
+                            className="p-2 text-left font-semibold border-r text-gray-700 min-w-[100px]"
+                          >
+                            {formatHeaderName(column)}
+                          </th>
+                        ))}
+                        {/* Charge Category Columns */}
+                        {getAllCategories()?.map((category) => (
+                          <th
+                            key={`category-${category}`}
+                            className="p-2 text-right font-semibold border-r text-blue-700 min-w-[120px]"
+                          >
+                            {getCategoryDisplayName(category)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {paginatedData?.map((row, index) => {
+                        const globalIndex = startIndex + index
+                        return (
+                        <tr key={globalIndex} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-2 text-sm font-semibold text-gray-900 border-r bg-gray-50 sticky left-0 z-10 min-w-[150px]">
+                            Unit {globalIndex + 1}
+                          </td>
+                          {getDisplayColumns()?.map((column) => {
+                            const value = row[column]
+                            const displayValue =
+                              value === null ||
+                              value === undefined ||
+                              value === "NA" ||
+                              value === "N/A" ||
+                              String(value).toUpperCase() === "NA"
+                                ? "-"
+                                : String(value)
 
-                    return (
-                      <th
-                        key={column}
-                        className="px-4 py-2 text-left text-xs font-medium whitespace-nowrap bg-blue-50 text-blue-700 border-l-2 border-blue-300"
-                      >
-                        {displayHeader}
-                      </th>
-                    )
-                  })}
-                  {/* Charge Category Columns */}
-                  {getAllCategories()?.map((category) => (
-                    <th
-                      key={`category-${category}`}
-                      className={`px-4 py-2 text-left text-xs font-bold whitespace-nowrap ${getCategoryHeaderColor(category)} border-l-2 border-gray-300`}
-                    >
-                      {category.replace(/_/g, " ")}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {data?.map((row, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {getDisplayColumns()?.map((column) => {
-                      const value = row[column]
-                      const displayValue =
-                        value === null ||
-                        value === undefined ||
-                        value === "NA" ||
-                        value === "N/A" ||
-                        String(value).toUpperCase() === "NA"
-                          ? "-"
-                          : String(value)
+                            // Apply status color styling to the status column
+                            const isStatusColumn = column === "status"
+                            const statusClass = isStatusColumn
+                              ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
+                              : ""
 
-                      // Apply status color styling to the status column
-                      const isStatusColumn = column === "status"
-                      const statusClass = isStatusColumn
-                        ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block`
-                        : ""
+                            return (
+                              <td
+                                key={`${globalIndex}-${column}`}
+                                className="p-2 text-sm text-gray-900 border-r"
+                              >
+                                <EditableCell
+                                  value={displayValue}
+                                  rowIndex={globalIndex}
+                                  columnName={column}
+                                  isStatusColumn={isStatusColumn}
+                                  statusClass={statusClass}
+                                  onSave={(newValue) =>
+                                    saveRowData(globalIndex, column, newValue)
+                                  }
+                                />
+                              </td>
+                            )
+                          })}
+                          {/* Charge Category Totals */}
+                          {getAllCategories()?.map((category) => {
+                            const total = getTotalForCategory(row, category)
+                            
+                            return (
+                              <td
+                                key={`${globalIndex}-category-${category}`}
+                                className="p-2 text-sm font-bold text-right text-blue-700 border-r"
+                              >
+                                {formatCurrency(total)}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
+              {/* Pagination Controls */}
+              <div className="bg-white rounded-lg border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <span className="text-gray-600">Rows per page:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+
+                <div className="text-xs sm:text-sm text-gray-600">
+                  Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} units
+                </div>
+
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    ← Prev
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum = i + 1
+                      if (totalPages > 5 && currentPage > 3) {
+                        pageNum = currentPage - 2 + i
+                      }
+                      if (pageNum > totalPages) return null
                       return (
-                        <td
-                          key={`${index}-${column}`}
-                          className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap bg-blue-50 font-semibold text-blue-900"
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded ${
+                            currentPage === pageNum
+                              ? "bg-blue-600 text-white"
+                              : "border border-gray-300 hover:bg-gray-50"
+                          }`}
                         >
-                          {isStatusColumn ? (
-                            <span className={statusClass}>{displayValue}</span>
-                          ) : (
-                            displayValue
-                          )}
-                        </td>
+                          {pageNum}
+                        </button>
                       )
                     })}
-                    {/* Charge Category Totals */}
-                    {getAllCategories()?.map((category) => {
-                      const total = getTotalForCategory(row, category)
-                      
-                      return (
-                        <td
-                          key={`${index}-category-${category}`}
-                          className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${getCategoryCellColor(category)}`}
-                        >
-                          {formatCurrency(total)}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-          </div>
-        )}
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </ResizablePanel>
 
       <ResizableHandle withHandle />
 
       {/* Configure Modal - Right side panel */}
-
       {isOpen && (
- <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">
-        <RRConfigure
-          isOpen={isOpen}
-          onClose={onClose}
-          config={dynamicConfig}
-          onConfigChange={handleConfigChange}
-          originalConfig={originalConfig}
-          documentId={documentId}
-          processId={processId}
-        />
-      </ResizablePanel>
+        <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">
+          <RRConfigure
+            isOpen={isOpen}
+            onClose={onClose}
+            config={dynamicConfig}
+            onConfigChange={handleConfigChange}
+            originalConfig={originalConfig}
+            documentId={documentId}
+            processId={processId}
+          />
+        </ResizablePanel>
       )}
-     
     </ResizablePanelGroup>
   )
 }

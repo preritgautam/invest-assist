@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { query } from '@/lib/db';
 
+// Helper function to convert BigInt values to numbers/strings for JSON serialization
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      acc[key] = serializeBigInt(obj[key]);
+      return acc;
+    }, {} as any);
+  }
+  return obj;
+}
+
 export async function PUT(request: NextRequest) {
   try {
     // Get authenticated user from Clerk
@@ -67,7 +81,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (extractionResult) {
-      updateFields.push(`extraction_result = $${paramIndex}`);
+      updateFields.push(`extraction_result = $${paramIndex}::jsonb`);
       updateParams.push(JSON.stringify(extractionResult));
       paramIndex++;
     }
@@ -99,7 +113,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        document,
+        document: serializeBigInt(document),
       },
       { status: 200 }
     );

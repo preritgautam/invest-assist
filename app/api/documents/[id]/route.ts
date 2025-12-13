@@ -82,15 +82,13 @@ const getMockDocument = () => {
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const resolvedParams = await Promise.resolve(params)
-    const id = resolvedParams?.id
+    const { id } = await params
     const rawId = (id ?? "").trim()
     console.log(`[v0] [Document API] Fetching document with raw ID: "${rawId}"`)
 
     if (!rawId) {
-      console.log("[v0] [Document API] Missing document ID, returning mock data")
-      const mockDocument = getMockDocument()
-      return NextResponse.json({ success: true, document: mockDocument })
+      console.log("[v0] [Document API] Missing document ID")
+      return NextResponse.json({ success: false, error: "Missing document id" }, { status: 400 })
     }
 
     if (!prisma) {
@@ -126,8 +124,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     try {
       result = await query(sql, paramsArr)
       console.log("[v0] [Document API] SQL returned rows:", result.rows.length)
-    } catch (queryError) {
-      console.error("[v0] [Document API] Query error, returning mock data:", queryError)
+    } catch (dbError) {
+      console.error("[v0] [Document API] Database query failed:", dbError)
+      console.log("[v0] [Document API] Returning mock data due to DB error")
       const mockDocument = getMockDocument()
       return NextResponse.json({ success: true, document: mockDocument })
     }
@@ -146,12 +145,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json({ success: true, document: serializedDocument })
   } catch (err) {
-    console.error("[v0] [Document API] Error fetching document:", err)
+    console.error("[v0] [Document API] Unexpected error:", err)
     console.error("[v0] [Document API] Error stack:", err instanceof Error ? err.stack : "No stack trace")
 
-    console.log("[v0] [Document API] Returning mock data due to error")
+    console.log("[v0] [Document API] Returning mock data due to unexpected error")
     const mockDocument = getMockDocument()
-    return NextResponse.json({ success: true, document: mockDocument })
+    return NextResponse.json({ success: true, document: mockDocument }, { status: 200 })
   }
 }
 

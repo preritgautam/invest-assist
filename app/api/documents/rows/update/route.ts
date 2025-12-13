@@ -1,16 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
-import { prisma } from "@/lib/prisma" // Assuming prisma is imported from somewhere
+import { NextRequest, NextResponse } from 'next/server'
+import { query } from '@/lib/db'
 
 // CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
-const MOCK_USER_ID = "user_bypass_12345"
+const MOCK_USER_ID = 'user_bypass_12345'
 
 // Helper function to convert BigInt values to numbers/strings for JSON serialization
 function serializeBigInt(obj: any): any {
   if (obj === null || obj === undefined) return obj
-  if (typeof obj === "bigint") return obj.toString()
+  if (typeof obj === 'bigint') return obj.toString()
   if (Array.isArray(obj)) return obj.map(serializeBigInt)
-  if (typeof obj === "object") {
+  if (typeof obj === 'object') {
     return Object.keys(obj).reduce((acc, key) => {
       acc[key] = serializeBigInt(obj[key])
       return acc
@@ -21,14 +20,19 @@ function serializeBigInt(obj: any): any {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] [Row Data API] Update request received")
+    console.log('[Row Data API] Update request received')
 
     const userId = MOCK_USER_ID
     const body = await request.json()
 
-    const { documentId, rowIndex, columnName, newValue } = body
+    const {
+      documentId,
+      rowIndex,
+      columnName,
+      newValue,
+    } = body
 
-    console.log("[v0] [Row Data API] Received data:", {
+    console.log('[Row Data API] Received data:', {
       documentId,
       rowIndex,
       columnName,
@@ -38,31 +42,23 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!documentId || rowIndex === undefined || !columnName || newValue === undefined) {
       return NextResponse.json(
-        { error: "Missing required fields: documentId, rowIndex, columnName, newValue" },
-        { status: 400 },
+        { error: 'Missing required fields: documentId, rowIndex, columnName, newValue' },
+        { status: 400 }
       )
     }
 
-    if (!prisma) {
-      console.log("[v0] [Row Data API] Database not available, returning success without saving")
-      return NextResponse.json({ success: true, message: "Mock mode - data not persisted" }, { status: 200 })
-    }
-
-    let existingDocResult
-    try {
-      existingDocResult = await query(
-        `SELECT extraction_result FROM documents 
-         WHERE document_id = $1 AND user_id = $2`,
-        [documentId, userId],
-      )
-    } catch (queryError) {
-      console.error("[v0] [Row Data API] Query error:", queryError)
-      return NextResponse.json({ success: true, message: "Mock mode - data not persisted" }, { status: 200 })
-    }
+    // Fetch the existing document
+    const existingDocResult = await query(
+      `SELECT extraction_result FROM documents 
+       WHERE document_id = $1 AND user_id = $2`,
+      [documentId, userId]
+    )
 
     if (existingDocResult.rows.length === 0) {
-      console.log("[v0] [Row Data API] Document not found, returning success")
-      return NextResponse.json({ success: true, message: "Document not found in database" }, { status: 200 })
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      )
     }
 
     const existingDoc = existingDocResult.rows[0]
@@ -82,64 +78,68 @@ export async function POST(request: NextRequest) {
 
     // Validate row index
     if (rowIndex < 0 || rowIndex >= units.length) {
-      return NextResponse.json({ error: "Invalid row index" }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Invalid row index' },
+        { status: 400 }
+      )
     }
 
     // Find the column index
     const columnIndex = headers.indexOf(columnName)
     if (columnIndex === -1) {
-      return NextResponse.json({ error: "Column not found" }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Column not found' },
+        { status: 400 }
+      )
     }
 
     // Update the unit data
     units[rowIndex][columnIndex] = newValue
 
-    console.log("[v0] [Row Data API] Updated unit at row", rowIndex, "column", columnName)
+    console.log('[Row Data API] Updated unit at row', rowIndex, 'column', columnName)
 
-    let result
-    try {
-      result = await query(
-        `UPDATE documents 
-         SET extraction_result = $1, updated_at = NOW() 
-         WHERE document_id = $2 AND user_id = $3 
-         RETURNING *`,
-        [JSON.stringify(extractionResult), documentId, userId],
-      )
-    } catch (updateError) {
-      console.error("[v0] [Row Data API] Update error:", updateError)
-      return NextResponse.json({ success: true, message: "Mock mode - data not persisted" }, { status: 200 })
-    }
+    // Update the document
+    const result = await query(
+      `UPDATE documents 
+       SET extraction_result = $1, updated_at = NOW() 
+       WHERE document_id = $2 AND user_id = $3 
+       RETURNING *`,
+      [JSON.stringify(extractionResult), documentId, userId]
+    )
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Failed to update document" }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Failed to update document' },
+        { status: 500 }
+      )
     }
 
     const updatedDocument = result.rows[0]
 
-    console.log("[v0] [Row Data API] Row data saved successfully")
+    console.log('[Row Data API] Row data saved successfully')
 
     return NextResponse.json(
       {
         success: true,
         document: serializeBigInt(updatedDocument),
       },
-      { status: 200 },
+      { status: 200 }
     )
+
   } catch (error) {
-    console.error("[v0] [Row Data API] Error saving row data:", error)
+    console.error('[Row Data API] Error saving row data:', error)
 
     if (error instanceof Error) {
-      console.error("[v0] [Row Data API] Error message:", error.message)
-      console.error("[v0] [Row Data API] Error stack:", error.stack)
+      console.error('[Row Data API] Error message:', error.message)
+      console.error('[Row Data API] Error stack:', error.stack)
     }
 
     return NextResponse.json(
       {
-        success: true,
-        message: "Mock mode - data not persisted",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: 'Failed to save row data',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 200 },
+      { status: 500 }
     )
   }
 }

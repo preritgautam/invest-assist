@@ -62,4 +62,3 @@ model Document {
   @@index([deletedAt], name: "idx_documents_deleted_at")
   @@map("documents")
 }
-

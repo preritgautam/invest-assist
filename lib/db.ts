@@ -23,10 +23,7 @@ if (process.env.NODE_ENV !== "production" && prisma) {
 export async function query(sql: string, params?: any[]) {
   if (!prisma) {
     console.log("[v0] Database not available, returning empty result")
-    return {
-      rows: [],
-      rowCount: 0,
-    }
+    throw new Error("Database not available in v0 environment")
   }
 
   try {
@@ -40,11 +37,7 @@ export async function query(sql: string, params?: any[]) {
     }
   } catch (error) {
     console.error("[v0] Database query error:", error)
-    // Return empty result on error
-    return {
-      rows: [],
-      rowCount: 0,
-    }
+    throw error
   }
 }
 

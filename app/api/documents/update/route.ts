@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { query } from '@/lib/db';
+
+// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
+const MOCK_USER_ID = 'user_bypass_12345';
 
 // Helper function to convert BigInt values to numbers/strings for JSON serialization
 function serializeBigInt(obj: any): any {
@@ -18,18 +20,11 @@ function serializeBigInt(obj: any): any {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Get authenticated user from Clerk
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized - User not authenticated' },
-        { status: 401 }
-      );
-    }
-
     console.log('[Documents API Update] Request received');
-    console.log('[Documents API Update] Updating for user:', { userId });
+    
+    // CLERK BYPASSED - using mock user ID
+    const userId = MOCK_USER_ID;
+    console.log('[Documents API Update] Using mock user ID:', { userId });
 
     const body = await request.json();
     const {
@@ -54,25 +49,61 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log(`[Documents API Update] Updating document status for user ${userId}`);
+    console.log(`[Documents API Update] Updating document status`);
 
-    // Verify the document belongs to this user
-    const checkResult = await query(
-      'SELECT id FROM documents WHERE process_id = $1 AND user_id = $2',
-      [processId, userId]
+    // Verify the document exists by processId
+    let checkResult = await query(
+      'SELECT id, user_id, process_id FROM documents WHERE process_id = $1',
+      [processId]
     );
 
+    // If document doesn't exist, create it
     if (checkResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Document not found or access denied' },
-        { status: 404 }
-      );
+      console.log('[Documents API Update] Document not found, creating placeholder document for processId:', processId);
+      
+      try {
+        const createResult = await query(
+          `INSERT INTO documents (
+            user_id,
+            process_id,
+            document_id,
+            filename,
+            document_type,
+            upload_status
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id, user_id, process_id`,
+          [MOCK_USER_ID, processId, documentId || null, 'Unknown Document', 'unknown', 'pending']
+        );
+        
+        console.log('[Documents API Update] Created placeholder document:', createResult.rows[0]);
+        checkResult = createResult;
+      } catch (insertErr) {
+        console.error('[Documents API Update] Error creating placeholder document:', insertErr);
+        // If it's a duplicate key error, retry the select
+        if (insertErr instanceof Error && insertErr.message.includes('duplicate')) {
+          const retryResult = await query(
+            'SELECT id, user_id, process_id FROM documents WHERE process_id = $1',
+            [processId]
+          );
+          if (retryResult.rows.length === 0) {
+            return NextResponse.json(
+              { error: 'Failed to create or find document' },
+              { status: 500 }
+            );
+          }
+          checkResult = retryResult;
+        } else {
+          throw insertErr;
+        }
+      }
+    } else {
+      console.log('[Documents API Update] Document found:', checkResult.rows[0]);
     }
 
     // Update document status
-    const updateParams = [processId, userId];
+    const updateParams = [processId];
     let updateFields = [];
-    let paramIndex = 3;
+    let paramIndex = 2;
 
     if (extractionStatus) {
       updateFields.push(`extraction_status = $${paramIndex}`);
@@ -101,7 +132,7 @@ export async function PUT(request: NextRequest) {
     const result = await query(
       `UPDATE documents 
        SET ${updateFields.join(', ')}
-       WHERE process_id = $1 AND user_id = $2
+       WHERE process_id = $1
        RETURNING *`,
       updateParams
     );

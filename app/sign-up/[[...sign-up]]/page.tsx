@@ -1,15 +1,15 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
-import Link from "next/link"
+import { useSignUp } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
 
 export default function SignUpPage() {
+  const { signUp, isLoaded } = useSignUp()
   const router = useRouter()
+  const [step, setStep] = useState<"form" | "verify">("form")
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -17,10 +17,9 @@ export default function SignUpPage() {
     password: "",
     confirmPassword: "",
   })
+  const [verificationCode, setVerificationCode] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  // CLERK BYPASSED - using local form for v0 Vercel compatibility
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -34,173 +33,396 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
+
+    if (!isLoaded) {
+      return
+    }
+
+    // Validation
+    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+      setError("All fields are required")
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters")
+      return
+    }
+
+    setIsLoading(true)
 
     try {
-      // Validation
-      if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
-        setError("All fields are required")
-        setLoading(false)
-        return
-      }
+      await signUp.create({
+        emailAddress: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      })
 
-      if (formData.password !== formData.confirmPassword) {
-        setError("Passwords do not match")
-        setLoading(false)
-        return
-      }
+      // Prepare email verification
+      await signUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      })
 
-      if (formData.password.length < 8) {
-        setError("Password must be at least 8 characters")
-        setLoading(false)
-        return
-      }
-
-      // Bypass authentication - just redirect to home
-      // In production, you would integrate your own auth system here
-      router.push("/")
-    } catch (err) {
-      setError("An error occurred during sign up")
-      setLoading(false)
+      setStep("verify")
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "An error occurred during sign up")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[oklch(0.25_0.03_240)] flex flex-col">
-      {/* Header */}
-      <header className="p-4 sm:p-6">
-        <div className="flex items-center gap-2 text-white">
-          <Building2 className="w-6 h-6 sm:w-8 sm:h-8" />
-          <span className="text-lg sm:text-xl font-bold">Invest Assist</span>
-        </div>
-      </header>
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
 
-      {/* Main Content - Centered Card */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md">
-          {/* Welcome Text - Mobile First */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">Get Started</h1>
-            <p className="text-sm sm:text-base text-white/70">Create your account and start analyzing properties</p>
+    if (!isLoaded) {
+      return
+    }
+
+    if (!verificationCode) {
+      setError("Please enter the verification code")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      })
+
+      // Email verified and sign-up complete
+      if (completeSignUp.status === "complete") {
+        router.push("/")
+      } else {
+        setError("Sign up incomplete. Please try again.")
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Invalid verification code")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (step === "form") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
+        {/* Logo Header */}
+        <div className="mb-8">
+          <Image src="/investassist-logo.png" alt="Invest Assist" width={120} height={120} className="mx-auto" />
+        </div>
+
+        {/* Sign Up Card */}
+        <div className="border border-slate-200/60 bg-white/80 shadow-2xl shadow-slate-200/50 backdrop-blur-xl w-full max-w-md rounded-lg p-8">
+          <h2 className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-2xl font-bold text-transparent mb-2">
+            Create account
+          </h2>
+          <p className="text-slate-600 text-sm mb-6">Get started with your investment analysis</p>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label htmlFor="firstName" className="text-sm font-medium text-slate-700">
+                  First name
+                </label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  placeholder="John"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                  className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="lastName" className="text-sm font-medium text-slate-700">
+                  Last name
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                  className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-slate-700">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@company.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-slate-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+              />
+              <p className="text-xs text-slate-500">At least 8 characters</p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
+                Confirm password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+              />
+            </div>
+
+            {/* Clerk CAPTCHA container - required for custom sign-up flow */}
+            <div id="clerk-captcha" className="my-4" />
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] hover:from-blue-700 hover:to-cyan-700 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+            >
+              {isLoading ? "Creating account..." : "Create account"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-600">
+            {"Already have an account? "}
+            <Link href="/sign-in" className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-medium text-transparent hover:from-blue-700 hover:to-cyan-700">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Verification step
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
+      {/* Logo Header */}
+      <div className="mb-8">
+        <Image src="/investassist-logo.png" alt="Invest Assist" width={120} height={120} className="mx-auto" />
+      </div>
+
+      {/* Verification Card */}
+      <div className="border border-slate-200/60 bg-white/80 shadow-2xl shadow-slate-200/50 backdrop-blur-xl w-full max-w-md rounded-lg p-8">
+        <h2 className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-2xl font-bold text-transparent mb-2">
+          Verify your email
+        </h2>
+        <p className="text-slate-600 text-sm mb-6">
+          We sent a verification code to <strong>{formData.email}</strong>. Enter the code below to verify your email.
+        </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="code" className="text-sm font-medium text-slate-700">
+              Verification code
+            </label>
+            <input
+              id="code"
+              type="text"
+              placeholder="000000"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              required
+              maxLength={6}
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4 text-center text-lg tracking-widest"
+            />
+            <p className="text-xs text-slate-500">Check your email for the 6-digit code</p>
           </div>
 
-          {/* Auth Card */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
-            {error && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] hover:from-blue-700 hover:to-cyan-700 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+          >
+            {isLoading ? "Verifying..." : "Verify email"}
+          </button>
 
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-2">
-                    First Name
-                  </label>
-                  <Input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="John"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Last Name
-                  </label>
-                  <Input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Doe"
-                  />
-                </div>
-              </div>
+          <button
+            type="button"
+            onClick={() => {
+              setStep("form")
+              setVerificationCode("")
+              setError("")
+            }}
+            className="h-11 w-full border border-slate-200/60 font-semibold text-slate-700 hover:bg-slate-50 rounded"
+          >
+            Back to sign up
+          </button>
+        </form>
+      </div>
+    </div>
+  )
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <Input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="you@example.com"
-                />
-              </div>
+  // Verification step
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
+      {/* Logo Header */}
+      <div className="mb-8">
+        <Image src="/investassist-logo.png" alt="Invest Assist" width={120} height={120} className="mx-auto" />
+      </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
-                </label>
-                <Input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="Minimum 8 characters"
-                />
-              </div>
+      {/* Sign Up Card */}
+      <div className="border border-slate-200/60 bg-white/80 shadow-2xl shadow-slate-200/50 backdrop-blur-xl w-full max-w-md rounded-lg p-8">
+        <h2 className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-2xl font-bold text-transparent mb-2">
+          Create account
+        </h2>
+        <p className="text-slate-600 text-sm mb-6">Get started with your investment analysis</p>
 
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Confirm Password
-                </label>
-                <Input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="Re-enter password"
-                />
-              </div>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-              >
-                {loading ? (
-                  "Creating account..."
-                ) : (
-                  <>
-                    <span>Create Account</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-sm text-gray-600">
-                Already have an account?{" "}
-                <Link href="/sign-in" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-                  Sign in
-                </Link>
-              </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label htmlFor="firstName" className="text-sm font-medium text-slate-700">
+                First name
+              </label>
+              <input
+                id="firstName"
+                name="firstName"
+                type="text"
+                placeholder="John"
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+                className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="lastName" className="text-sm font-medium text-slate-700">
+                Last name
+              </label>
+              <input
+                id="lastName"
+                name="lastName"
+                type="text"
+                placeholder="Doe"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+                className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+              />
             </div>
           </div>
 
-          {/* Trust Indicators */}
-          <div className="mt-6 sm:mt-8 text-center">
-            <p className="text-xs sm:text-sm text-white/50">
-              Join thousands of investors analyzing properties with confidence
-            </p>
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@company.com"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+            />
           </div>
+
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+            />
+            <p className="text-xs text-slate-500">At least 8 characters</p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+            />
+          </div>
+
+          {/* Clerk CAPTCHA container - required for custom sign-up flow */}
+          <div id="clerk-captcha" className="my-4" />
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] hover:from-blue-700 hover:to-cyan-700 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+          >
+            {isLoading ? "Creating account..." : "Create account"}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-slate-600">
+          {"Already have an account? "}
+          <Link href="/sign-in" className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-medium text-transparent hover:from-blue-700 hover:to-cyan-700">
+            Sign in
+          </Link>
         </div>
       </div>
     </div>

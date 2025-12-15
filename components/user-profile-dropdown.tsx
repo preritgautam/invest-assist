@@ -1,10 +1,9 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useClerk, useUser } from "@clerk/nextjs"
 import { Settings, CreditCard, HelpCircle, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-// CLERK BYPASSED - using mock user data for v0 Vercel compatibility
 
 export function UserProfileDropdown({
   isOpen,
@@ -14,12 +13,8 @@ export function UserProfileDropdown({
   onClose: () => void
 }) {
   const router = useRouter()
-  
-  // Mock user data
-  const mockUser = {
-    fullName: "John Doe",
-    email: "john.doe@example.com"
-  }
+  const { signOut } = useClerk()
+  const { user } = useUser()
 
   if (!isOpen) return null
 
@@ -28,10 +23,10 @@ export function UserProfileDropdown({
     router.push("/user")
   }
 
-  const handleLogout = () => {
-    // Just redirect to home when logging out
+  const handleLogout = async () => {
     onClose()
-    router.push("/")
+    await signOut()
+    router.push("/sign-in")
   }
 
   const menuItems = [
@@ -47,8 +42,8 @@ export function UserProfileDropdown({
   return (
     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50 w-48">
       <div className="px-3 py-2 border-b border-gray-100 mb-1">
-        <div className="text-sm font-medium text-gray-900">{mockUser.fullName}</div>
-        <div className="text-xs text-gray-500">{mockUser.email}</div>
+        <div className="text-sm font-medium text-gray-900">{user?.fullName || "User"}</div>
+        <div className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress || "user@example.com"}</div>
       </div>
 
       <div className="space-y-1">

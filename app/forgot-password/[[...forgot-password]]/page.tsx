@@ -1,208 +1,101 @@
 "use client"
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight, ArrowLeft } from "lucide-react"
 
-// CLERK BYPASSED - using local form for v0 Vercel compatibility
+import Image from "next/image"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [code, setCode] = useState("")
-  const [successfulCreation, setSuccessfulCreation] = useState(false)
-  const [complete, setComplete] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState("")
   const [error, setError] = useState("")
-
   const router = useRouter()
 
-  // Send password reset code to user's email
-  async function sendResetCode(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError("")
+    setIsLoading(true)
 
     try {
-      // Simulate sending reset code
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setSuccessfulCreation(true)
-    } catch (err: any) {
-      console.error("Error:", err)
-      setError("Failed to send reset code")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Reset password using the code
-  async function resetPassword(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-
-    try {
-      if (!email || !code || !password) {
-        setError("Please fill in all fields")
-        setLoading(false)
+      if (!email) {
+        setError("Email is required")
+        setIsLoading(false)
         return
       }
 
-      // Simulate password reset
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setComplete(true)
-      setTimeout(() => router.push("/sign-in"), 2000)
-    } catch (err: any) {
-      console.error("Error:", err)
-      setError("Failed to reset password")
-    } finally {
-      setLoading(false)
+      // In a real implementation, this would send a password reset email via Clerk
+      // For now, we'll show a message to the user
+      setMessage("If an account exists with this email, you will receive a password reset link.")
+      setEmail("")
+      
+      // Redirect to sign-in after a delay
+      setTimeout(() => {
+        router.push("/sign-in")
+      }, 3000)
+    } catch (err) {
+      setError("An error occurred. Please try again.")
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[oklch(0.25_0.03_240)] flex flex-col">
-      {/* Header */}
-      <header className="p-4 sm:p-6">
-        <div className="flex items-center gap-2 text-white">
-          <Building2 className="w-6 h-6 sm:w-8 sm:h-8" />
-          <span className="text-lg sm:text-xl font-bold">Invest Assist</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
+      {/* Logo Header */}
+      <div className="mb-8">
+        <Image src="/investassist-logo.png" alt="Invest Assist" width={120} height={120} className="mx-auto" />
+      </div>
 
-      {/* Main Content - Centered Card */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md">
-          {/* Welcome Text - Mobile First */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">Reset Password</h1>
-            <p className="text-sm sm:text-base text-white/70">
-              {!successfulCreation
-                ? "Enter your email to receive a reset code"
-                : complete
-                  ? "Password reset successful"
-                  : "Enter the code and your new password"}
-            </p>
+      {/* Reset Password Card */}
+      <div className="border border-slate-200/60 bg-white/80 shadow-2xl shadow-slate-200/50 backdrop-blur-xl w-full max-w-md rounded-lg p-8">
+        <h2 className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-2xl font-bold text-transparent mb-2">
+          Reset password
+        </h2>
+        <p className="text-slate-600 text-sm mb-6">
+          Enter your email address and we'll send you a link to reset your password.
+        </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {message && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-600">{message}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-3"
+            />
           </div>
 
-          {/* Auth Card */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
-            {error && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
+          <button
+            type="submit"
+            disabled={isLoading || !!message}
+            className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] hover:from-blue-700 hover:to-cyan-700 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded"
+          >
+            {isLoading ? "Sending..." : "Send reset link"}
+          </button>
+        </form>
 
-            {!successfulCreation && !complete && (
-              <form onSubmit={sendResetCode} className="space-y-4 sm:space-y-5">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <Input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Enter your email"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-                >
-                  {loading ? (
-                    "Sending..."
-                  ) : (
-                    <>
-                      <span>Send Reset Code</span>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-
-                <Link
-                  href="/sign-in"
-                  className="flex items-center justify-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Sign In
-                </Link>
-              </form>
-            )}
-
-            {successfulCreation && !complete && (
-              <form onSubmit={resetPassword} className="space-y-4 sm:space-y-5">
-                <div>
-                  <label htmlFor="code" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Reset Code
-                  </label>
-                  <Input
-                    type="text"
-                    id="code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    required
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Enter 6-digit code"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                    New Password
-                  </label>
-                  <Input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Minimum 8 characters"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-                >
-                  {loading ? (
-                    "Resetting..."
-                  ) : (
-                    <>
-                      <span>Reset Password</span>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {complete && (
-              <div className="text-center py-4">
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-                  <p className="text-sm text-green-600 font-medium">
-                    Password reset successful! Redirecting to sign in...
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Trust Indicators */}
-          {!complete && (
-            <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-xs sm:text-sm text-white/50">Secure password reset process</p>
-            </div>
-          )}
+        <div className="mt-6 text-center text-sm text-slate-600">
+          <Link href="/sign-in" className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-medium text-transparent hover:from-blue-700 hover:to-cyan-700">
+            Back to sign in
+          </Link>
         </div>
       </div>
     </div>

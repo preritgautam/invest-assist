@@ -1,138 +1,131 @@
 "use client"
 
-import type React from "react"
-
-import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight } from "lucide-react"
+import { useSignIn } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
 
 export default function SignInPage() {
+  const { signIn, isLoaded } = useSignIn()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  // CLERK BYPASSED - using local form for v0 Vercel compatibility
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
+
+    if (!isLoaded) {
+      return
+    }
+
+    setIsLoading(true)
 
     try {
-      if (!email || !password) {
-        setError("Email and password are required")
-        setLoading(false)
-        return
-      }
+      const result = await signIn.create({
+        identifier: email,
+        password,
+      })
 
-      // Bypass authentication - just redirect to home
-      // In production, you would integrate your own auth system here
-      router.push("/")
-    } catch (err) {
-      setError("An error occurred during sign in")
-      setLoading(false)
+      if (result.status === "complete") {
+        router.push("/")
+      } else {
+        setError("Sign in incomplete. Please try again.")
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Invalid email or password")
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[oklch(0.25_0.03_240)] flex flex-col">
-      {/* Header */}
-      <header className="p-4 sm:p-6">
-        <div className="flex items-center gap-2 text-white">
-          <Building2 className="w-6 h-6 sm:w-8 sm:h-8" />
-          <span className="text-lg sm:text-xl font-bold">Invest Assist</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
+      {/* Logo Header */}
+      <div className="mb-8">
+        <Image src="/investassist-logo.png" alt="Invest Assist" width={120} height={120} className="mx-auto" />
+      </div>
 
-      {/* Main Content - Centered Card */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md">
-          {/* Welcome Text - Mobile First */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">Welcome Back</h1>
-            <p className="text-sm sm:text-base text-white/70">Sign in to access your investment portfolio</p>
+      {/* Sign In Card */}
+      <div className="border border-slate-200/60 bg-white/80 shadow-2xl shadow-slate-200/50 backdrop-blur-xl w-full max-w-md rounded-lg p-8">
+        <h2 className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-2xl font-bold text-transparent mb-2">
+          Welcome back
+        </h2>
+        <p className="text-slate-600 text-sm mb-6">Enter your credentials to access your account</p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+            />
           </div>
 
-          {/* Auth Card */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
-            {error && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <Input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="Enter your email"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
-                </label>
-                <Input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 sm:h-12 text-base rounded-xl"
-                  placeholder="Enter your password"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-              >
-                {loading ? (
-                  "Signing in..."
-                ) : (
-                  <>
-                    <span>Sign In</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-sm text-gray-600">
-                Don't have an account?{" "}
-                <Link href="/sign-up" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-                  Create account
-                </Link>
-              </p>
-            </div>
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-11 w-full border border-slate-200/60 bg-white placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20 rounded px-4"
+            />
           </div>
 
-          {/* Trust Indicators */}
-          <div className="mt-6 sm:mt-8 text-center">
-            <p className="text-xs sm:text-sm text-white/50">Trusted by investors managing over $500M in assets</p>
+          <div className="flex items-center justify-between text-sm">
+            <label className="flex items-center gap-2 text-slate-600">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
+              />
+              Remember me
+            </label>
+            <Link
+              href="/forgot-password"
+              className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-medium text-transparent hover:from-blue-700 hover:to-cyan-700"
+            >
+              Forgot password?
+            </Link>
           </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="h-11 w-full bg-gradient-to-r from-blue-600 to-cyan-600 font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] hover:from-blue-700 hover:to-cyan-700 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+          >
+            {isLoading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-slate-600">
+          {"Don't have an account? "}
+          <Link href="/sign-up" className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-medium text-transparent hover:from-blue-700 hover:to-cyan-700">
+            Sign up
+          </Link>
         </div>
       </div>
     </div>

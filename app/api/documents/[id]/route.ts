@@ -18,7 +18,7 @@ function serializeBigInt(obj: any): any {
 const getMockDocument = () => {
   return {
     id: 1,
-    document_id: "88063c58-ebfb-4956-aa89-33ebabf3cf32",
+    document_id: "0ba54f65-a0dd-4f38-97d0-e9ee328b64b7",
     filename: "Sample Rent Roll",
     document_type: "rent_roll",
     created_at: new Date(),

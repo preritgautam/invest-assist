@@ -19,13 +19,13 @@ let prismaClientInstance: PrismaClient | null = null
 
 const initializePrisma = (): PrismaClient | null => {
   // Return existing instance if already initialized
-  if (prismaClientInstance !== null || prismaClientInstance === null) {
+  if (prismaClientInstance !== null) {
     return prismaClientInstance
   }
 
   try {
     if (!isDatabaseAvailable()) {
-      console.log("[v0] [DB] Database URL not configured, prisma will be null")
+      console.error("[v0] [DB] Database URL not configured")
       return null
     }
 
@@ -34,6 +34,7 @@ const initializePrisma = (): PrismaClient | null => {
       log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
     })
 
+    console.log("[v0] [DB] Prisma client initialized successfully")
     return prismaClientInstance
   } catch (error) {
     console.error("[v0] [DB] Failed to initialize Prisma:", error)
@@ -51,15 +52,12 @@ if (process.env.NODE_ENV !== "production" && prisma) {
 // Legacy query function for backward compatibility with existing code
 export async function query(sql: string, params?: any[]) {
   if (!prisma) {
-    console.log("[v0] [DB] Prisma not available, returning mock data")
-    return {
-      rows: [],
-      rowCount: 0,
-    }
+    console.error("[v0] [DB] CRITICAL: Prisma not initialized!")
+    throw new Error("Database connection not available")
   }
 
   try {
-    console.log("[v0] [DB] Executing query with Prisma")
+    console.log("[v0] [DB] Executing query:", sql.substring(0, 100) + "...")
     
     // Use Prisma's raw query capability
     const result = await prisma.$queryRawUnsafe(sql, ...(params || []))
@@ -73,12 +71,17 @@ export async function query(sql: string, params?: any[]) {
       rowCount: rowCount,
     }
   } catch (error) {
-    console.error("[v0] [DB] Query failed:", error instanceof Error ? error.message : String(error))
-    // Return empty result on error - API will use mock data
-    return {
-      rows: [],
-      rowCount: 0,
+    console.error("[v0] [DB] Query failed!")
+    console.error("[v0] [DB] SQL:", sql)
+    console.error("[v0] [DB] Params:", params)
+    console.error("[v0] [DB] Error:", error instanceof Error ? error.message : String(error))
+    
+    if (error instanceof Error) {
+      console.error("[v0] [DB] Stack:", error.stack)
     }
+    
+    // Re-throw the error so the calling code can handle it
+    throw error
   }
 }
 

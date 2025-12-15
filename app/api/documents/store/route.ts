@@ -20,7 +20,7 @@ function serializeBigInt(obj: any): any {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Documents API Store] Request received');
+    console.log('[Documents API Store] ===== REQUEST RECEIVED =====');
     
     // CLERK BYPASSED - using mock user ID
     const userId = MOCK_USER_ID;
@@ -45,61 +45,79 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!processId || !filename) {
+      console.log('[Documents API Store] Validation failed - missing processId or filename');
       return NextResponse.json(
         { error: 'Missing required fields: processId, filename' },
         { status: 400 }
       );
     }
 
-    console.log(`[Documents API Store] Storing document for user ${userId}`);
+    console.log(`[Documents API Store] About to store document for user ${userId} with processId ${processId}`);
 
     // Store document in database
-    const result = await query(
-      `INSERT INTO documents (
-        user_id,
-        process_id,
-        document_id,
-        filename,
-        document_type,
-        file_size,
-        upload_status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *`,
-      [userId, processId, documentId || null, filename, documentType, fileSize || 0, 'completed']
-    );
+    try {
+      const result = await query(
+        `INSERT INTO documents (
+          user_id,
+          process_id,
+          document_id,
+          filename,
+          document_type,
+          file_size,
+          upload_status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (process_id) DO UPDATE SET
+          document_id = EXCLUDED.document_id,
+          filename = EXCLUDED.filename,
+          document_type = EXCLUDED.document_type,
+          file_size = EXCLUDED.file_size,
+          updated_at = NOW()
+        RETURNING *`,
+        [userId, processId, documentId || null, filename, documentType, fileSize || 0, 'pending']
+      );
 
-    const document = result.rows[0];
+      console.log('[Documents API Store] Query result:', result);
 
-    console.log('[Documents API Store] Document stored:', document);
+      if (!result || !result.rows || result.rows.length === 0) {
+        console.error('[Documents API Store] Query returned no rows!');
+        throw new Error('Failed to insert document - no rows returned');
+      }
 
-    // Serialize BigInt values for JSON response
-    const serializedDocument = serializeBigInt(document);
+      const document = result.rows[0];
 
-    return NextResponse.json(
-      {
-        success: true,
-        document: serializedDocument,
-      },
-      { status: 201 }
-    );
+      console.log('[Documents API Store] Document stored successfully:', {
+        id: document.id,
+        process_id: document.process_id,
+        filename: document.filename,
+        user_id: document.user_id,
+      });
+
+      // Serialize BigInt values for JSON response
+      const serializedDocument = serializeBigInt(document);
+
+      console.log('[Documents API Store] ===== SUCCESS =====');
+      return NextResponse.json(
+        {
+          success: true,
+          document: serializedDocument,
+        },
+        { status: 201 }
+      );
+    } catch (dbError) {
+      console.error('[Documents API Store] Database error:', dbError);
+      throw dbError;
+    }
 
   } catch (error) {
-    console.error('[Documents API Store] Error storing document:', error);
+    console.error('[Documents API Store] ===== ERROR =====');
+    console.error('[Documents API Store] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[Documents API Store] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[Documents API Store] Full error:', error);
     
-    // Log full error details
     if (error instanceof Error) {
-      console.error('[Documents API Store] Error message:', error.message);
       console.error('[Documents API Store] Error stack:', error.stack);
     }
     
-    // Check for unique constraint violation
-    if (error instanceof Error && error.message.includes('duplicate')) {
-      return NextResponse.json(
-        { error: 'Document with this process ID already exists' },
-        { status: 409 }
-      );
-    }
-
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

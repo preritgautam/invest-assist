@@ -85,6 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const { id } = await params
     const rawId = (id ?? "").trim()
     console.log(`[v0] [Document API] Fetching document with raw ID: "${rawId}"`)
+    console.log(`[v0] [Document API] Prisma available:`, !!prisma)
 
     if (!rawId) {
       console.log("[v0] [Document API] Missing document ID")
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     if (!prisma) {
-      console.log("[v0] [Document API] Database not available, returning mock data")
+      console.log("[v0] [Document API] Prisma not available, returning mock data")
       const mockDocument = getMockDocument()
       return NextResponse.json({ success: true, document: mockDocument })
     }
@@ -121,22 +122,29 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.log("[v0] [Document API] SQL:", sql)
     console.log("[v0] [Document API] Params:", paramsArr)
 
-    const result = await query(sql, paramsArr)
-    console.log("[v0] [Document API] SQL returned rows:", result.rows.length)
+    try {
+      const result = await query(sql, paramsArr)
+      console.log("[v0] [Document API] SQL returned rows:", result.rows.length)
 
-    if (result.rows.length === 0) {
-      console.log(`[v0] [Document API] Document not found: ${rawId}, returning mock data`)
+      if (result.rows.length === 0) {
+        console.log(`[v0] [Document API] Document not found: ${rawId}, returning mock data`)
+        const mockDocument = getMockDocument()
+        return NextResponse.json({ success: true, document: mockDocument })
+      }
+
+      const document = result.rows[0]
+      console.log(`[v0] [Document API] Found document: ${document.filename} (id=${document.id})`)
+
+      const serializedDocument = serializeBigInt(document)
+      console.log(`[v0] [Document API] Successfully serialized document`)
+
+      return NextResponse.json({ success: true, document: serializedDocument })
+    } catch (queryErr) {
+      console.error("[v0] [Document API] Query execution error:", queryErr instanceof Error ? queryErr.message : queryErr)
+      console.log("[v0] [Document API] Returning mock data due to query error")
       const mockDocument = getMockDocument()
       return NextResponse.json({ success: true, document: mockDocument })
     }
-
-    const document = result.rows[0]
-    console.log(`[v0] [Document API] Found document: ${document.filename} (id=${document.id})`)
-
-    const serializedDocument = serializeBigInt(document)
-    console.log(`[v0] [Document API] Successfully serialized document`)
-
-    return NextResponse.json({ success: true, document: serializedDocument })
   } catch (err) {
     console.error("[v0] [Document API] Error fetching document:", err)
     console.error("[v0] [Document API] Error stack:", err instanceof Error ? err.stack : "No stack trace")

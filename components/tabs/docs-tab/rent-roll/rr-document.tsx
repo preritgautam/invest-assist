@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react"
 import { RRConfigure } from "./rr-configure"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { EditableCell } from "./editable-cell"
+import { sampleRentRollDocument } from "@/lib/sample-rent-roll-data"
+import { AlertCircle } from "lucide-react"
 
 type RentRollUnit = Record<string, any>
 
@@ -149,6 +151,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
   const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>({}) // For display: normalized -> original
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [isUsingFallbackData, setIsUsingFallbackData] = useState(false)
 
   console.log("RRbaseHeaders", baseHeaders)
 
@@ -226,6 +229,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     try {
       setLoading(true)
       setError(null)
+      setIsUsingFallbackData(false)
 
       const response = await fetch(`/api/documents/${documentId}`)
 
@@ -299,7 +303,66 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
     } catch (err) {
       console.error("Failed to fetch rent roll data:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch data")
-      setData(mockRentRollData)
+      
+      // Use fallback/sample data from v0 environment
+      console.log("Using fallback sample data...")
+      setIsUsingFallbackData(true)
+      
+      const result = sampleRentRollDocument
+      if (result.success && result.document?.extraction_result?.data?.extraction?.units) {
+        const units = result.document.extraction_result.data.extraction.units
+        const headers = result.document.extraction_result.data.extraction.headers
+        const metadata = result.document.extraction_result.data.metadataMappings as Metadata
+
+        // Map sample data using headers as keys
+        const mappedData: RentRollUnit[] = units?.map((unit: any[]) => {
+          const unitMap: Record<string, any> = {}
+          headers?.forEach((header: string, index: number) => {
+            unitMap[header] = unit[index]
+          })
+          
+          // Add new columns: bed, bath, renovated
+          const floorPlan = unitMap["Floor Plan"]
+          const floorPlanAnalysis = metadata?.["Floor Plan Analysis"]?.floor_plans || {}
+          
+          if (floorPlan && floorPlanAnalysis[floorPlan]) {
+            const fpData = floorPlanAnalysis[floorPlan]
+            unitMap["bed"] = fpData.bedrooms || 0
+            unitMap["bath"] = fpData.bathrooms || 0
+            unitMap["renovated"] = fpData.renovation_status
+          } else {
+            unitMap["bed"] = 0
+            unitMap["bath"] = 0
+            unitMap["renovated"] = "No"
+          }
+          
+          return unitMap
+        })
+
+        setData(mappedData)
+        const updatedHeaders = [...headers, "bed", "bath", "renovated"]
+        setColumns(updatedHeaders)
+        setBaseHeaders(headers)
+        setRawData(units)
+
+        if (metadata) {
+          setMetadata(metadata)
+          const originalMapping = metadata["Mapping for the charges"] || {}
+          const normalized: Record<string, string[]> = {}
+          const keyMap: Record<string, string> = {}
+          for (const [field, codes] of Object.entries(originalMapping)) {
+            const normalizedKey = field.toLowerCase().replace(/\s+/g, "_")
+            normalized[normalizedKey] = codes
+            keyMap[normalizedKey] = field
+          }
+          
+          setChargesMapping(normalized)
+          setNormalizedChargesMapping(keyMap)
+          const builtConfig = buildConfigFromMetadata(metadata, headers)
+          setOriginalConfig(builtConfig)
+          setDynamicConfig(builtConfig)
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -451,6 +514,16 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       <ResizablePanel defaultSize={75} minSize={40} className="flex flex-col overflow-hidden">
         <div className="space-y-2 sm:space-y-4 p-1 sm:p-2 md:p-4 flex flex-col h-full overflow-hidden">
           {/* Status Banner */}
+          {isUsingFallbackData && (
+            <div className="bg-red-50 rounded-lg border border-red-200 p-3 sm:p-4 shadow-sm flex-shrink-0 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-900">API Unavailable</p>
+                <p className="text-xs text-red-700 mt-1">The document API is failing. Displaying sample data for demonstration purposes.</p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="bg-white rounded-lg border p-2 sm:p-3 shadow-sm flex-shrink-0">
               <div className="text-xs text-yellow-700">

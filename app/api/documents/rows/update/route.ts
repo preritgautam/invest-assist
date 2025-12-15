@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     // Update the document
     const result = await query(
       `UPDATE documents 
-       SET extraction_result = $1, updated_at = NOW() 
+       SET extraction_result = $1::jsonb, updated_at = NOW() 
        WHERE document_id = $2 AND user_id = $3 
        RETURNING *`,
       [JSON.stringify(extractionResult), documentId, userId]

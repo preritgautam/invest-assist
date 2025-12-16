@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight } from "lucide-react"
+import { Building2, ArrowRight, CheckCircle } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -19,8 +19,7 @@ export default function SignUpPage() {
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-
-  // CLERK BYPASSED - using local form for v0 Vercel compatibility
+  const [emailSent, setEmailSent] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -56,13 +55,73 @@ export default function SignUpPage() {
         return
       }
 
-      // Bypass authentication - just redirect to home
-      // In production, you would integrate your own auth system here
-      router.push("/")
+      const supabase = createClient()
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            full_name: `${formData.firstName} ${formData.lastName}`,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (signUpError) {
+        setError(signUpError.message)
+        setLoading(false)
+        return
+      }
+
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        // Email confirmation required
+        setEmailSent(true)
+        setLoading(false)
+      } else if (data.session) {
+        // Auto-confirmed (email confirmation disabled in Supabase)
+        router.push("/")
+        router.refresh()
+      }
     } catch (err) {
       setError("An error occurred during sign up")
       setLoading(false)
     }
+  }
+
+  // Show confirmation message after signup
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-[oklch(0.25_0.03_240)] flex flex-col">
+        <header className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 text-white">
+            <Building2 className="w-6 h-6 sm:w-8 sm:h-8" />
+            <span className="text-lg sm:text-xl font-bold">Invest Assist</span>
+          </div>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+          <div className="w-full max-w-md">
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10 text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
+              <p className="text-gray-600 mb-6">
+                We've sent a confirmation link to <strong>{formData.email}</strong>.
+                Please check your inbox and click the link to verify your account.
+              </p>
+              <Link
+                href="/sign-in"
+                className="text-primary hover:text-primary/80 font-semibold transition-colors"
+              >
+                Back to Sign In
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

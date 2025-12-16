@@ -5,45 +5,58 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
-import { Building2, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react"
+import { Building2, ArrowRight, CheckCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("")
-  const [emailSent, setEmailSent] = useState(false)
+export default function ResetPasswordPage() {
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
 
   const router = useRouter()
 
-  // Send password reset email
-  async function sendResetEmail(e: React.FormEvent) {
+  async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError("")
 
     try {
-      if (!email) {
-        setError("Please enter your email address")
+      if (!password || !confirmPassword) {
+        setError("Please fill in all fields")
+        setLoading(false)
+        return
+      }
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match")
+        setLoading(false)
+        return
+      }
+
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters")
         setLoading(false)
         return
       }
 
       const supabase = createClient()
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: password,
       })
 
-      if (resetError) {
-        setError(resetError.message)
+      if (updateError) {
+        setError(updateError.message)
         setLoading(false)
         return
       }
 
-      setEmailSent(true)
+      setSuccess(true)
+      setTimeout(() => router.push("/"), 2000)
     } catch (err: any) {
       console.error("Error:", err)
-      setError("Failed to send reset email")
+      setError("Failed to reset password")
     } finally {
       setLoading(false)
     }
@@ -64,11 +77,11 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-md">
           {/* Welcome Text - Mobile First */}
           <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">Reset Password</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3">
+              {success ? "Password Reset!" : "Set New Password"}
+            </h1>
             <p className="text-sm sm:text-base text-white/70">
-              {!emailSent
-                ? "Enter your email to receive a reset link"
-                : "Check your email for the reset link"}
+              {success ? "Your password has been updated" : "Enter your new password below"}
             </p>
           </div>
 
@@ -80,20 +93,35 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            {!emailSent ? (
-              <form onSubmit={sendResetEmail} className="space-y-4 sm:space-y-5">
+            {!success ? (
+              <form onSubmit={handleResetPassword} className="space-y-4 sm:space-y-5">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                    New Password
                   </label>
                   <Input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="password"
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     className="h-11 sm:h-12 text-base rounded-xl"
-                    placeholder="Enter your email"
+                    placeholder="Minimum 8 characters"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Confirm New Password
+                  </label>
+                  <Input
+                    type="password"
+                    id="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="h-11 sm:h-12 text-base rounded-xl"
+                    placeholder="Re-enter password"
                   />
                 </div>
 
@@ -103,46 +131,30 @@ export default function ForgotPasswordPage() {
                   className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
                 >
                   {loading ? (
-                    "Sending..."
+                    "Updating..."
                   ) : (
                     <>
-                      <span>Send Reset Link</span>
+                      <span>Update Password</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
-
-                <Link
-                  href="/sign-in"
-                  className="flex items-center justify-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Sign In
-                </Link>
               </form>
             ) : (
               <div className="text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
-                <p className="text-gray-600 mb-6">
-                  We've sent a password reset link to <strong>{email}</strong>.
-                  Click the link in the email to reset your password.
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Password Updated!</h2>
+                <p className="text-gray-600 mb-4">
+                  Your password has been successfully reset. Redirecting you to the dashboard...
                 </p>
-                <Link
-                  href="/sign-in"
-                  className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Sign In
-                </Link>
               </div>
             )}
           </div>
 
           {/* Trust Indicators */}
-          {!emailSent && (
+          {!success && (
             <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-xs sm:text-sm text-white/50">Secure password reset process</p>
+              <p className="text-xs sm:text-sm text-white/50">Secure password update process</p>
             </div>
           )}
         </div>

@@ -1,11 +1,22 @@
 // app/api/scenarios/[id]/route.js
-import { requireUserId } from "@/lib/auth"; 
-import {query} from "../../../lib/db.js";           
+import { query } from "../../../lib/db.js";
+import { createClient } from '../../../../lib/supabase/server';
+
+async function getUserId() {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    const err = new Error("Not authenticated");
+    err.status = 401;
+    throw err;
+  }
+  return user.id;
+}
 
 export async function GET(request, { params }) {
   try {
     const { id } = params;
-    const userId = requireUserId(request);
+    const userId = await getUserId();
 
     const r = await query(
       `SELECT id::text, owner_id, name, description, payload, created_at, updated_at
@@ -27,7 +38,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
-    const userId = requireUserId(request);
+    const userId = await getUserId();
     const body = await request.json();
     const { name, description, payload } = body || {};
 
@@ -58,7 +69,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
-    const userId = requireUserId(request);
+    const userId = await getUserId();
 
     const fetch = await query("SELECT owner_id FROM scenarios WHERE id = $1", [id]);
     if (fetch.rowCount === 0) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: { "Content-Type": "application/json" } });

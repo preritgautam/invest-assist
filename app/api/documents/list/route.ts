@@ -1,8 +1,7 @@
 // app/api/documents/list/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-
-const MOCK_USER_ID = 'user_bypass_12345';
+import { getUserId } from '@/lib/supabase/auth-helpers';
 
 // Helper function to convert BigInt values to numbers/strings for JSON serialization
 function serializeBigInt(obj: any): any {
@@ -20,10 +19,17 @@ function serializeBigInt(obj: any): any {
 
 export async function GET(request: NextRequest) {
   try {
+    // Get authenticated user from Supabase
+    const userId = await getUserId();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
-    
-    // Allow optional user_id parameter (for admin/testing)
-    const userId = searchParams.get('userId') || MOCK_USER_ID;
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
     const documentType = searchParams.get('documentType');
@@ -56,9 +62,9 @@ export async function GET(request: NextRequest) {
     const total = parseInt(countResult.rows[0].total);
 
     const result = await query(
-      `SELECT id, user_id, process_id, document_id, filename, document_type, 
+      `SELECT id, user_id, process_id, document_id, filename, document_type,
               file_size, upload_status, extraction_status, created_at, updated_at
-       FROM documents 
+       FROM documents
        WHERE ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -89,18 +95,3 @@ export async function GET(request: NextRequest) {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-// // Basic fetch - all documents for user
-// const response = await fetch('/api/documents/list?userId=user_bypass_12345');
-
-// // Filter by document type
-// const response = await fetch('/api/documents/list?userId=user_bypass_12345&documentType=rent_roll');
-
-// // Filter by upload status
-// const response = await fetch('/api/documents/list?userId=user_bypass_12345&uploadStatus=completed');
-
-// // Pagination
-// const response = await fetch('/api/documents/list?userId=user_bypass_12345&limit=10&offset=20');
-
-// // Combined filters
-// const response = await fetch('/api/documents/list?userId=user_bypass_12345&documentType=rent_roll&uploadStatus=completed&limit=10&offset=0');

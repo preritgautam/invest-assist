@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-
-// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
-const MOCK_USER_ID = 'user_bypass_12345';
+import { getUserId } from '@/lib/supabase/auth-helpers';
 
 // Helper function to convert BigInt values to numbers/strings for JSON serialization
 function serializeBigInt(obj: any): any {
@@ -21,10 +19,18 @@ function serializeBigInt(obj: any): any {
 export async function POST(request: NextRequest) {
   try {
     console.log('[Documents API Store] ===== REQUEST RECEIVED =====');
-    
-    // CLERK BYPASSED - using mock user ID
-    const userId = MOCK_USER_ID;
-    console.log('[Documents API Store] Using mock user ID:', { userId });
+
+    // Get authenticated user from Supabase
+    const userId = await getUserId();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    console.log('[Documents API Store] Authenticated user ID:', { userId });
 
     const body = await request.json();
     const {
@@ -113,11 +119,11 @@ export async function POST(request: NextRequest) {
     console.error('[Documents API Store] Error type:', error instanceof Error ? error.constructor.name : typeof error);
     console.error('[Documents API Store] Error message:', error instanceof Error ? error.message : String(error));
     console.error('[Documents API Store] Full error:', error);
-    
+
     if (error instanceof Error) {
       console.error('[Documents API Store] Error stack:', error.stack);
     }
-    
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

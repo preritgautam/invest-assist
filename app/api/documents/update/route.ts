@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-
-// CLERK BYPASSED - using mock user ID for v0 Vercel compatibility
-const MOCK_USER_ID = 'user_bypass_12345';
+import { getUserId } from '@/lib/supabase/auth-helpers';
 
 // Helper function to convert BigInt values to numbers/strings for JSON serialization
 function serializeBigInt(obj: any): any {
@@ -21,10 +19,18 @@ function serializeBigInt(obj: any): any {
 export async function PUT(request: NextRequest) {
   try {
     console.log('[Documents API Update] Request received');
-    
-    // CLERK BYPASSED - using mock user ID
-    const userId = MOCK_USER_ID;
-    console.log('[Documents API Update] Using mock user ID:', { userId });
+
+    // Get authenticated user from Supabase
+    const userId = await getUserId();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    console.log('[Documents API Update] Authenticated user ID:', { userId });
 
     const body = await request.json();
     const {
@@ -51,16 +57,16 @@ export async function PUT(request: NextRequest) {
 
     console.log(`[Documents API Update] Updating document status`);
 
-    // Verify the document exists by processId
+    // Verify the document exists by processId and belongs to user
     let checkResult = await query(
-      'SELECT id, user_id, process_id FROM documents WHERE process_id = $1',
-      [processId]
+      'SELECT id, user_id, process_id FROM documents WHERE process_id = $1 AND user_id = $2',
+      [processId, userId]
     );
 
     // If document doesn't exist, create it
     if (checkResult.rows.length === 0) {
       console.log('[Documents API Update] Document not found, creating placeholder document for processId:', processId);
-      
+
       try {
         const createResult = await query(
           `INSERT INTO documents (
@@ -72,9 +78,9 @@ export async function PUT(request: NextRequest) {
             upload_status
           ) VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING id, user_id, process_id`,
-          [MOCK_USER_ID, processId, documentId || null, 'Unknown Document', 'unknown', 'pending']
+          [userId, processId, documentId || null, 'Unknown Document', 'unknown', 'pending']
         );
-        
+
         console.log('[Documents API Update] Created placeholder document:', createResult.rows[0]);
         checkResult = createResult;
       } catch (insertErr) {
@@ -82,8 +88,8 @@ export async function PUT(request: NextRequest) {
         // If it's a duplicate key error, retry the select
         if (insertErr instanceof Error && insertErr.message.includes('duplicate')) {
           const retryResult = await query(
-            'SELECT id, user_id, process_id FROM documents WHERE process_id = $1',
-            [processId]
+            'SELECT id, user_id, process_id FROM documents WHERE process_id = $1 AND user_id = $2',
+            [processId, userId]
           );
           if (retryResult.rows.length === 0) {
             return NextResponse.json(
@@ -101,9 +107,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update document status
-    const updateParams = [processId];
+    const updateParams = [processId, userId];
     let updateFields = [];
-    let paramIndex = 2;
+    let paramIndex = 3;
 
     if (extractionStatus) {
       updateFields.push(`extraction_status = $${paramIndex}`);
@@ -130,9 +136,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const result = await query(
-      `UPDATE documents 
+      `UPDATE documents
        SET ${updateFields.join(', ')}
-       WHERE process_id = $1
+       WHERE process_id = $1 AND user_id = $2
        RETURNING *`,
       updateParams
     );
@@ -151,13 +157,13 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('[Documents API Update] Error updating document:', error);
-    
+
     // Log full error details
     if (error instanceof Error) {
       console.error('[Documents API Update] Error message:', error.message);
       console.error('[Documents API Update] Error stack:', error.stack);
     }
-    
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

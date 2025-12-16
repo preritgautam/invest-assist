@@ -1,6 +1,12 @@
 import { mg } from "@/lib/mailgun"
 
 export async function POST(req: Request) {
+  if (!mg) {
+    return new Response(JSON.stringify({ success: false, error: "Email service not configured" }), {
+      status: 503,
+    })
+  }
+
   const { to, subject, text, html } = await req.json()
 
   try {

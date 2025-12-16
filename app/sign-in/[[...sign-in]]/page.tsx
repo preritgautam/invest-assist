@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Building2, ArrowRight } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SignInPage() {
   const router = useRouter()
@@ -14,8 +14,6 @@ export default function SignInPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-
-  // CLERK BYPASSED - using local form for v0 Vercel compatibility
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,9 +27,22 @@ export default function SignInPage() {
         return
       }
 
-      // Bypass authentication - just redirect to home
-      // In production, you would integrate your own auth system here
-      router.push("/")
+      const supabase = createClient()
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        setError(signInError.message)
+        setLoading(false)
+        return
+      }
+
+      if (data.user) {
+        router.push("/")
+        router.refresh()
+      }
     } catch (err) {
       setError("An error occurred during sign in")
       setLoading(false)

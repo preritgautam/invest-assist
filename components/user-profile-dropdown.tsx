@@ -1,10 +1,11 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Settings, CreditCard, HelpCircle, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-// CLERK BYPASSED - using mock user data for v0 Vercel compatibility
+import { createClient } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
 export function UserProfileDropdown({
   isOpen,
@@ -14,12 +15,25 @@ export function UserProfileDropdown({
   onClose: () => void
 }) {
   const router = useRouter()
-  
-  // Mock user data
-  const mockUser = {
-    fullName: "John Doe",
-    email: "john.doe@example.com"
-  }
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    // Get initial user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   if (!isOpen) return null
 
@@ -28,11 +42,20 @@ export function UserProfileDropdown({
     router.push("/user")
   }
 
-  const handleLogout = () => {
-    // Just redirect to home when logging out
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     onClose()
-    router.push("/")
+    router.push("/sign-in")
+    router.refresh()
   }
+
+  // Get user display info from metadata or email
+  const displayName = user?.user_metadata?.full_name ||
+                      user?.user_metadata?.name ||
+                      user?.email?.split('@')[0] ||
+                      'User'
+  const displayEmail = user?.email || ''
 
   const menuItems = [
     {
@@ -47,8 +70,8 @@ export function UserProfileDropdown({
   return (
     <div className="absolute top-10 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50 w-48">
       <div className="px-3 py-2 border-b border-gray-100 mb-1">
-        <div className="text-sm font-medium text-gray-900">{mockUser.fullName}</div>
-        <div className="text-xs text-gray-500">{mockUser.email}</div>
+        <div className="text-sm font-medium text-gray-900">{displayName}</div>
+        <div className="text-xs text-gray-500 truncate">{displayEmail}</div>
       </div>
 
       <div className="space-y-1">

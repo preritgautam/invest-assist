@@ -3,7 +3,6 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
-// CLERK BYPASSED - removed ClerkProvider for v0 Vercel compatibility
 
 const inter = Inter({
   subsets: ["latin"],

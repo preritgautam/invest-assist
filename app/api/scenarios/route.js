@@ -1,19 +1,23 @@
 // app/api/scenarios/route.js
 import { v4 as uuidv4 } from "uuid";
-import { requireUserId } from "@/lib/auth"; // change if you don't have path alias 
 import { query } from '../../../lib/db';
+import { createClient } from '../../../lib/supabase/server';
 
-/**
- * NOTE about imports:
- * - If your project doesn't use path alias '@', replace "@/lib/auth" with relative path:
- *   "../../../../../lib/auth" (depending on where your files are located).
- * - Similarly adjust "@/db" to point to the file that exports `query` (your db.js).
- */
+async function getUserId() {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    const err = new Error("Not authenticated");
+    err.status = 401;
+    throw err;
+  }
+  return user.id;
+}
 
 /* GET: list scenarios for current user */
 export async function GET(request) {
   try {
-    const userId = requireUserId(request);
+    const userId = await getUserId();
 
     const r = await query(
       `SELECT id::text, owner_id, name, description, payload, created_at, updated_at
@@ -39,7 +43,7 @@ export async function GET(request) {
 /* POST: create scenario for current user */
 export async function POST(request) {
   try {
-    const userId = requireUserId(request);
+    const userId = await getUserId();
     const body = await request.json();
 
     const { name, description, payload } = body || {};

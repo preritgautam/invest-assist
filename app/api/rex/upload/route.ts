@@ -44,17 +44,18 @@ export async function POST(request: NextRequest) {
     const rexFormData = new FormData();
 
     // Add files to REX formData
-    files.forEach((file) => {
+    for (const file of files) {
       if (file instanceof File) {
         rexFormData.append('file', file);
       }
-    });
+    }
 
     // Add other parameters
     rexFormData.append('documentType', documentType);
     if (clientReference) {
       rexFormData.append('clientReference', clientReference);
     }
+    // Pass pageRange to REX API - it supports extracting specific pages
     rexFormData.append('pageRange', pageRange || 'all');
     if (sheetIndex) {
       rexFormData.append('sheetIndex', sheetIndex);
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     rexFormData.append('templateId', templateId);
     rexFormData.append('templateName', templateName);
 
-    console.log(`[REX API] Uploading ${files.length} file(s) to REX...`);
+    console.log(`[REX API] Uploading ${files.length} file(s) to REX with pageRange: ${pageRange || 'all'}`);
 
     // Forward to REX API
     const response = await fetch('https://dev-try.docin.ai/api/v1/rex/process', {

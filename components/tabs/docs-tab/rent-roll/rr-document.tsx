@@ -138,6 +138,8 @@ interface RRDocumentProps {
 }
 
 export function RRDocument({isOpen, onClose, config, onConfigChange, documentId, processId}: RRDocumentProps) {
+ console.log("RRDocument rendered with documentId:", documentId, "processId:", processId)
+ 
   const [data, setData] = useState<RentRollUnit[]>(mockRentRollData)
   const [columns, setColumns] = useState<string[]>([])
   const [loading, setLoading] = useState(true)

@@ -37,6 +37,21 @@ export function PDFViewer({
     }
   }, [file])
 
+  // Get the first highlighted page to navigate to
+  const initialPage = useMemo(() => {
+    if (highlightedPages.length > 0) {
+      return Math.min(...highlightedPages)
+    }
+    return 1
+  }, [highlightedPages])
+
+  // Build the PDF URL with page navigation parameter
+  const pdfUrl = useMemo(() => {
+    if (!objectUrl) return null
+    // Use #page=X to navigate to specific page, toolbar=1 for controls
+    return `${objectUrl}#page=${initialPage}&toolbar=1&navpanes=0&scrollbar=1`
+  }, [objectUrl, initialPage])
+
   // Format highlighted pages for display
   const highlightedPagesText = useMemo(() => {
     if (highlightedPages.length === 0) return null
@@ -76,9 +91,10 @@ export function PDFViewer({
           </div>
         )}
 
-        {objectUrl && (
+        {pdfUrl && (
           <iframe
-            src={`${objectUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+            key={`pdf-${initialPage}`}
+            src={pdfUrl}
             className="w-full h-full border-0"
             title="PDF Preview"
             onLoad={() => setIsLoading(false)}
@@ -87,7 +103,7 @@ export function PDFViewer({
       </div>
 
       {/* Open in new tab button */}
-      {objectUrl && (
+      {pdfUrl && (
         <div className="flex items-center justify-between px-3 py-2 bg-card border-t border-border">
           <span className="text-xs text-muted-foreground">
             Use browser controls to navigate pages
@@ -95,7 +111,7 @@ export function PDFViewer({
           <AppButton
             size="sm"
             variant="ghost"
-            onClick={() => window.open(objectUrl, '_blank')}
+            onClick={() => window.open(pdfUrl, '_blank')}
             className="h-7 text-xs gap-1"
           >
             <ExternalLink className="w-3 h-3" />

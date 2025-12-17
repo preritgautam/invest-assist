@@ -104,7 +104,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   const [docsView, setDocsView] = useState<DocsView>("library")
   const [documentView, setDocumentView] = useState<DocumentView>("extracted") // This line fixes the undeclared variable error for DocumentView.
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState()
   const [documents, setDocuments] = useState<PropertyDocument[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(true)
   const [documentsError, setDocumentsError] = useState<string | null>(null)
@@ -132,7 +132,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         if (data.documents && data.documents.length > 0) {
           // Map database documents to PropertyDocument interface
           const mappedDocuments: PropertyDocument[] = data.documents.map((doc: DatabaseDocument) => ({
-            id: doc.process_id, // Use process_id as the identifier for fetching
+            id: doc.document_id, // Use process_id as the identifier for fetching
             name: doc.filename,
             type: mapDocumentType(doc.document_type),
             uploadDate: doc.created_at.split('T')[0],

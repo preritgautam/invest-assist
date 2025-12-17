@@ -148,12 +148,12 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
           // Set selectedDoc to first document if not already set
           if (mappedDocuments.length > 0) {
-            setSelectedDoc(mappedDocuments[0].id)
-            // Also set the active doc type based on first document
-            const firstDocType = mappedDocuments[0].type
-            if (firstDocType === "OS" || firstDocType === "RR" || firstDocType === "OM") {
-              setActiveDocType(firstDocType)
-            }
+            // Find the first OS document to select, or fall back to first document
+            const firstOsDoc = mappedDocuments.find(d => d.type === "OS")
+            const docToSelect = firstOsDoc || mappedDocuments[0]
+            setSelectedDoc(docToSelect.id)
+            // Always default to OS (T-12/OS) tab - don't auto-switch based on document types
+            // User can manually switch to other tabs if needed
           }
         } else {
           // No documents in database, use mock data as fallback

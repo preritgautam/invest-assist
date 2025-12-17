@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 import { type PropertyData, getAllProperties, addProperty } from "@/lib/property-data"
+import { getAllCachedProperties, getCachedProperty } from "@/lib/property-cache"
 import { Badge } from "@/components/ui/badge"
 
 interface Property {
@@ -196,10 +197,23 @@ export function TabBar({
   }
 
   useEffect(() => {
-    const centralProperties = getAllProperties()
+    // Combine mock properties and cached database properties
+    const mockProperties = getAllProperties()
+    const cachedProperties = getAllCachedProperties()
+    
+    // Create a map for quick lookup (cached properties take precedence)
+    const propertyMap = new Map<string, PropertyData>()
+    mockProperties.forEach((p) => propertyMap.set(p.id, p))
+    cachedProperties.forEach((p) => propertyMap.set(p.id, p))
+    
+    // Also check the activeProperty prop directly in case it's not cached yet
+    if (activeProperty) {
+      propertyMap.set(activeProperty.id, activeProperty)
+    }
+    
     const tabProperties: Property[] = openPropertyIds
       .map((id) => {
-        const prop = centralProperties.find((p) => p.id === id)
+        const prop = propertyMap.get(id)
         return prop
           ? {
               id: prop.id,
@@ -216,7 +230,7 @@ export function TabBar({
       tabProperties.map((p) => `${p.name}${p.isActive ? " (active)" : ""}`),
     )
     setProperties(tabProperties)
-  }, [openPropertyIds, activePropertyId])
+  }, [openPropertyIds, activePropertyId, activeProperty])
 
   const activePropertyFromTabs = properties.find((p) => p.isActive)
 

@@ -50,6 +50,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
+import { cacheProperties, getAllCachedProperties, clearPropertyCache, type DatabaseProperty } from "@/lib/property-cache"
+import { Skeleton } from "@/components/ui/skeleton"
 
 /**
  * Props interface for HomeTab component
@@ -75,39 +77,47 @@ type ViewMode = "card" | "list" | "map"
 export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) {
   // State management for view mode, properties, and search
   const [viewMode, setViewMode] = useState<ViewMode>("card")
-  const [properties, setProperties] = useState<PropertyData[]>(getAllProperties())
-  const [isLoadingProperties, setIsLoadingProperties] = useState(true)
+  
+  // Initialize properties from cache if available, otherwise use mock data
+  const [properties, setProperties] = useState<PropertyData[]>(() => {
+    const cachedProperties = getAllCachedProperties()
+    const mockProperties = getAllProperties()
+    if (cachedProperties.length > 0) {
+      // Merge cached DB properties with mock properties
+      return [...cachedProperties, ...mockProperties]
+    }
+    return mockProperties
+  })
+  
+  // Only show loading if we don't have cached data
+  const [isLoadingProperties, setIsLoadingProperties] = useState(() => {
+    return getAllCachedProperties().length === 0
+  })
+  
   const [searchQuery, setSearchQuery] = useState("")
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Fetch properties from database API and merge with mock data
+  // Fetch properties from database API only if not cached
   useEffect(() => {
+    // Check if we already have cached data
+    const cachedProperties = getAllCachedProperties()
+    if (cachedProperties.length > 0) {
+      // Data already cached, no need to fetch
+      setIsLoadingProperties(false)
+      return
+    }
+    
     const fetchProperties = async () => {
       try {
         const response = await fetch('/api/properties')
         if (response.ok) {
           const data = await response.json()
           if (data.success && data.properties) {
-            // Convert database properties to PropertyData format
-            const dbProperties: PropertyData[] = data.properties.map((dbProp: any) => ({
-              id: dbProp.id,
-              name: dbProp.name || 'New Property',
-              address: [dbProp.address, dbProp.city, dbProp.state, dbProp.zip_code]
-                .filter(Boolean)
-                .join(', ') || 'Address pending',
-              status: dbProp.status === 'processing' ? 'Processing' :
-                      dbProp.status === 'active' ? 'Active' : 'Draft',
-              thumbnail: dbProp.thumbnail_url || '/placeholder.svg?height=200&width=300',
-              offerPrice: dbProp.offer_price ? `$${(dbProp.offer_price / 1000000).toFixed(1)}M` : 'TBD',
-              capRate: dbProp.cap_rate ? `${dbProp.cap_rate}%` : 'TBD',
-              units: dbProp.units || 0,
-              yearBuilt: dbProp.year_built,
-              occupancy: dbProp.occupancy ? `${dbProp.occupancy}%` : undefined,
-              avgSqFtPerUnit: dbProp.avg_sqft_per_unit,
-            }))
+            // Cache and convert database properties using the shared cache
+            const dbProperties = cacheProperties(data.properties as DatabaseProperty[])
             // Merge with mock data (mock data IDs won't conflict with UUIDs)
             const mockProperties = getAllProperties()
             setProperties([...dbProperties, ...mockProperties])
@@ -155,22 +165,8 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.properties) {
-          const dbProperties: PropertyData[] = data.properties.map((dbProp: any) => ({
-            id: dbProp.id,
-            name: dbProp.name || 'New Property',
-            address: [dbProp.address, dbProp.city, dbProp.state, dbProp.zip_code]
-              .filter(Boolean)
-              .join(', ') || 'Address pending',
-            status: dbProp.status === 'processing' ? 'Processing' :
-                    dbProp.status === 'active' ? 'Active' : 'Draft',
-            thumbnail: dbProp.thumbnail_url || '/placeholder.svg?height=200&width=300',
-            offerPrice: dbProp.offer_price ? `$${(dbProp.offer_price / 1000000).toFixed(1)}M` : 'TBD',
-            capRate: dbProp.cap_rate ? `${dbProp.cap_rate}%` : 'TBD',
-            units: dbProp.units || 0,
-            yearBuilt: dbProp.year_built,
-            occupancy: dbProp.occupancy ? `${dbProp.occupancy}%` : undefined,
-            avgSqFtPerUnit: dbProp.avg_sqft_per_unit,
-          }))
+          // Cache and convert database properties
+          const dbProperties = cacheProperties(data.properties as DatabaseProperty[])
           const mockProperties = getAllProperties()
           setProperties([...dbProperties, ...mockProperties])
         }
@@ -231,6 +227,9 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
           throw new Error(error.error || 'Failed to delete property')
         }
 
+        // Clear the cache since we modified data
+        clearPropertyCache()
+        
         // Remove from local state
         setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id))
         console.log('[HomeTab] Property deleted successfully:', propertyToDelete.id)
@@ -257,6 +256,68 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
         properties.length
       : 0
   const totalUnits = properties.reduce((sum, prop) => sum + (prop.units || 0), 0)
+
+  /**
+   * Skeleton loader for property cards
+   */
+  const PropertyCardSkeleton = () => (
+    <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+      {/* Image skeleton */}
+      <Skeleton className="h-36 w-full" />
+      <div className="p-4 space-y-3">
+        {/* Badge skeleton */}
+        <Skeleton className="h-5 w-20 rounded-full" />
+        {/* Title skeleton */}
+        <Skeleton className="h-5 w-3/4" />
+        {/* Address skeleton */}
+        <Skeleton className="h-4 w-full" />
+        {/* Metrics skeleton */}
+        <div className="grid grid-cols-3 gap-2 pt-2">
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-5 w-14" />
+          </div>
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-5 w-10" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  /**
+   * Skeleton loader for property list rows
+   */
+  const PropertyListSkeleton = () => (
+    <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-16 w-24 rounded-lg flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex gap-6">
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-5 w-12" />
+          </div>
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-5 w-8" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   /**
    * Reusable view mode button component
@@ -456,6 +517,17 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                 </div>
               </AppCard>
 
+              {/* Skeleton loaders while fetching */}
+              {isLoadingProperties && properties.length === 0 && (
+                <>
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                </>
+              )}
+
               {/* Property cards with hover effects and dropdown menus */}
               {properties.map((property) => (
                 <div
@@ -555,6 +627,17 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
 
                 {/* Property list items */}
                 <div className="divide-y divide-gray-100">
+                  {/* Skeleton loaders while fetching */}
+                  {isLoadingProperties && properties.length === 0 && (
+                    <>
+                      <PropertyListSkeleton />
+                      <PropertyListSkeleton />
+                      <PropertyListSkeleton />
+                      <PropertyListSkeleton />
+                      <PropertyListSkeleton />
+                    </>
+                  )}
+
                   {properties.map((property) => (
                     <div
                       key={property.id}

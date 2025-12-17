@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { TabBar } from "@/components/tab-bar"
 import { getPropertyById, PropertyData } from "@/lib/property-data"
+import { getCachedProperty, cacheProperty, convertDbPropertyToPropertyData, type DatabaseProperty } from "@/lib/property-cache"
 
 /**
  * Navigation Item Interface
@@ -95,7 +96,7 @@ const PROPERTY_SECTIONS: NavigationItem[] = [
 
 interface PropertyLayoutWrapperProps {
   propertyId: string
-  children: React.ReactNode
+  children: React.ReactNode | ((property: PropertyData | null, isLoading: boolean) => React.ReactNode)
   currentTab?: string
 }
 
@@ -115,52 +116,59 @@ export function PropertyLayoutWrapper({
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [openPropertyIds, setOpenPropertyIds] = useState<string[]>([])
-  const [activeProperty, setActiveProperty] = useState<PropertyData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [activeProperty, setActiveProperty] = useState<PropertyData | null>(() => {
+    // Initialize from cache or mock data synchronously to avoid loading state
+    const cachedProperty = getCachedProperty(propertyId)
+    if (cachedProperty) return cachedProperty
+    const mockProperty = getPropertyById(propertyId)
+    if (mockProperty) return mockProperty
+    return null
+  })
+  const [isLoading, setIsLoading] = useState(() => {
+    // Only show loading if property wasn't found in cache or mock data
+    const cachedProperty = getCachedProperty(propertyId)
+    const mockProperty = getPropertyById(propertyId)
+    return !cachedProperty && !mockProperty
+  })
 
-  // Try to get from mock data first, then fetch from API
+  // Fetch from API only if not found in cache/mock data
   useEffect(() => {
+    // Check cache first
+    const cachedProperty = getCachedProperty(propertyId)
+    if (cachedProperty) {
+      setActiveProperty(cachedProperty)
+      setIsLoading(false)
+      return
+    }
+
+    // Check mock data
     const mockProperty = getPropertyById(propertyId)
     if (mockProperty) {
       setActiveProperty(mockProperty)
       setIsLoading(false)
-    } else {
-      // Fetch from API for database properties
-      const fetchProperty = async () => {
-        try {
-          const response = await fetch(`/api/properties/${propertyId}`)
-          if (response.ok) {
-            const data = await response.json()
-            if (data.success && data.property) {
-              // Convert database property to PropertyData format
-              const dbProperty = data.property
-              const convertedProperty: PropertyData = {
-                id: dbProperty.id,
-                name: dbProperty.name || 'New Property',
-                address: [dbProperty.address, dbProperty.city, dbProperty.state, dbProperty.zip_code]
-                  .filter(Boolean)
-                  .join(', ') || 'Address pending',
-                status: dbProperty.status === 'processing' ? 'Processing' :
-                        dbProperty.status === 'active' ? 'Active' : 'Draft',
-                thumbnail: dbProperty.thumbnail_url || '/placeholder.svg?height=200&width=300',
-                offerPrice: dbProperty.offer_price ? `$${(dbProperty.offer_price / 1000000).toFixed(1)}M` : 'TBD',
-                capRate: dbProperty.cap_rate ? `${dbProperty.cap_rate}%` : 'TBD',
-                units: dbProperty.units || 0,
-                yearBuilt: dbProperty.year_built,
-                occupancy: dbProperty.occupancy ? `${dbProperty.occupancy}%` : undefined,
-                avgSqFtPerUnit: dbProperty.avg_sqft_per_unit,
-              }
-              setActiveProperty(convertedProperty)
-            }
-          }
-        } catch (error) {
-          console.error('[PropertyLayoutWrapper] Error fetching property:', error)
-        } finally {
-          setIsLoading(false)
-        }
-      }
-      fetchProperty()
+      return
     }
+
+    // Fetch from API only if not found
+    const fetchProperty = async () => {
+      try {
+        const response = await fetch(`/api/properties/${propertyId}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.property) {
+            const convertedProperty = convertDbPropertyToPropertyData(data.property as DatabaseProperty)
+            // Cache it for future use
+            cacheProperty(convertedProperty)
+            setActiveProperty(convertedProperty)
+          }
+        }
+      } catch (error) {
+        console.error('[PropertyLayoutWrapper] Error fetching property:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchProperty()
   }, [propertyId])
 
   // Load and manage open properties from session storage
@@ -228,18 +236,17 @@ const handlePropertyClose = useCallback(
     [propertyId, activeProperty, router],
   )
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
-          <p className="text-gray-600 mt-4">Loading property...</p>
-        </div>
-      </div>
-    )
+  // Render children - support both render prop and regular children
+  const renderChildren = () => {
+    if (typeof children === 'function') {
+      return children(activeProperty, isLoading)
+    }
+    return children
   }
 
-  if (!activeProperty) {
+  // Don't block rendering - show layout immediately with loading state passed to children
+  // Only show "not found" if loading is complete and no property
+  if (!isLoading && !activeProperty) {
     console.warn(
       `[PropertyLayoutWrapper] Property not found for ID: "${propertyId}". ` +
       `This usually means the property ID is incorrect or the property doesn't exist in the database.`
@@ -405,7 +412,7 @@ const handlePropertyClose = useCallback(
         </div>
       )}
 
-      <div className="p-2 sm:p-3 md:p-4 lg:p-5">{children}</div>
+      <div className="p-2 sm:p-3 md:p-4 lg:p-5">{renderChildren()}</div>
     </div>
   )
 }

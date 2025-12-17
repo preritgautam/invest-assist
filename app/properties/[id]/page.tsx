@@ -1,8 +1,4 @@
-"use client"
-
-import { use } from "react"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { redirect } from "next/navigation"
 
 interface PropertiesRootPageProps {
   params: Promise<{
@@ -10,14 +6,9 @@ interface PropertiesRootPageProps {
   }>
 }
 
-export default function PropertiesRootPage({ params }: PropertiesRootPageProps) {
-  const { id } = use(params)
-  const router = useRouter()
-
-  useEffect(() => {
-    // Redirect to documents tab by default
-    router.replace(`/properties/${id}/documents`)
-  }, [id, router])
-
-  return null
+export default async function PropertiesRootPage({ params }: PropertiesRootPageProps) {
+  const { id } = await params
+  
+  // Server-side redirect for instant navigation without client-side rendering
+  redirect(`/properties/${id}/documents`)
 }

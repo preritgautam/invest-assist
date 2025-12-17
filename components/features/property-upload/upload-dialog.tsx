@@ -49,6 +49,8 @@ type UploadStep = 'select' | 'uploading' | 'classifying' | 'reviewing' | 'proces
 
 export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+
+  console.log('[UploadDialog] Uploaded files:', uploadedFiles)
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [uploadMethod, setUploadMethod] = useState<"zip" | "files" | "email" | "manual" | null>(null)
@@ -715,6 +717,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   }
 
   const getSegmentsForFile = (fileId: string) => {
+    console.log('[Segments] Getting segments for file:', detectedSegments.filter(s => s.sourceFileId === fileId))
     return detectedSegments.filter(s => s.sourceFileId === fileId)
   }
 
@@ -1038,25 +1041,28 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
           {/* Segment Review UI with Split Pane */}
           {uploadStep === 'reviewing' && !isProcessing && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Layers className="w-5 h-5 text-data-accent-blue" />
-                <h3 className="text-sm font-bold text-foreground">Review Detected Segments</h3>
-              </div>
-
-              <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20 mb-4">
-                <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-foreground">
-                  <p className="font-medium mb-1">AI has analyzed your documents</p>
-                  <p className="text-muted-foreground">
-                    Select which segments to extract. Click the <Eye className="w-3 h-3 inline" /> icon to preview a file and verify page ranges. You can edit page ranges if needed.
-                  </p>
-                </div>
-              </div>
-
-              {/* Split Pane Layout */}
-              <div className="flex gap-4 min-h-[50vh]">
+              {/* Split Pane Layout - Header and content side by side */}
+              <div className="flex gap-4 min-h-[80vh] items-stretch">
                 {/* Left Panel - File/Segment List */}
-                <div className={`space-y-3 overflow-y-auto ${previewFile ? 'w-1/2' : 'w-full'}`}>
+                <div className={`flex flex-col space-y-3 overflow-y-auto ${previewFile ? 'w-1/4' : 'w-full'}`}>
+                  {/* Header */}
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-data-accent-blue" />
+                    <h3 className="text-sm font-bold text-foreground">Review Detected Segments</h3>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-foreground">
+                      <p className="font-medium mb-1">AI has analyzed your documents</p>
+                      <p className="text-muted-foreground">
+                        Select which segments to extract. Click the <Eye className="w-3 h-3 inline" /> icon to preview a file and verify page ranges. You can edit page ranges if needed.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* File List */}
                   {uploadedFiles.map((file) => {
                     const fileSegments = getSegmentsForFile(file.id)
                     const isExpanded = expandedFiles.has(file.id)
@@ -1253,8 +1259,8 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
 
                 {/* Right Panel - PDF Viewer */}
                 {previewFile && previewFile.file.type === 'application/pdf' && (
-                  <div className="w-1/2 border border-border rounded-lg overflow-hidden bg-muted/30">
-                    <div className="flex items-center justify-between p-2 bg-card border-b border-border">
+                  <div className="w-3/4 border border-border rounded-lg overflow-hidden bg-muted/30 flex flex-col">
+                    <div className="flex items-center justify-between p-2 bg-card border-b border-border flex-shrink-0">
                       <span className="text-xs font-medium text-foreground truncate">{previewFile.name}</span>
                       <button
                         onClick={() => setPreviewFileId(null)}
@@ -1264,7 +1270,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="h-[calc(50vh-60px)]">
+                    <div className="flex-1 overflow-hidden">
                       <PDFViewer
                         file={previewFile.file}
                         highlightedPages={getHighlightedPages()}
@@ -1273,7 +1279,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                     </div>
                     {/* Page range hint */}
                     {getHighlightedPages().length > 0 && (
-                      <div className="p-2 bg-data-accent-blue/10 border-t border-data-accent-blue/20 text-xs text-data-accent-blue">
+                      <div className="p-2 bg-data-accent-blue/10 border-t border-data-accent-blue/20 text-xs text-data-accent-blue flex-shrink-0">
                         Highlighted pages: {getHighlightedPages().join(', ')} (from enabled segments)
                       </div>
                     )}

@@ -1,16 +1,17 @@
 "use client"
 
+import { use } from "react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
 interface PropertiesRootPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function PropertiesRootPage({ params }: PropertiesRootPageProps) {
-  const { id } = params
+  const { id } = use(params)
   const router = useRouter()
 
   useEffect(() => {

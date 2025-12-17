@@ -51,52 +51,189 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const mockRentRollData: RentRollUnit[] = generateRentRollUnits(89, "Riverside Apartments")
 
-interface DocumentsTabProps {
-  property: PropertyData | null
+// Database document type from API
+interface DatabaseDocument {
+  id: number
+  user_id: string
+  process_id: string
+  document_id: string | null
+  filename: string
+  document_type: string | null
+  file_size: number | null
+  upload_status: string
+  extraction_status: string
+  created_at: string
+  updated_at: string
 }
 
-export function DocumentsTab({ property }: DocumentsTabProps) {
+// Map database document_type to PropertyDocument type
+function mapDocumentType(dbType: string | null): "OS" | "RR" | "OM" | "Appraisal" | "Insurance" {
+  const typeMap: Record<string, "OS" | "RR" | "OM" | "Appraisal" | "Insurance"> = {
+    "rent_roll": "RR",
+    "operating_statement": "OS",
+    "t12": "OS",
+    "offering_memorandum": "OM",
+    "om": "OM",
+    "appraisal": "Appraisal",
+    "insurance": "Insurance",
+  }
+  return typeMap[dbType?.toLowerCase() || ""] || "OS"
+}
+
+// Map extraction_status to ProcessingStage
+function mapProcessingStage(status: string): "upload" | "extracting" | "review" | "verified" {
+  const stageMap: Record<string, "upload" | "extracting" | "review" | "verified"> = {
+    "pending": "upload",
+    "processing": "extracting",
+    "completed": "review",
+    "verified": "verified",
+    "failed": "upload",
+  }
+  return stageMap[status?.toLowerCase() || ""] || "upload"
+}
+
+interface DocumentsTabProps {
+  property: PropertyData | null
+  propertyId?: string
+  isLoading?: boolean
+}
+
+export function DocumentsTab({ property, propertyId, isLoading: propertyLoading }: DocumentsTabProps) {
   // Declared DocsView as a type alias for string to resolve the undeclared variable error.
   type DocsView = "library" | "upload" | "analysis" | "analytics" | "insights"
   const [docsView, setDocsView] = useState<DocsView>("library")
   const [documentView, setDocumentView] = useState<DocumentView>("extracted") // This line fixes the undeclared variable error for DocumentView.
-  const [selectedDoc, setSelectedDoc] = useState<string | null>("1")
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [documents] = useState<PropertyDocument[]>([
-    {
-      id: "1",
-      name: `${property?.name || "Property"}_OS_2024.pdf`,
-      type: "OS",
-      uploadDate: "2024-01-15",
-      stage: "review",
-      extractedData: mockBrokerData,
-      version: 1,
-      holdPeriod: 7,
-    },
-    {
-      id: "2",
-      name: `${property?.name || "Property"}_RentRoll_Q4.xlsx`,
-      type: "RR",
-      uploadDate: "2024-01-14",
-      stage: "verified",
-      rentRollData: mockRentRollData, // This line uses the declared mockRentRollData.
-    },
-    {
-      id: "3",
-      name: `${property?.name || "Property"}_OM.pdf`,
-      type: "OM",
-      uploadDate: "2024-01-10",
-      stage: "review",
-    },
-  ])
-  // </CHANGE>
+  const [documents, setDocuments] = useState<PropertyDocument[]>([])
+  const [documentsLoading, setDocumentsLoading] = useState(true)
+  const [documentsError, setDocumentsError] = useState<string | null>(null)
+  const [activeSection, setActiveSection] = useState<"t12" | "normalized" | "summary">("t12")
+  const [activeDocType, setActiveDocType] = useState<"OS" | "RR" | "OM">("OS")
+
+  // Fetch documents from database
+  useEffect(() => {
+    async function fetchDocuments() {
+      try {
+        setDocumentsLoading(true)
+        setDocumentsError(null)
+
+        // Build URL with propertyId filter if available
+        const url = propertyId
+          ? `/api/documents/list?propertyId=${encodeURIComponent(propertyId)}`
+          : '/api/documents/list'
+        const response = await fetch(url)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch documents')
+        }
+
+        if (data.documents && data.documents.length > 0) {
+          // Map database documents to PropertyDocument interface
+          const mappedDocuments: PropertyDocument[] = data.documents.map((doc: DatabaseDocument) => ({
+            id: doc.process_id, // Use process_id as the identifier for fetching
+            name: doc.filename,
+            type: mapDocumentType(doc.document_type),
+            uploadDate: doc.created_at.split('T')[0],
+            stage: mapProcessingStage(doc.extraction_status),
+            // For RR documents, we'll load the rent roll data when selected
+            rentRollData: mapDocumentType(doc.document_type) === "RR" ? mockRentRollData : undefined,
+            extractedData: mapDocumentType(doc.document_type) === "OS" ? mockBrokerData : undefined,
+            version: 1,
+            holdPeriod: 7,
+          }))
+
+          setDocuments(mappedDocuments)
+
+          // Set selectedDoc to first document if not already set
+          if (mappedDocuments.length > 0) {
+            setSelectedDoc(mappedDocuments[0].id)
+            // Also set the active doc type based on first document
+            const firstDocType = mappedDocuments[0].type
+            if (firstDocType === "OS" || firstDocType === "RR" || firstDocType === "OM") {
+              setActiveDocType(firstDocType)
+            }
+          }
+        } else {
+          // No documents in database, use mock data as fallback
+          const mockDocuments: PropertyDocument[] = [
+            {
+              id: "mock-1",
+              name: `${property?.name || "Property"}_OS_2024.pdf`,
+              type: "OS",
+              uploadDate: "2024-01-15",
+              stage: "review",
+              extractedData: mockBrokerData,
+              version: 1,
+              holdPeriod: 7,
+            },
+            {
+              id: "mock-2",
+              name: `${property?.name || "Property"}_RentRoll_Q4.xlsx`,
+              type: "RR",
+              uploadDate: "2024-01-14",
+              stage: "verified",
+              rentRollData: mockRentRollData,
+            },
+            {
+              id: "mock-3",
+              name: `${property?.name || "Property"}_OM.pdf`,
+              type: "OM",
+              uploadDate: "2024-01-10",
+              stage: "review",
+            },
+          ]
+          setDocuments(mockDocuments)
+          setSelectedDoc("mock-1")
+          setActiveDocType("OS")
+        }
+      } catch (error) {
+        console.error('[DocsTab] Error fetching documents:', error)
+        setDocumentsError(error instanceof Error ? error.message : 'Failed to fetch documents')
+
+        // Use mock data on error
+        const mockDocuments: PropertyDocument[] = [
+          {
+            id: "mock-1",
+            name: `${property?.name || "Property"}_OS_2024.pdf`,
+            type: "OS",
+            uploadDate: "2024-01-15",
+            stage: "review",
+            extractedData: mockBrokerData,
+            version: 1,
+            holdPeriod: 7,
+          },
+          {
+            id: "mock-2",
+            name: `${property?.name || "Property"}_RentRoll_Q4.xlsx`,
+            type: "RR",
+            uploadDate: "2024-01-14",
+            stage: "verified",
+            rentRollData: mockRentRollData,
+          },
+          {
+            id: "mock-3",
+            name: `${property?.name || "Property"}_OM.pdf`,
+            type: "OM",
+            uploadDate: "2024-01-10",
+            stage: "review",
+          },
+        ]
+        setDocuments(mockDocuments)
+        setSelectedDoc("mock-1")
+        setActiveDocType("OS")
+      } finally {
+        setDocumentsLoading(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [property?.name, propertyId])
 
   const [extractedData, setExtractedData] = useState<LineItem[]>(mockBrokerData)
 
   const activeDocument = documents.find((d) => d.id === selectedDoc)
-
-  const [activeSection, setActiveSection] = useState<"t12" | "normalized" | "summary">("t12")
-  const [activeDocType, setActiveDocType] = useState<"OS" | "RR" | "OM">("OS")
   const [menuExpanded, setMenuExpanded] = useState(false)
 
   const [osValidated, setOsValidated] = useState(false)
@@ -311,7 +448,19 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
 
 
 
-  if (!property) {
+  // Show loading state while property is being fetched
+  if (propertyLoading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-8 text-center">
+        <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Loading...</h2>
+        <p className="text-gray-600">Fetching property details...</p>
+      </div>
+    )
+  }
+
+  // Only show "select property" if we don't have property AND don't have propertyId
+  if (!property && !propertyId) {
     return (
       <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-8 text-center">
         <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -323,9 +472,11 @@ export function DocumentsTab({ property }: DocumentsTabProps) {
 
   const handleDocTypeChange = (docType: "OS" | "RR" | "OM") => {
     setActiveDocType(docType)
-    // Map document types to document IDs
-    const docIdMap = { OS: "1", RR: "2", OM: "3" } as const
-    setSelectedDoc(docIdMap[docType])
+    // Find the first document of this type
+    const docOfType = documents.find(d => d.type === docType)
+    if (docOfType) {
+      setSelectedDoc(docOfType.id)
+    }
   }
 
   const handleValidateOS = () => {

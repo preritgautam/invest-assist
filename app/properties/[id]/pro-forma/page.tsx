@@ -1,17 +1,18 @@
 "use client"
 
+import { use } from "react"
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { ProFormaTab } from "@/components/tabs/pro-forma-tab"
 import { getPropertyById } from "@/lib/property-data"
 
 interface ProFormaPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function ProFormaPage({ params }: ProFormaPageProps) {
-  const { id } = params
+  const { id } = use(params)
   const property = getPropertyById(id) || null
 
   return (

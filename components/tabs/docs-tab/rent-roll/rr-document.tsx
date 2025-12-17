@@ -137,7 +137,7 @@ interface RRDocumentProps {
   processId?: string
 }
 
-export function RRDocument({isOpen, onClose, config, onConfigChange, processId}: RRDocumentProps) {
+export function RRDocument({isOpen, onClose, config, onConfigChange, documentId, processId}: RRDocumentProps) {
   const [data, setData] = useState<RentRollUnit[]>(mockRentRollData)
   const [columns, setColumns] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -222,14 +222,16 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       updateDataWithConfig(rawData, config, baseHeaders)
     }
   }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
-      
-  const documentId = "0ba54f65-a0dd-4f38-97d0-e9ee328b64b7"
 
   const fetchRentRollData = async () => {
     try {
       setLoading(true)
       setError(null)
       setIsUsingFallbackData(false)
+
+      if (!documentId) {
+        throw new Error('No document ID provided')
+      }
 
       const response = await fetch(`/api/documents/${documentId}`)
 
@@ -238,6 +240,23 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
       }
 
       const result = await response.json()
+
+      // Debug: Log what we received to help diagnose format issues
+      console.log('[RR Document] API response:', {
+        success: result.success,
+        hasDocument: !!result.document,
+        hasExtractionResult: !!result.document?.extraction_result,
+        extractionResultKeys: result.document?.extraction_result ? Object.keys(result.document.extraction_result) : [],
+        extractionStatus: result.document?.extraction_status,
+      })
+
+      // Check if document exists but extraction is still pending/processing
+      if (result.success && result.document && !result.document.extraction_result) {
+        if (result.document.extraction_status === 'pending' || result.document.extraction_status === 'processing') {
+          throw new Error(`Document extraction is ${result.document.extraction_status}. Please wait for extraction to complete.`)
+        }
+        throw new Error('Document has no extraction results. Extraction may have failed.')
+      }
 
       if (result.success && result.document?.extraction_result?.data?.extraction?.units) {
         const units = result.document.extraction_result.data.extraction.units
@@ -298,7 +317,24 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
           setDynamicConfig(builtConfig)
         }
       } else {
-        throw new Error("Invalid API response format")
+        // Provide more detailed error about what structure was received
+        const extractionResult = result.document?.extraction_result
+        let errorDetail = 'Unknown structure'
+        if (!result.success) {
+          errorDetail = `API returned success=false: ${result.error || 'unknown error'}`
+        } else if (!result.document) {
+          errorDetail = 'No document in response'
+        } else if (!extractionResult) {
+          errorDetail = 'No extraction_result in document'
+        } else if (!extractionResult.data) {
+          errorDetail = `extraction_result has keys [${Object.keys(extractionResult).join(', ')}] but no 'data' field`
+        } else if (!extractionResult.data.extraction) {
+          errorDetail = `extraction_result.data has keys [${Object.keys(extractionResult.data).join(', ')}] but no 'extraction' field`
+        } else if (!extractionResult.data.extraction.units) {
+          errorDetail = `extraction_result.data.extraction has keys [${Object.keys(extractionResult.data.extraction).join(', ')}] but no 'units' field`
+        }
+        console.error('[RR Document] Invalid extraction_result structure:', extractionResult)
+        throw new Error(`Invalid extraction result format: ${errorDetail}`)
       }
     } catch (err) {
       console.error("Failed to fetch rent roll data:", err)
@@ -525,9 +561,36 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, processId}:
           )}
 
           {error && (
-            <div className="bg-white rounded-lg border p-2 sm:p-3 shadow-sm flex-shrink-0">
-              <div className="text-xs text-yellow-700">
-                <strong>Note:</strong> {error} - Displaying sample data instead.
+            <div className={`rounded-lg border p-3 sm:p-4 shadow-sm flex-shrink-0 flex items-start gap-3 ${
+              error.includes('pending') || error.includes('processing')
+                ? 'bg-blue-50 border-blue-200'
+                : 'bg-amber-50 border-amber-200'
+            }`}>
+              <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                error.includes('pending') || error.includes('processing')
+                  ? 'text-blue-600'
+                  : 'text-amber-600'
+              }`} />
+              <div>
+                <p className={`text-sm font-semibold ${
+                  error.includes('pending') || error.includes('processing')
+                    ? 'text-blue-900'
+                    : 'text-amber-900'
+                }`}>
+                  {error.includes('pending') || error.includes('processing')
+                    ? 'Extraction In Progress'
+                    : 'Data Unavailable'}
+                </p>
+                <p className={`text-xs mt-1 ${
+                  error.includes('pending') || error.includes('processing')
+                    ? 'text-blue-700'
+                    : 'text-amber-700'
+                }`}>
+                  {error}
+                </p>
+                {!error.includes('pending') && !error.includes('processing') && isUsingFallbackData && (
+                  <p className="text-xs text-amber-700 mt-1">Displaying sample data for demonstration.</p>
+                )}
               </div>
             </div>
           )}

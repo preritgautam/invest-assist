@@ -56,8 +56,17 @@ export async function uploadFilesToRex(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Upload failed: ${response.status}`);
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Upload failed: ${response.status}`);
+      } else {
+        // Non-JSON response (likely HTML error page)
+        const errorText = await response.text();
+        console.error('[REX Client] Non-JSON error response:', errorText.substring(0, 200));
+        throw new Error(`Upload failed (${response.status}): Server returned non-JSON response. Check DOCIN_API_KEY configuration.`);
+      }
     }
 
     const data: RexUploadResponse = await response.json();

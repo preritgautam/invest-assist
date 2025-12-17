@@ -26,9 +26,10 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react"
 import { TabBar } from "@/components/tab-bar"
-import { getPropertyById } from "@/lib/property-data"
+import { getPropertyById, PropertyData } from "@/lib/property-data"
 
 /**
  * Navigation Item Interface
@@ -114,8 +115,53 @@ export function PropertyLayoutWrapper({
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [openPropertyIds, setOpenPropertyIds] = useState<string[]>([])
+  const [activeProperty, setActiveProperty] = useState<PropertyData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const activeProperty = getPropertyById(propertyId)
+  // Try to get from mock data first, then fetch from API
+  useEffect(() => {
+    const mockProperty = getPropertyById(propertyId)
+    if (mockProperty) {
+      setActiveProperty(mockProperty)
+      setIsLoading(false)
+    } else {
+      // Fetch from API for database properties
+      const fetchProperty = async () => {
+        try {
+          const response = await fetch(`/api/properties/${propertyId}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.property) {
+              // Convert database property to PropertyData format
+              const dbProperty = data.property
+              const convertedProperty: PropertyData = {
+                id: dbProperty.id,
+                name: dbProperty.name || 'New Property',
+                address: [dbProperty.address, dbProperty.city, dbProperty.state, dbProperty.zip_code]
+                  .filter(Boolean)
+                  .join(', ') || 'Address pending',
+                status: dbProperty.status === 'processing' ? 'Processing' :
+                        dbProperty.status === 'active' ? 'Active' : 'Draft',
+                thumbnail: dbProperty.thumbnail_url || '/placeholder.svg?height=200&width=300',
+                offerPrice: dbProperty.offer_price ? `$${(dbProperty.offer_price / 1000000).toFixed(1)}M` : 'TBD',
+                capRate: dbProperty.cap_rate ? `${dbProperty.cap_rate}%` : 'TBD',
+                units: dbProperty.units || 0,
+                yearBuilt: dbProperty.year_built,
+                occupancy: dbProperty.occupancy ? `${dbProperty.occupancy}%` : undefined,
+                avgSqFtPerUnit: dbProperty.avg_sqft_per_unit,
+              }
+              setActiveProperty(convertedProperty)
+            }
+          }
+        } catch (error) {
+          console.error('[PropertyLayoutWrapper] Error fetching property:', error)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      fetchProperty()
+    }
+  }, [propertyId])
 
   // Load and manage open properties from session storage
   useEffect(() => {
@@ -181,6 +227,17 @@ const handlePropertyClose = useCallback(
     },
     [propertyId, activeProperty, router],
   )
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
+          <p className="text-gray-600 mt-4">Loading property...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!activeProperty) {
     console.warn(

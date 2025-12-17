@@ -162,9 +162,24 @@ export const useRexPolling = () => {
           );
 
           if (!statusResponse.ok) {
-            throw new Error(
-              `Status check failed: ${statusResponse.statusText}`
-            );
+            // Check if response is JSON before parsing
+            const contentType = statusResponse.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+              const errorData = await statusResponse.json();
+              throw new Error(errorData.error || `Status check failed: ${statusResponse.statusText}`);
+            } else {
+              const errorText = await statusResponse.text();
+              console.error('[Polling] Non-JSON error response:', errorText.substring(0, 200));
+              throw new Error(`Status check failed (${statusResponse.status}): Server returned non-JSON response`);
+            }
+          }
+
+          // Verify response is JSON before parsing
+          const statusContentType = statusResponse.headers.get('content-type') || '';
+          if (!statusContentType.includes('application/json')) {
+            const responseText = await statusResponse.text();
+            console.error('[Polling] Unexpected non-JSON response:', responseText.substring(0, 200));
+            throw new Error('Status API returned non-JSON response');
           }
 
           const statusData = await statusResponse.json();
@@ -183,9 +198,24 @@ export const useRexPolling = () => {
             );
 
             if (!resultResponse.ok) {
-              throw new Error(
-                `Result fetch failed: ${resultResponse.statusText}`
-              );
+              // Check if response is JSON before parsing
+              const contentType = resultResponse.headers.get('content-type') || '';
+              if (contentType.includes('application/json')) {
+                const errorData = await resultResponse.json();
+                throw new Error(errorData.error || `Result fetch failed: ${resultResponse.statusText}`);
+              } else {
+                const errorText = await resultResponse.text();
+                console.error('[Polling] Non-JSON result error response:', errorText.substring(0, 200));
+                throw new Error(`Result fetch failed (${resultResponse.status}): Server returned non-JSON response`);
+              }
+            }
+
+            // Verify response is JSON before parsing
+            const resultContentType = resultResponse.headers.get('content-type') || '';
+            if (!resultContentType.includes('application/json')) {
+              const responseText = await resultResponse.text();
+              console.error('[Polling] Unexpected non-JSON result response:', responseText.substring(0, 200));
+              throw new Error('Result API returned non-JSON response');
             }
 
             const resultData = await resultResponse.json();

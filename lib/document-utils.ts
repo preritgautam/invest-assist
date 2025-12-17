@@ -8,7 +8,8 @@ export async function storeDocument(
   filename: string,
   documentType: string,
   fileSize: number = 0,
-  documentId: string | null = null
+  documentId: string | null = null,
+  propertyId: string | null = null
 ) {
   const response = await fetch('/api/documents/store', {
     method: 'POST',
@@ -21,6 +22,7 @@ export async function storeDocument(
       filename,
       documentType,
       fileSize,
+      propertyId,
     }),
   });
 

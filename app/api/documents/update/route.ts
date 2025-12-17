@@ -1,178 +1,190 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { getUserId } from '@/lib/supabase/auth-helpers';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
-// Helper function to convert BigInt values to numbers/strings for JSON serialization
-function serializeBigInt(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'bigint') return obj.toString();
-  if (Array.isArray(obj)) return obj.map(serializeBigInt);
-  if (typeof obj === 'object') {
-    return Object.keys(obj).reduce((acc, key) => {
-      acc[key] = serializeBigInt(obj[key]);
-      return acc;
-    }, {} as any);
+async function getUserIdAndEnsureUserExists() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return null
   }
-  return obj;
+
+  // Check if user already exists in users table
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (!existingUser) {
+    // Insert new user with only id and email (timestamps are auto-generated in DB)
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        email: user.email || '',
+      })
+
+    if (insertError) {
+      console.error('[Documents API Update] Failed to insert user:', insertError)
+    } else {
+      console.log('[Documents API Update] User inserted successfully:', user.id)
+    }
+  } else {
+    console.log('[Documents API Update] User already exists:', user.id)
+  }
+
+  return user.id
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    console.log('[Documents API Update] Request received');
+    console.log('[Documents API Update] Request received')
 
-    // Get authenticated user from Supabase
-    const userId = await getUserId();
+    const userId = await getUserIdAndEnsureUserExists()
 
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      );
+      )
     }
 
-    console.log('[Documents API Update] Authenticated user ID:', { userId });
+    console.log('[Documents API Update] Authenticated user ID:', { userId })
 
-    const body = await request.json();
+    const supabase = await createClient()
+    const body = await request.json()
     const {
       processId,
       extractionStatus,
       extractionResult,
       errorMessage,
       documentId,
-    } = body;
+    } = body
 
     console.log('[Documents API Update] Received data:', {
       processId,
       extractionStatus,
       errorMessage,
-    });
+    })
 
     // Validate required fields
     if (!processId) {
       return NextResponse.json(
         { error: 'Missing required field: processId' },
         { status: 400 }
-      );
+      )
     }
 
-    console.log(`[Documents API Update] Updating document status`);
+    console.log(`[Documents API Update] Updating document status`)
 
-    // Verify the document exists by processId and belongs to user
-    let checkResult = await query(
-      'SELECT id, user_id, process_id FROM documents WHERE process_id = $1 AND user_id = $2',
-      [processId, userId]
-    );
+    // Check if document exists
+    const { data: existing } = await supabase
+      .from('documents')
+      .select('id, user_id, process_id')
+      .eq('process_id', processId)
+      .eq('user_id', userId)
+      .single()
 
     // If document doesn't exist, create it
-    if (checkResult.rows.length === 0) {
-      console.log('[Documents API Update] Document not found, creating placeholder document for processId:', processId);
+    if (!existing) {
+      console.log('[Documents API Update] Document not found, creating placeholder document for processId:', processId)
 
-      try {
-        const createResult = await query(
-          `INSERT INTO documents (
-            user_id,
-            process_id,
-            document_id,
-            filename,
-            document_type,
-            upload_status
-          ) VALUES ($1, $2, $3, $4, $5, $6)
-          RETURNING id, user_id, process_id`,
-          [userId, processId, documentId || null, 'Unknown Document', 'unknown', 'pending']
-        );
+      const now = new Date().toISOString()
+      const { data: created, error: createError } = await supabase
+        .from('documents')
+        .insert({
+          user_id: userId,
+          process_id: processId,
+          document_id: documentId || null,
+          filename: 'Unknown Document',
+          document_type: 'unknown',
+          upload_status: 'pending',
+          extraction_status: 'pending',
+          created_at: now,
+          updated_at: now,
+        })
+        .select('id, user_id, process_id')
+        .single()
 
-        console.log('[Documents API Update] Created placeholder document:', createResult.rows[0]);
-        checkResult = createResult;
-      } catch (insertErr) {
-        console.error('[Documents API Update] Error creating placeholder document:', insertErr);
-        // If it's a duplicate key error, retry the select
-        if (insertErr instanceof Error && insertErr.message.includes('duplicate')) {
-          const retryResult = await query(
-            'SELECT id, user_id, process_id FROM documents WHERE process_id = $1 AND user_id = $2',
-            [processId, userId]
-          );
-          if (retryResult.rows.length === 0) {
+      if (createError) {
+        // If duplicate, try to fetch again
+        if (createError.code === '23505') {
+          const { data: retry } = await supabase
+            .from('documents')
+            .select('id, user_id, process_id')
+            .eq('process_id', processId)
+            .eq('user_id', userId)
+            .single()
+
+          if (!retry) {
             return NextResponse.json(
               { error: 'Failed to create or find document' },
               { status: 500 }
-            );
+            )
           }
-          checkResult = retryResult;
         } else {
-          throw insertErr;
+          throw new Error(createError.message)
         }
+      } else {
+        console.log('[Documents API Update] Created placeholder document:', created)
       }
     } else {
-      console.log('[Documents API Update] Document found:', checkResult.rows[0]);
+      console.log('[Documents API Update] Document found:', existing)
     }
 
-    // Update document status
-    const updateParams = [processId, userId];
-    let updateFields = [];
-    let paramIndex = 3;
+    // Build update object
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    }
 
     if (extractionStatus) {
-      updateFields.push(`extraction_status = $${paramIndex}`);
-      updateParams.push(extractionStatus);
-      paramIndex++;
+      updateData.extraction_status = extractionStatus
+      // Also update upload_status when extraction completes or fails
+      if (extractionStatus === 'completed') {
+        updateData.upload_status = 'completed'
+      } else if (extractionStatus === 'failed') {
+        updateData.upload_status = 'failed'
+      } else if (extractionStatus === 'processing') {
+        updateData.upload_status = 'processing'
+      }
+    }
+    if (extractionResult) updateData.extraction_result = extractionResult
+    if (errorMessage) updateData.error_message = errorMessage
+    if (documentId) updateData.document_id = documentId
+
+    const { data: document, error: updateError } = await supabase
+      .from('documents')
+      .update(updateData)
+      .eq('process_id', processId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+
+    if (updateError) {
+      throw new Error(updateError.message)
     }
 
-    if (extractionResult) {
-      updateFields.push(`extraction_result = $${paramIndex}::jsonb`);
-      updateParams.push(JSON.stringify(extractionResult));
-      paramIndex++;
-    }
-
-    if (errorMessage) {
-      updateFields.push(`error_message = $${paramIndex}`);
-      updateParams.push(errorMessage);
-      paramIndex++;
-    }
-
-    if (documentId) {
-      updateFields.push(`document_id = $${paramIndex}`);
-      updateParams.push(documentId);
-      paramIndex++;
-    }
-
-    const result = await query(
-      `UPDATE documents
-       SET ${updateFields.join(', ')}
-       WHERE process_id = $1 AND user_id = $2
-       RETURNING *`,
-      updateParams
-    );
-
-    const document = result.rows[0];
-
-    console.log('[Documents API Update] Document updated:', document);
+    console.log('[Documents API Update] Document updated:', document)
 
     return NextResponse.json(
       {
         success: true,
-        document: serializeBigInt(document),
+        document,
       },
       { status: 200 }
-    );
+    )
 
   } catch (error) {
-    console.error('[Documents API Update] Error updating document:', error);
-
-    // Log full error details
-    if (error instanceof Error) {
-      console.error('[Documents API Update] Error message:', error.message);
-      console.error('[Documents API Update] Error stack:', error.stack);
-    }
+    console.error('[Documents API Update] Error updating document:', error)
 
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
-        details: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 }
-    );
+    )
   }
 }
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'

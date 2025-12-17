@@ -1,45 +1,66 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { getUserId } from '@/lib/supabase/auth-helpers';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
-// Helper function to convert BigInt values to numbers/strings for JSON serialization
-function serializeBigInt(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'bigint') return obj.toString();
-  if (Array.isArray(obj)) return obj.map(serializeBigInt);
-  if (typeof obj === 'object') {
-    return Object.keys(obj).reduce((acc, key) => {
-      acc[key] = serializeBigInt(obj[key]);
-      return acc;
-    }, {} as any);
+async function getUserIdAndEnsureUserExists() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return null
   }
-  return obj;
+
+  // Check if user already exists in users table
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (!existingUser) {
+    // Insert new user with only id and email (timestamps are auto-generated in DB)
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        email: user.email || '',
+      })
+
+    if (insertError) {
+      console.error('[Documents API Store] Failed to insert user:', insertError)
+    } else {
+      console.log('[Documents API Store] User inserted successfully:', user.id)
+    }
+  } else {
+    console.log('[Documents API Store] User already exists:', user.id)
+  }
+
+  return user.id
 }
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Documents API Store] ===== REQUEST RECEIVED =====');
+    console.log('[Documents API Store] ===== REQUEST RECEIVED =====')
 
-    // Get authenticated user from Supabase
-    const userId = await getUserId();
+    const userId = await getUserIdAndEnsureUserExists()
 
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      );
+      )
     }
 
-    console.log('[Documents API Store] Authenticated user ID:', { userId });
+    console.log('[Documents API Store] Authenticated user ID:', { userId })
 
-    const body = await request.json();
+    const supabase = await createClient()
+    const body = await request.json()
     const {
       processId,
       documentId,
       filename,
       documentType,
       fileSize,
-    } = body;
+      propertyId,
+    } = body
 
     console.log('[Documents API Store] Received data:', {
       processId,
@@ -47,92 +68,110 @@ export async function POST(request: NextRequest) {
       filename,
       documentType,
       fileSize,
-    });
+      propertyId,
+    })
 
     // Validate required fields
     if (!processId || !filename) {
-      console.log('[Documents API Store] Validation failed - missing processId or filename');
+      console.log('[Documents API Store] Validation failed - missing processId or filename')
       return NextResponse.json(
         { error: 'Missing required fields: processId, filename' },
         { status: 400 }
-      );
+      )
     }
 
-    console.log(`[Documents API Store] About to store document for user ${userId} with processId ${processId}`);
+    console.log(`[Documents API Store] About to store document for user ${userId} with processId ${processId}`)
 
-    // Store document in database
-    try {
-      const result = await query(
-        `INSERT INTO documents (
-          user_id,
-          process_id,
-          document_id,
-          filename,
-          document_type,
-          file_size,
-          upload_status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (process_id) DO UPDATE SET
-          document_id = EXCLUDED.document_id,
-          filename = EXCLUDED.filename,
-          document_type = EXCLUDED.document_type,
-          file_size = EXCLUDED.file_size,
-          updated_at = NOW()
-        RETURNING *`,
-        [userId, processId, documentId || null, filename, documentType, fileSize || 0, 'pending']
-      );
+    // Check if document with this process_id already exists
+    const { data: existing } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('process_id', processId)
+      .single()
 
-      console.log('[Documents API Store] Query result:', result);
+    let document
+    let error
 
-      if (!result || !result.rows || result.rows.length === 0) {
-        console.error('[Documents API Store] Query returned no rows!');
-        throw new Error('Failed to insert document - no rows returned');
+    if (existing) {
+      // Update existing document
+      const updateData: Record<string, unknown> = {
+        document_id: documentId || null,
+        filename,
+        document_type: documentType,
+        file_size: fileSize || 0,
+        updated_at: new Date().toISOString(),
       }
+      // Only set property_id if provided (don't overwrite with null)
+      if (propertyId) {
+        updateData.property_id = propertyId
+      }
+      const result = await supabase
+        .from('documents')
+        .update(updateData)
+        .eq('process_id', processId)
+        .select()
+        .single()
 
-      const document = result.rows[0];
+      document = result.data
+      error = result.error
+    } else {
+      // Insert new document
+      const now = new Date().toISOString()
+      const result = await supabase
+        .from('documents')
+        .insert({
+          user_id: userId,
+          process_id: processId,
+          document_id: documentId || null,
+          filename,
+          document_type: documentType,
+          file_size: fileSize || 0,
+          property_id: propertyId || null,
+          upload_status: 'pending',
+          extraction_status: 'pending',
+          created_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single()
 
-      console.log('[Documents API Store] Document stored successfully:', {
-        id: document.id,
-        process_id: document.process_id,
-        filename: document.filename,
-        user_id: document.user_id,
-      });
-
-      // Serialize BigInt values for JSON response
-      const serializedDocument = serializeBigInt(document);
-
-      console.log('[Documents API Store] ===== SUCCESS =====');
-      return NextResponse.json(
-        {
-          success: true,
-          document: serializedDocument,
-        },
-        { status: 201 }
-      );
-    } catch (dbError) {
-      console.error('[Documents API Store] Database error:', dbError);
-      throw dbError;
+      document = result.data
+      error = result.error
     }
+
+    if (error) {
+      console.error('[Documents API Store] Database error:', error)
+      throw new Error(error.message)
+    }
+
+    console.log('[Documents API Store] Document stored successfully:', {
+      id: document.id,
+      process_id: document.process_id,
+      filename: document.filename,
+      user_id: document.user_id,
+    })
+
+    console.log('[Documents API Store] ===== SUCCESS =====')
+    return NextResponse.json(
+      {
+        success: true,
+        document,
+      },
+      { status: 201 }
+    )
 
   } catch (error) {
-    console.error('[Documents API Store] ===== ERROR =====');
-    console.error('[Documents API Store] Error type:', error instanceof Error ? error.constructor.name : typeof error);
-    console.error('[Documents API Store] Error message:', error instanceof Error ? error.message : String(error));
-    console.error('[Documents API Store] Full error:', error);
-
-    if (error instanceof Error) {
-      console.error('[Documents API Store] Error stack:', error.stack);
-    }
+    console.error('[Documents API Store] ===== ERROR =====')
+    console.error('[Documents API Store] Error:', error)
 
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
-        details: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 }
-    );
+    )
   }
 }
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'

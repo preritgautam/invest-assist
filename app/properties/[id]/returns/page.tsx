@@ -1,17 +1,18 @@
 "use client"
 
+import { use } from "react"
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { ReturnsTab } from "@/components/tabs/returns-tab"
 import { getPropertyById } from "@/lib/property-data"
 
 interface ReturnsPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function ReturnsPage({ params }: ReturnsPageProps) {
-  const { id } = params
+  const { id } = use(params)
   const property = getPropertyById(id) || null
 
   return (

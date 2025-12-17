@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client"
 export default function SignUpPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
+    companyName: "",
     firstName: "",
     lastName: "",
     email: "",
@@ -37,7 +38,7 @@ export default function SignUpPage() {
 
     try {
       // Validation
-      if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+      if (!formData.companyName || !formData.email || !formData.password || !formData.firstName || !formData.lastName) {
         setError("All fields are required")
         setLoading(false)
         return
@@ -56,6 +57,13 @@ export default function SignUpPage() {
       }
 
       const supabase = createClient()
+
+      // Generate slug from company name
+      const companySlug = formData.companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -64,6 +72,8 @@ export default function SignUpPage() {
             first_name: formData.firstName,
             last_name: formData.lastName,
             full_name: `${formData.firstName} ${formData.lastName}`,
+            company_name: formData.companyName,
+            company_slug: companySlug,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
@@ -152,6 +162,21 @@ export default function SignUpPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              <div>
+                <label htmlFor="companyName" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Company Name
+                </label>
+                <Input
+                  type="text"
+                  id="companyName"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  className="h-11 sm:h-12 text-base rounded-xl"
+                  placeholder="Your Company LLC"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-2">

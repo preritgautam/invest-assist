@@ -20,7 +20,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Building,
   Plus,
@@ -38,6 +38,7 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  Loader2,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type PropertyData, getAllProperties, addProperty } from "@/lib/property-data"
@@ -46,6 +47,8 @@ import { AppButton } from "@/components/ui/app-button"
 import { AppIcon } from "@/components/ui/app-icons"
 import { PropertyMap } from "@/components/features/property-map"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 
 /**
@@ -72,9 +75,53 @@ type ViewMode = "card" | "list" | "map"
 export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) {
   // State management for view mode, properties, and search
   const [viewMode, setViewMode] = useState<ViewMode>("card")
-  const [properties] = useState<PropertyData[]>(getAllProperties())
+  const [properties, setProperties] = useState<PropertyData[]>(getAllProperties())
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Fetch properties from database API and merge with mock data
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const response = await fetch('/api/properties')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.properties) {
+            // Convert database properties to PropertyData format
+            const dbProperties: PropertyData[] = data.properties.map((dbProp: any) => ({
+              id: dbProp.id,
+              name: dbProp.name || 'New Property',
+              address: [dbProp.address, dbProp.city, dbProp.state, dbProp.zip_code]
+                .filter(Boolean)
+                .join(', ') || 'Address pending',
+              status: dbProp.status === 'processing' ? 'Processing' :
+                      dbProp.status === 'active' ? 'Active' : 'Draft',
+              thumbnail: dbProp.thumbnail_url || '/placeholder.svg?height=200&width=300',
+              offerPrice: dbProp.offer_price ? `$${(dbProp.offer_price / 1000000).toFixed(1)}M` : 'TBD',
+              capRate: dbProp.cap_rate ? `${dbProp.cap_rate}%` : 'TBD',
+              units: dbProp.units || 0,
+              yearBuilt: dbProp.year_built,
+              occupancy: dbProp.occupancy ? `${dbProp.occupancy}%` : undefined,
+              avgSqFtPerUnit: dbProp.avg_sqft_per_unit,
+            }))
+            // Merge with mock data (mock data IDs won't conflict with UUIDs)
+            const mockProperties = getAllProperties()
+            setProperties([...dbProperties, ...mockProperties])
+          }
+        }
+      } catch (error) {
+        console.error('[HomeTab] Error fetching properties:', error)
+        // On error, just use mock data
+      } finally {
+        setIsLoadingProperties(false)
+      }
+    }
+    fetchProperties()
+  }, [])
 
   /**
    * Handles property card click events
@@ -98,23 +145,39 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
 
   /**
    * Handles completion of file upload process
-   * Creates property based on uploaded files
+   * Refreshes property list to show newly created property
    */
-  const handleUploadComplete = (files: any[]) => {
-    console.log("[v0] Upload complete with files:", files)
-    // For now, create a default property
-    // In Step B, this will process the uploaded files
-    const newProperty: PropertyData = {
-      id: `prop${Date.now()}`,
-      name: "New Property",
-      address: "Enter address...",
-      status: "Draft",
-      thumbnail: "/modern-apartment-building.png",
-      offerPrice: "$0.0M",
-      capRate: "0.0%",
-      units: 0,
+  const handleUploadComplete = async (files: any[], propertyId?: string) => {
+    console.log("[HomeTab] Upload complete with files:", files, "propertyId:", propertyId)
+    // Refresh properties list from API to include newly created property
+    try {
+      const response = await fetch('/api/properties')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.properties) {
+          const dbProperties: PropertyData[] = data.properties.map((dbProp: any) => ({
+            id: dbProp.id,
+            name: dbProp.name || 'New Property',
+            address: [dbProp.address, dbProp.city, dbProp.state, dbProp.zip_code]
+              .filter(Boolean)
+              .join(', ') || 'Address pending',
+            status: dbProp.status === 'processing' ? 'Processing' :
+                    dbProp.status === 'active' ? 'Active' : 'Draft',
+            thumbnail: dbProp.thumbnail_url || '/placeholder.svg?height=200&width=300',
+            offerPrice: dbProp.offer_price ? `$${(dbProp.offer_price / 1000000).toFixed(1)}M` : 'TBD',
+            capRate: dbProp.cap_rate ? `${dbProp.cap_rate}%` : 'TBD',
+            units: dbProp.units || 0,
+            yearBuilt: dbProp.year_built,
+            occupancy: dbProp.occupancy ? `${dbProp.occupancy}%` : undefined,
+            avgSqFtPerUnit: dbProp.avg_sqft_per_unit,
+          }))
+          const mockProperties = getAllProperties()
+          setProperties([...dbProperties, ...mockProperties])
+        }
+      }
+    } catch (error) {
+      console.error('[HomeTab] Error refreshing properties:', error)
     }
-    addProperty(newProperty)
   }
 
   /**
@@ -130,13 +193,56 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   }
 
   /**
-   * Handles delete property action from dropdown menu
-   * Currently shows alert - to be implemented with actual deletion logic
+   * Opens the delete confirmation dialog for a property
    */
   const handleDeleteProperty = (propertyId: string, event: React.MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
-    alert(`Delete property ${propertyId} - functionality to be implemented`)
+    const property = properties.find(p => p.id === propertyId)
+    if (property) {
+      setPropertyToDelete(property)
+      setDeleteDialogOpen(true)
+    }
+  }
+
+  /**
+   * Confirms and executes the property deletion
+   */
+  const confirmDeleteProperty = async () => {
+    if (!propertyToDelete) return
+
+    setIsDeleting(true)
+    try {
+      // Check if it's a mock property (mock IDs don't look like UUIDs)
+      const isMockProperty = !propertyToDelete.id.includes('-') || propertyToDelete.id.length < 30
+
+      if (isMockProperty) {
+        // For mock properties, just remove from local state
+        setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id))
+        console.log('[HomeTab] Removed mock property from local state:', propertyToDelete.id)
+      } else {
+        // For database properties, call the API
+        const response = await fetch(`/api/properties/${propertyToDelete.id}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to delete property')
+        }
+
+        // Remove from local state
+        setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id))
+        console.log('[HomeTab] Property deleted successfully:', propertyToDelete.id)
+      }
+    } catch (error) {
+      console.error('[HomeTab] Error deleting property:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete property')
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setPropertyToDelete(null)
+    }
   }
 
   // Calculate portfolio summary metrics
@@ -175,6 +281,49 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
         onClose={() => setShowUploadDialog(false)}
         onComplete={handleUploadComplete}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Property</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-gray-900">{propertyToDelete?.name}</span>?
+              This action cannot be undone. All associated documents and data will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setPropertyToDelete(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteProperty}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Property
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile-specific add property button */}
       <div className="block sm:hidden mb-4">

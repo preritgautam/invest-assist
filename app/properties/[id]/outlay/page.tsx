@@ -1,17 +1,18 @@
 "use client"
 
+import { use } from "react"
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { OutlayTab } from "@/components/tabs/outlay-tab"
 import { getPropertyById } from "@/lib/property-data"
 
 interface OutlayPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function OutlayPage({ params }: OutlayPageProps) {
-  const { id } = params
+  const { id } = use(params)
   const property = getPropertyById(id) || null
 
   return (

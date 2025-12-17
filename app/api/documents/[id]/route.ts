@@ -1,157 +1,212 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query, prisma } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
 
-// Helper function to convert BigInt values to numbers/strings for JSON serialization
-function serializeBigInt(obj: any): any {
-  if (obj === null || obj === undefined) return obj
-  if (typeof obj === "bigint") return obj.toString()
-  if (Array.isArray(obj)) return obj.map(serializeBigInt)
-  if (typeof obj === "object") {
-    return Object.keys(obj).reduce((acc, key) => {
-      acc[key] = serializeBigInt(obj[key])
-      return acc
-    }, {} as any)
+// Helper to get user's company_id
+async function getUserCompanyId(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const { data: userData, error } = await supabase
+    .from('users')
+    .select('company_id')
+    .eq('id', userId)
+    .single()
+
+  if (error || !userData?.company_id) {
+    return null
   }
-  return obj
+  return userData.company_id
 }
 
-const getMockDocument = () => {
-  return {
-    id: 1,
-    document_id: "0ba54f65-a0dd-4f38-97d0-e9ee328b64b7",
-    filename: "Sample Rent Roll",
-    document_type: "rent_roll",
-    created_at: new Date(),
-    extraction_result: {
-      data: {
-        extraction: {
-          headers: [
-            "Unit Number",
-            "Tenant Name",
-            "Floor Plan",
-            "status",
-            "Lease Start",
-            "Lease End",
-            "Market Rent",
-            "Rent",
-            "Deposit",
-          ],
-          units: [
-            ["101", "John Doe", "1x1", "Occupied", "2024-01-01", "2024-12-31", "$1,200", "$1,150", "$1,200"],
-            ["102", "Jane Smith", "1x1", "Occupied", "2024-02-01", "2025-01-31", "$1,200", "$1,200", "$1,200"],
-            ["103", "Bob Johnson", "2x2", "Vacant", "", "", "$1,500", "$0", "$0"],
-            ["104", "Alice Williams", "2x2", "Occupied", "2024-03-01", "2025-02-28", "$1,500", "$1,450", "$1,500"],
-            ["105", "Charlie Brown", "1x1", "Occupied-NTV", "2024-04-01", "2024-06-30", "$1,200", "$1,100", "$1,200"],
-          ],
-        },
-        metadataMappings: {
-          "Transaction Codes": ["Rent", "Pet Rent", "Parking", "Storage", "Utilities"],
-          "Mapping for the charges": {
-            "Base Rent": ["Rent"],
-            "Additional Charges": ["Pet Rent", "Parking", "Storage"],
-            Utilities: ["Utilities"],
-          },
-          "Floor Plan Analysis": {
-            floor_plans: {
-              "1x1": {
-                bedrooms: 1,
-                bathrooms: 1,
-                base_floor_plan: "1x1",
-                renovation_status: "not_specified",
-                bed_bath_confidence: "high",
-              },
-              "2x2": {
-                bedrooms: 2,
-                bathrooms: 2,
-                base_floor_plan: "2x2",
-                renovation_status: "yes",
-                bed_bath_confidence: "high",
-              },
-            },
-          },
-          "Occupancy Mapping": {
-            Occupied: "Occupied",
-            Vacant: "Vacant",
-            "Occupied-NTV": "Occupied-NTV",
-          },
-        },
-      },
-    },
-  }
-}
-
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params
     const rawId = (id ?? "").trim()
-    console.log(`[v0] [Document API] Fetching document with raw ID: "${rawId}"`)
-    console.log(`[v0] [Document API] Prisma available:`, !!prisma)
+    console.log(`[Document API] Fetching document with raw ID: "${rawId}"`)
 
     if (!rawId) {
-      console.log("[v0] [Document API] Missing document ID")
+      console.log("[Document API] Missing document ID")
       return NextResponse.json({ success: false, error: "Missing document id" }, { status: 400 })
     }
 
-    if (!prisma) {
-      console.log("[v0] [Document API] Prisma not available, returning mock data")
-      const mockDocument = getMockDocument()
-      return NextResponse.json({ success: true, document: mockDocument })
-    }
+    const supabase = await createClient()
 
     const isNumeric = /^[0-9]+$/.test(rawId)
     const isUuidLike = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(rawId)
 
-    // Toggle to true to temporarily ignore deleted_at for debugging (remove later)
-    const TEST_IGNORE_SOFT_DELETE = true
-
-    const whereClause = TEST_IGNORE_SOFT_DELETE ? "" : "AND deleted_at IS NULL"
-    let sql: string
-    let paramsArr: any[]
+    let document = null
+    let error = null
 
     if (isNumeric) {
-      sql = `SELECT * FROM documents WHERE id = $1 ${whereClause} LIMIT 1`
-      paramsArr = [Number.parseInt(rawId, 10)]
+      const result = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', parseInt(rawId, 10))
+        .is('deleted_at', null)
+        .single()
+      document = result.data
+      error = result.error
     } else if (isUuidLike) {
-      sql = `SELECT * FROM documents WHERE lower(document_id::text) = $1 ${whereClause} LIMIT 1`
-      paramsArr = [rawId.toLowerCase()]
+      // Try document_id first
+      let result = await supabase
+        .from('documents')
+        .select('*')
+        .ilike('document_id', rawId)
+        .is('deleted_at', null)
+        .single()
+
+      // If not found by document_id, try process_id
+      if (!result.data) {
+        result = await supabase
+          .from('documents')
+          .select('*')
+          .eq('process_id', rawId)
+          .is('deleted_at', null)
+          .single()
+      }
+      document = result.data
+      error = result.error
     } else {
-      sql = `SELECT * FROM documents WHERE (lower(document_id::text) = $1 OR id::text = $1) ${whereClause} LIMIT 1`
-      paramsArr = [rawId.toLowerCase()]
-    }
+      // Try process_id first (most common for new uploads), then document_id, then id as string
+      let result = await supabase
+        .from('documents')
+        .select('*')
+        .eq('process_id', rawId)
+        .is('deleted_at', null)
+        .single()
 
-    console.log("[v0] [Document API] SQL:", sql)
-    console.log("[v0] [Document API] Params:", paramsArr)
-
-    try {
-      const result = await query(sql, paramsArr)
-      console.log("[v0] [Document API] SQL returned rows:", result.rows.length)
-
-      if (result.rows.length === 0) {
-        console.log(`[v0] [Document API] Document not found: ${rawId}, returning mock data`)
-        const mockDocument = getMockDocument()
-        return NextResponse.json({ success: true, document: mockDocument })
+      if (!result.data) {
+        result = await supabase
+          .from('documents')
+          .select('*')
+          .ilike('document_id', rawId)
+          .is('deleted_at', null)
+          .single()
       }
 
-      const document = result.rows[0]
-      console.log(`[v0] [Document API] Found document: ${document.filename} (id=${document.id})`)
-
-      const serializedDocument = serializeBigInt(document)
-      console.log(`[v0] [Document API] Successfully serialized document`)
-
-      return NextResponse.json({ success: true, document: serializedDocument })
-    } catch (queryErr) {
-      console.error("[v0] [Document API] Query execution error:", queryErr instanceof Error ? queryErr.message : queryErr)
-      console.log("[v0] [Document API] Returning mock data due to query error")
-      const mockDocument = getMockDocument()
-      return NextResponse.json({ success: true, document: mockDocument })
+      if (!result.data) {
+        result = await supabase
+          .from('documents')
+          .select('*')
+          .eq('id', rawId)
+          .is('deleted_at', null)
+          .single()
+      }
+      document = result.data
+      error = result.error
     }
-  } catch (err) {
-    console.error("[v0] [Document API] Error fetching document:", err)
-    console.error("[v0] [Document API] Error stack:", err instanceof Error ? err.stack : "No stack trace")
 
-    console.log("[v0] [Document API] Returning mock data due to error")
-    const mockDocument = getMockDocument()
-    return NextResponse.json({ success: true, document: mockDocument })
+    if (error || !document) {
+      console.log(`[Document API] Document not found: ${rawId}`)
+      return NextResponse.json({ success: false, error: "Document not found" }, { status: 404 })
+    }
+
+    console.log(`[Document API] Found document: ${document.filename} (id=${document.id})`)
+    return NextResponse.json({ success: true, document })
+
+  } catch (err) {
+    console.error("[Document API] Error fetching document:", err)
+    return NextResponse.json(
+      { success: false, error: err instanceof Error ? err.message : "Server error" },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Update a document by ID
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const rawId = (id ?? "").trim()
+
+    if (!rawId) {
+      return NextResponse.json({ success: false, error: "Missing document id" }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const companyId = await getUserCompanyId(supabase, user.id)
+
+    if (!companyId) {
+      return NextResponse.json({ success: false, error: 'User has no company' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    console.log(`[Document API] PATCH document ${rawId}:`, body)
+
+    // Build update object - only include allowed fields
+    const allowedFields = [
+      'process_id', 'document_id', 'document_type', 'extraction_status',
+      'extraction_result', 'classification_status', 'classification_result',
+      'error_message', 'page_range', 'sheet_index', 'document_date',
+      'period_start', 'period_end', 'period_label', 'is_active'
+    ]
+
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    }
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field]
+      }
+    }
+
+    // Perform the update
+    const isNumeric = /^[0-9]+$/.test(rawId)
+    let result
+
+    if (isNumeric) {
+      result = await supabase
+        .from('documents')
+        .update(updateData)
+        .eq('id', parseInt(rawId, 10))
+        .eq('company_id', companyId)
+        .select()
+        .single()
+    } else {
+      // Try to find by process_id or document_id
+      result = await supabase
+        .from('documents')
+        .update(updateData)
+        .eq('process_id', rawId)
+        .eq('company_id', companyId)
+        .select()
+        .single()
+
+      if (!result.data) {
+        result = await supabase
+          .from('documents')
+          .update(updateData)
+          .ilike('document_id', rawId)
+          .eq('company_id', companyId)
+          .select()
+          .single()
+      }
+    }
+
+    if (result.error || !result.data) {
+      console.log(`[Document API] Document not found or update failed: ${rawId}`)
+      return NextResponse.json({ success: false, error: "Document not found or update failed" }, { status: 404 })
+    }
+
+    console.log(`[Document API] Updated document: ${result.data.id}`)
+    return NextResponse.json({ success: true, document: result.data })
+
+  } catch (err) {
+    console.error("[Document API] Error updating document:", err)
+    return NextResponse.json(
+      { success: false, error: err instanceof Error ? err.message : "Server error" },
+      { status: 500 }
+    )
   }
 }
 

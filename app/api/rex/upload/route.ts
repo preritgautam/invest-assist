@@ -74,11 +74,32 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[REX API] Error response:', errorText);
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorData = await response.json();
+        console.error('[REX API] Error response:', errorData);
+        return NextResponse.json(
+          { error: errorData.error || `REX API error: ${response.status}` },
+          { status: response.status }
+        );
+      } else {
+        const errorText = await response.text();
+        console.error('[REX API] Error response (non-JSON):', errorText.substring(0, 200));
+        return NextResponse.json(
+          { error: `REX API returned non-JSON response (${response.status}). Check DOCIN_API_KEY configuration.` },
+          { status: response.status }
+        );
+      }
+    }
+
+    // Verify response is JSON before parsing
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const responseText = await response.text();
+      console.error('[REX API] Upload returned non-JSON despite 200 OK:', responseText.substring(0, 200));
       return NextResponse.json(
-        { error: `REX API error: ${errorText}` },
-        { status: response.status }
+        { error: 'REX API returned non-JSON response. The API key may be invalid or the service is unavailable.' },
+        { status: 502 }
       );
     }
 

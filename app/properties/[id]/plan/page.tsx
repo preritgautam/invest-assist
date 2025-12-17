@@ -1,18 +1,19 @@
 "use client"
 
+import { use } from "react"
 import { PropertyLayoutWrapper } from "@/components/property-layout-wrapper"
 import { PlanTab } from "@/components/tabs/plan-tab"
 import { getPropertyById } from "@/lib/property-data"
 import { convertPropertyDataToProperty } from "@/lib/property-type-converter"
 
 interface PlanPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function PlanPage({ params }: PlanPageProps) {
-  const { id } = params
+  const { id } = use(params)
   const propertyData = getPropertyById(id) || null
   const property = convertPropertyDataToProperty(propertyData)
 

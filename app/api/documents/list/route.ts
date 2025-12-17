@@ -1,97 +1,91 @@
-// app/api/documents/list/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { getUserId } from '@/lib/supabase/auth-helpers';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
-// Helper function to convert BigInt values to numbers/strings for JSON serialization
-function serializeBigInt(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'bigint') return obj.toString();
-  if (Array.isArray(obj)) return obj.map(serializeBigInt);
-  if (typeof obj === 'object') {
-    return Object.keys(obj).reduce((acc, key) => {
-      acc[key] = serializeBigInt(obj[key]);
-      return acc;
-    }, {} as any);
+async function getUserId() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return null
   }
-  return obj;
+  return user.id
 }
 
 export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user from Supabase
-    const userId = await getUserId();
+    const userId = await getUserId()
 
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      );
+      )
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const documentType = searchParams.get('documentType');
-    const uploadStatus = searchParams.get('uploadStatus');
+    const supabase = await createClient()
+    const searchParams = request.nextUrl.searchParams
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
+    const offset = parseInt(searchParams.get('offset') || '0')
+    const documentType = searchParams.get('documentType')
+    const uploadStatus = searchParams.get('uploadStatus')
+    const propertyId = searchParams.get('propertyId')
 
-    console.log(`[Documents API] Fetching for user: ${userId}`);
+    console.log(`[Documents API] Fetching for user: ${userId}, propertyId: ${propertyId || 'all'}`)
 
-    let whereConditions = ['user_id = $1', 'deleted_at IS NULL'];
-    let paramIndex = 2;
-    const params: any[] = [userId];
+    // Build query
+    let query = supabase
+      .from('documents')
+      .select('id, user_id, process_id, document_id, filename, document_type, file_size, upload_status, extraction_status, created_at, updated_at, property_id', { count: 'exact' })
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+
+    // Filter by property_id if provided
+    if (propertyId) {
+      query = query.eq('property_id', propertyId)
+    }
 
     if (documentType) {
-      whereConditions.push(`document_type = $${paramIndex}`);
-      params.push(documentType);
-      paramIndex++;
+      query = query.eq('document_type', documentType)
     }
 
     if (uploadStatus) {
-      whereConditions.push(`upload_status = $${paramIndex}`);
-      params.push(uploadStatus);
-      paramIndex++;
+      query = query.eq('upload_status', uploadStatus)
     }
 
-    const whereClause = whereConditions.join(' AND ');
+    const { data: documents, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
-    const countResult = await query(
-      `SELECT COUNT(*) as total FROM documents WHERE ${whereClause}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].total);
+    if (error) {
+      console.error('[Documents API] Error:', error)
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
 
-    const result = await query(
-      `SELECT id, user_id, process_id, document_id, filename, document_type,
-              file_size, upload_status, extraction_status, created_at, updated_at
-       FROM documents
-       WHERE ${whereClause}
-       ORDER BY created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
+    const total = count || 0
 
     return NextResponse.json({
       success: true,
-      documents: result.rows.map(serializeBigInt),
+      documents: documents || [],
       pagination: {
         total,
         limit,
         offset,
         hasMore: offset + limit < total,
       },
-    });
+    })
 
   } catch (error) {
-    console.error('[Documents API] Error:', error);
+    console.error('[Documents API] Error:', error)
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
       },
       { status: 500 }
-    );
+    )
   }
 }
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'

@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { ClassificationResult, DocumentSegment } from '@/lib/supabase/database.types'
+import { PDFDocument } from 'pdf-lib'
 
 const BUCKET_NAME = 'documents'
+
+// Helper to get actual PDF page count
+async function getPdfPageCount(arrayBuffer: ArrayBuffer): Promise<number | null> {
+  try {
+    const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+    return pdfDoc.getPageCount()
+  } catch (error) {
+    console.error('[Classification API] Failed to parse PDF for page count:', error)
+    return null
+  }
+}
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -159,17 +171,25 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await fileData.arrayBuffer()
     const base64Data = Buffer.from(arrayBuffer).toString('base64')
 
-    // Determine MIME type
+    // Determine MIME type and get actual page count for PDFs
     const filename = document.filename.toLowerCase()
     let mimeType = 'application/pdf'
+    let actualPageCount: number | null = null
+    
     if (filename.endsWith('.xlsx')) {
       mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     } else if (filename.endsWith('.xls')) {
       mimeType = 'application/vnd.ms-excel'
     } else if (filename.endsWith('.png')) {
       mimeType = 'image/png'
+      actualPageCount = 1 // Images are always 1 page
     } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
       mimeType = 'image/jpeg'
+      actualPageCount = 1 // Images are always 1 page
+    } else if (filename.endsWith('.pdf')) {
+      // Get actual PDF page count
+      actualPageCount = await getPdfPageCount(arrayBuffer)
+      console.log('[Classification API] Actual PDF page count:', actualPageCount)
     }
 
     // Call Gemini Vision API
@@ -231,6 +251,30 @@ export async function POST(request: NextRequest) {
       }))
 
       classificationResult = parsed as ClassificationResult
+
+      // Override Gemini's page count with actual page count if available
+      if (actualPageCount !== null) {
+        classificationResult.total_pages = actualPageCount
+        
+        // Also validate/fix segment page ranges to not exceed actual page count
+        classificationResult.segments = classificationResult.segments.map(segment => {
+          if (segment.page_range && segment.page_range !== 'all') {
+            // Parse and validate page range
+            const parts = segment.page_range.split('-').map(p => parseInt(p.trim(), 10))
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              const [start, end] = parts
+              // Clamp to actual page count
+              const validStart = Math.max(1, Math.min(start, actualPageCount))
+              const validEnd = Math.max(1, Math.min(end, actualPageCount))
+              if (validStart !== start || validEnd !== end) {
+                console.log(`[Classification API] Correcting page range from ${segment.page_range} to ${validStart}-${validEnd}`)
+                segment.page_range = `${validStart}-${validEnd}`
+              }
+            }
+          }
+          return segment
+        })
+      }
 
       console.log('[Classification API] Parsed result with segments:', {
         document_type: classificationResult.document_type,

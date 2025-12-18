@@ -6,6 +6,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { EditableCell } from "./editable-cell"
 import { sampleRentRollDocument } from "@/lib/sample-rent-roll-data"
 import { AlertCircle } from "lucide-react"
+import { useDocumentStore, type RentRollDocumentData, type Metadata } from "@/stores/document-store"
 
 type RentRollUnit = Record<string, any>
 
@@ -43,16 +44,10 @@ export interface RentRollConfig {
   availableColumns: string[]
 }
 
-interface Metadata {
-  "Transaction Codes"?: string[]
-  "Floor Plan Analysis"?: {
-    floor_plans?: Record<string, any>
-  }
-  "Occupancy Mapping"?: Record<string, any>
-  "Mapping for the charges"?: Record<string, string[]>
-}
+// Use Metadata from store, but keep local alias for compatibility
+type LocalMetadata = Metadata
 
-function buildConfigFromMetadata(metadata: Metadata, allHeaders: string[] = []): RentRollConfig {
+function buildConfigFromMetadata(metadata: LocalMetadata, allHeaders: string[] = []): RentRollConfig {
   // Build tenant charges from Transaction Codes and Mapping for the charges
   const transactionCodes = metadata["Transaction Codes"] || []
   const chargesMapping = metadata["Mapping for the charges"] || {}
@@ -138,28 +133,69 @@ interface RRDocumentProps {
 }
 
 export function RRDocument({isOpen, onClose, config, onConfigChange, documentId, processId}: RRDocumentProps) {
- console.log("RRDocument rendered with documentId:", documentId, "processId:", processId)
+  console.log("RRDocument rendered with documentId:", documentId, "processId:", processId)
  
-  const [data, setData] = useState<RentRollUnit[]>(mockRentRollData)
-  const [columns, setColumns] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [metadata, setMetadata] = useState<Metadata | null>(null)
-  const [dynamicConfig, setDynamicConfig] = useState<RentRollConfig>(config)
-  const [originalConfig, setOriginalConfig] = useState<RentRollConfig>(config)
-  const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>({})
-  const [rawData, setRawData] = useState<any[]>([])
-  const [baseHeaders, setBaseHeaders] = useState<string[]>([])
-  const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>({}) // For display: normalized -> original
+  // Zustand store hooks
+  const { 
+    getRentRollData, 
+    hasRentRollData, 
+    setRentRollData, 
+    updateRentRollConfig,
+    updateRentRollRow,
+    setLoading: setStoreLoading,
+    isLoading: storeIsLoading,
+    setError: setStoreError,
+    getError: getStoreError,
+  } = useDocumentStore()
+
+  // Check if we have cached data for this document
+  const cachedData = documentId ? getRentRollData(documentId) : null
+  const hasCachedData = documentId ? hasRentRollData(documentId) : false
+
+  // Local state - initialize from cache if available
+  const [data, setData] = useState<RentRollUnit[]>(() => cachedData?.data || mockRentRollData)
+  const [columns, setColumns] = useState<string[]>(() => cachedData?.columns || [])
+  const [loading, setLoading] = useState(() => !hasCachedData)
+  const [error, setError] = useState<string | null>(() => documentId ? getStoreError(documentId) : null)
+  const [metadata, setMetadata] = useState<LocalMetadata | null>(() => cachedData?.metadata || null)
+  const [dynamicConfig, setDynamicConfig] = useState<RentRollConfig>(() => cachedData?.config || config)
+  const [originalConfig, setOriginalConfig] = useState<RentRollConfig>(() => cachedData?.config || config)
+  const [chargesMapping, setChargesMapping] = useState<Record<string, string[]>>(() => cachedData?.chargesMapping || {})
+  const [rawData, setRawData] = useState<any[]>(() => cachedData?.rawData || [])
+  const [baseHeaders, setBaseHeaders] = useState<string[]>(() => cachedData?.baseHeaders || [])
+  const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>(() => cachedData?.normalizedChargesMapping || {})
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [isUsingFallbackData, setIsUsingFallbackData] = useState(false)
 
-  console.log("RRbaseHeaders", baseHeaders)
+  console.log("RRbaseHeaders", baseHeaders, "hasCachedData:", hasCachedData)
+
+  // Sync local state from cache when documentId changes and cache exists
+  useEffect(() => {
+    if (documentId && hasCachedData && cachedData) {
+      console.log('[RR Document] Loading data from cache for documentId:', documentId)
+      setData(cachedData.data)
+      setColumns(cachedData.columns)
+      setRawData(cachedData.rawData)
+      setBaseHeaders(cachedData.baseHeaders)
+      setMetadata(cachedData.metadata)
+      setChargesMapping(cachedData.chargesMapping)
+      setNormalizedChargesMapping(cachedData.normalizedChargesMapping)
+      if (cachedData.config) {
+        setDynamicConfig(cachedData.config)
+        setOriginalConfig(cachedData.config)
+      }
+      setLoading(false)
+      setError(null)
+    }
+  }, [documentId, hasCachedData])
 
   useEffect(() => {
-    fetchRentRollData()
-  }, [])
+    // Only fetch if we don't have cached data
+    if (documentId && !hasCachedData) {
+      fetchRentRollData()
+    }
+  }, [documentId, hasCachedData])
 
   // Sync config changes from parent/RRConfigure to local state and update table data
   useEffect(() => {
@@ -201,10 +237,22 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       })
       
       setData(mappedData)
+      
+      // Update the store with recalculated data
+      if (documentId && hasRentRollData(documentId)) {
+        const cachedData = getRentRollData(documentId)
+        if (cachedData) {
+          setRentRollData(documentId, {
+            ...cachedData,
+            data: mappedData,
+            config: cfg,
+          })
+        }
+      }
     } catch (error) {
       console.error("Error in updateDataWithConfig:", error)
     }
-  }, [])
+  }, [documentId, hasRentRollData, getRentRollData, setRentRollData])
 
   // Handle config changes from the modal - update local state and recalculate data
   const handleConfigChange = useCallback((newConfig: RentRollConfig) => {
@@ -213,9 +261,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
     if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0) {
       updateDataWithConfig(rawData, newConfig, baseHeaders)
     }
+    // Update store with new config
+    if (documentId) {
+      updateRentRollConfig(documentId, newConfig)
+    }
     // Notify parent component
     onConfigChange(newConfig)
-  }, [rawData, baseHeaders, updateDataWithConfig, onConfigChange])
+  }, [rawData, baseHeaders, updateDataWithConfig, onConfigChange, documentId, updateRentRollConfig])
 
   // Trigger recalculation when parent config changes
   useEffect(() => {
@@ -230,6 +282,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       setLoading(true)
       setError(null)
       setIsUsingFallbackData(false)
+      if (documentId) {
+        setStoreLoading(documentId, true)
+        setStoreError(documentId, null)
+      }
 
       if (!documentId) {
         throw new Error('No document ID provided')
@@ -263,7 +319,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       if (result.success && result.document?.extraction_result?.data?.extraction?.units) {
         const units = result.document.extraction_result.data.extraction.units
         const headers = result.document.extraction_result.data.extraction.headers
-        const metadata = result.document.extraction_result.data.metadataMappings as Metadata
+        const fetchedMetadata = result.document.extraction_result.data.metadataMappings as LocalMetadata
 
         // Map API data using headers as keys
         const mappedData: RentRollUnit[] = units?.map((unit: any[]) => {
@@ -274,7 +330,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           
           // Add new columns: bed, bath, renovated
           const floorPlan = unitMap["Floor Plan"]
-          const floorPlanAnalysis = metadata?.["Floor Plan Analysis"]?.floor_plans || {}
+          const floorPlanAnalysis = fetchedMetadata?.["Floor Plan Analysis"]?.floor_plans || {}
           
           if (floorPlan && floorPlanAnalysis[floorPlan]) {
             const fpData = floorPlanAnalysis[floorPlan]
@@ -290,33 +346,50 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           return unitMap
         })
 
-        setData(mappedData)
         // Add new columns to the headers array
         const updatedHeaders = [...headers, "bed", "bath", "renovated"]
-        setColumns(updatedHeaders)
-        // Store base headers and raw units for later recalculation
-        setBaseHeaders(headers)
-        setRawData(units)
-
-        // Store metadata and charges mapping
-        if (metadata) {
-          setMetadata(metadata)
-          
-          // Normalize chargesMapping keys
-          const originalMapping = metadata["Mapping for the charges"] || {}
-          const normalized: Record<string, string[]> = {}
-          const keyMap: Record<string, string> = {}
+        
+        // Process metadata for charges mapping
+        let normalized: Record<string, string[]> = {}
+        let keyMap: Record<string, string> = {}
+        let builtConfig: RentRollConfig = config
+        
+        if (fetchedMetadata) {
+          const originalMapping = fetchedMetadata["Mapping for the charges"] || {}
           for (const [field, codes] of Object.entries(originalMapping)) {
             const normalizedKey = field.toLowerCase().replace(/\s+/g, "_")
             normalized[normalizedKey] = codes
             keyMap[normalizedKey] = field
           }
-          
-          setChargesMapping(normalized)
-          setNormalizedChargesMapping(keyMap)
-          const builtConfig = buildConfigFromMetadata(metadata, headers)
-          setOriginalConfig(builtConfig)
-          setDynamicConfig(builtConfig)
+          builtConfig = buildConfigFromMetadata(fetchedMetadata, headers)
+        }
+
+        // Update local state
+        setData(mappedData)
+        setColumns(updatedHeaders)
+        setBaseHeaders(headers)
+        setRawData(units)
+        setMetadata(fetchedMetadata)
+        setChargesMapping(normalized)
+        setNormalizedChargesMapping(keyMap)
+        setOriginalConfig(builtConfig)
+        setDynamicConfig(builtConfig)
+
+        // Save to Zustand store for caching
+        if (documentId) {
+          const cacheData: RentRollDocumentData = {
+            data: mappedData,
+            columns: updatedHeaders,
+            rawData: units,
+            baseHeaders: headers,
+            metadata: fetchedMetadata,
+            config: builtConfig,
+            chargesMapping: normalized,
+            normalizedChargesMapping: keyMap,
+            fetchedAt: Date.now(),
+          }
+          setRentRollData(documentId, cacheData)
+          console.log('[RR Document] Data cached in Zustand store for documentId:', documentId)
         }
       } else {
         // Provide more detailed error about what structure was received
@@ -340,7 +413,11 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       }
     } catch (err) {
       console.error("Failed to fetch rent roll data:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch data")
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch data"
+      setError(errorMessage)
+      if (documentId) {
+        setStoreError(documentId, errorMessage)
+      }
       
       // Use fallback/sample data from v0 environment
       console.log("Using fallback sample data...")
@@ -350,7 +427,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       if (result.success && result.document?.extraction_result?.data?.extraction?.units) {
         const units = result.document.extraction_result.data.extraction.units
         const headers = result.document.extraction_result.data.extraction.headers
-        const metadata = result.document.extraction_result.data.metadataMappings as Metadata
+        const fallbackMetadata = result.document.extraction_result.data.metadataMappings as LocalMetadata
 
         // Map sample data using headers as keys
         const mappedData: RentRollUnit[] = units?.map((unit: any[]) => {
@@ -361,7 +438,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           
           // Add new columns: bed, bath, renovated
           const floorPlan = unitMap["Floor Plan"]
-          const floorPlanAnalysis = metadata?.["Floor Plan Analysis"]?.floor_plans || {}
+          const floorPlanAnalysis = fallbackMetadata?.["Floor Plan Analysis"]?.floor_plans || {}
           
           if (floorPlan && floorPlanAnalysis[floorPlan]) {
             const fpData = floorPlanAnalysis[floorPlan]
@@ -377,32 +454,56 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           return unitMap
         })
 
-        setData(mappedData)
         const updatedHeaders = [...headers, "bed", "bath", "renovated"]
-        setColumns(updatedHeaders)
-        setBaseHeaders(headers)
-        setRawData(units)
-
-        if (metadata) {
-          setMetadata(metadata)
-          const originalMapping = metadata["Mapping for the charges"] || {}
-          const normalized: Record<string, string[]> = {}
-          const keyMap: Record<string, string> = {}
+        
+        // Process metadata
+        let normalized: Record<string, string[]> = {}
+        let keyMap: Record<string, string> = {}
+        let builtConfig: RentRollConfig = config
+        
+        if (fallbackMetadata) {
+          const originalMapping = fallbackMetadata["Mapping for the charges"] || {}
           for (const [field, codes] of Object.entries(originalMapping)) {
             const normalizedKey = field.toLowerCase().replace(/\s+/g, "_")
             normalized[normalizedKey] = codes
             keyMap[normalizedKey] = field
           }
-          
-          setChargesMapping(normalized)
-          setNormalizedChargesMapping(keyMap)
-          const builtConfig = buildConfigFromMetadata(metadata, headers)
-          setOriginalConfig(builtConfig)
-          setDynamicConfig(builtConfig)
+          builtConfig = buildConfigFromMetadata(fallbackMetadata, headers)
+        }
+
+        // Update local state
+        setData(mappedData)
+        setColumns(updatedHeaders)
+        setBaseHeaders(headers)
+        setRawData(units)
+        setMetadata(fallbackMetadata)
+        setChargesMapping(normalized)
+        setNormalizedChargesMapping(keyMap)
+        setOriginalConfig(builtConfig)
+        setDynamicConfig(builtConfig)
+
+        // Cache fallback data too (so we don't re-fetch on tab switch)
+        if (documentId) {
+          const cacheData: RentRollDocumentData = {
+            data: mappedData,
+            columns: updatedHeaders,
+            rawData: units,
+            baseHeaders: headers,
+            metadata: fallbackMetadata,
+            config: builtConfig,
+            chargesMapping: normalized,
+            normalizedChargesMapping: keyMap,
+            fetchedAt: Date.now(),
+          }
+          setRentRollData(documentId, cacheData)
+          console.log('[RR Document] Fallback data cached in Zustand store for documentId:', documentId)
         }
       }
     } finally {
       setLoading(false)
+      if (documentId) {
+        setStoreLoading(documentId, false)
+      }
     }
   }
 
@@ -518,13 +619,18 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           }
         }
 
+        // Update Zustand store with the row change
+        if (documentId) {
+          updateRentRollRow(documentId, rowIndex, columnName, newValue)
+        }
+
         console.log("[RR Document] Row data saved successfully")
       } catch (error) {
         console.error("Error saving row data:", error)
         throw error
       }
     },
-    [documentId, data, rawData, baseHeaders]
+    [documentId, data, rawData, baseHeaders, updateRentRollRow]
   )
 
   // Pagination helpers

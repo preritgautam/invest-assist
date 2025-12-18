@@ -1008,9 +1008,9 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
             </div>
 
             {/* Right Toolbar - Hidden on mobile */}
-            <div className="hidden lg:block flex-shrink-0 border-l border-gray-200">
+            {/* <div className="hidden lg:block flex-shrink-0 border-l border-gray-200">
               <RightToolbar />
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

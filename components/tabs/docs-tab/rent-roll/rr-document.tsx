@@ -5,12 +5,54 @@ import { RRConfigure } from "./rr-configure"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { EditableCell } from "./editable-cell"
 import { sampleRentRollDocument } from "@/lib/sample-rent-roll-data"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, ChevronRight, ChevronDown } from "lucide-react"
 import { useDocumentStore, type RentRollDocumentData, type Metadata } from "@/stores/document-store"
 
 type RentRollUnit = Record<string, any>
 
 const mockRentRollData: RentRollUnit[] = []
+
+// Column Group Definitions
+interface ColumnGroup {
+  id: string
+  name: string
+  columns: string[]
+  color: string
+  bgColor: string
+}
+
+const COLUMN_GROUPS: ColumnGroup[] = [
+   {
+    id: "unit_info",
+    name: "UNIT INFORMATION",
+    columns: ["Floor Plan", "Square Feet", "Suite Number"],
+    color: "text-blue-700",
+    bgColor: "bg-blue-50"
+  },
+  {
+    id: "lease_terms",
+    name: "LEASE TERMS",
+    columns: ["status", "End Date", "base_rent", "Start Date", "Market Rent", "Tenant Name", "Move In Date", "Move Out Date", "Month To Month", "Lease Description", "Total Charges Paid", "total_contractual_rent"],
+    color: "text-orange-700",
+    bgColor: "bg-orange-50"
+  },
+  {
+    id: "floor_plan",
+    name: "FLOOR PLAN",
+    columns: ["bed", "bath", "renovated"],
+    color: "text-purple-700",
+    bgColor: "bg-purple-50"
+  },
+ 
+  {
+    id: "tenant_charges",
+    name: "TENANT CHARGES",
+    columns: ["RENT", "WATER", "Unit Upgrades", "WASH/DRY"],
+    color: "text-green-700",
+    bgColor: "bg-green-50"
+  },
+  
+]
 
 export interface TenantChargeConfig {
   id: string
@@ -83,13 +125,18 @@ function buildConfigFromMetadata(metadata: LocalMetadata, allHeaders: string[] =
 
   // Build floor plans from Floor Plan Analysis
   const floorPlanAnalysis = metadata["Floor Plan Analysis"]?.floor_plans || {}
+  console.log('[buildConfigFromMetadata] Floor Plan Analysis:', JSON.stringify(floorPlanAnalysis, null, 2))
   const floorPlans: FloorPlan[] = Object.entries(floorPlanAnalysis)?.map(([name, data], idx) => {
     const fpData = data as any
+    // Handle both singular (bedroom/bathroom) and plural (bedrooms/bathrooms) field names from API
+    const bedroomValue = fpData.bedrooms ?? fpData.bedroom ?? 0
+    const bathroomValue = fpData.bathrooms ?? fpData.bathroom ?? 0
+    console.log(`[buildConfigFromMetadata] Floor plan "${name}":`, { bedrooms: bedroomValue, bathrooms: bathroomValue, rawData: fpData })
     return {
       id: (idx + 1).toString(),
       name: name,
-      bedrooms: fpData.bedrooms || 0,
-      bathrooms: fpData.bathrooms || 0,
+      bedrooms: bedroomValue,
+      bathrooms: bathroomValue,
       base_floor_plan: fpData.base_floor_plan || name,
       renovation_status: fpData.renovation_status || 'not_specified',
       bed_bath_confidence: fpData.bed_bath_confidence || 'unknown',
@@ -167,6 +214,51 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [isUsingFallbackData, setIsUsingFallbackData] = useState(false)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
+  // Toggle collapse state for a column group
+  const toggleGroupCollapse = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId)
+      } else {
+        newSet.add(groupId)
+      }
+      return newSet
+    })
+  }
+
+  // Check if a group is collapsed
+  const isGroupCollapsed = (groupId: string): boolean => {
+    return collapsedGroups.has(groupId)
+  }
+
+  // Check if a column belongs to any group
+  const getColumnGroup = (columnName: string): ColumnGroup | undefined => {
+    return COLUMN_GROUPS.find(group => 
+      group.columns.some(col => col.toLowerCase() === columnName.toLowerCase())
+    )
+  }
+
+  // Check if a column should be visible (not in a collapsed group)
+  const isColumnVisible = (columnName: string): boolean => {
+    const group = getColumnGroup(columnName)
+    if (!group) return true // Ungrouped columns are always visible
+    return !collapsedGroups.has(group.id)
+  }
+
+  // Get columns that don't belong to any group
+  const getUngroupedColumns = (): string[] => {
+    return columns.filter(col => !getColumnGroup(col))
+  }
+
+  // Get columns for a specific group that exist in the current data
+  const getGroupColumns = (group: ColumnGroup): string[] => {
+    return columns.filter(col => 
+      group.columns.some(groupCol => groupCol.toLowerCase() === col.toLowerCase())
+    )
+  }
 
   console.log("RRbaseHeaders", baseHeaders, "hasCachedData:", hasCachedData)
 
@@ -198,8 +290,11 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
   }, [documentId, hasCachedData])
 
   // Sync config changes from parent/RRConfigure to local state and update table data
+  // Only sync if parent config has floor plans (to avoid overwriting fetched config with empty props)
   useEffect(() => {
-    setDynamicConfig(config)
+    if (config && config.floorPlans && config.floorPlans.length > 0) {
+      setDynamicConfig(config)
+    }
   }, [config])
 
   const updateDataWithConfig = useCallback((units: any[], cfg: RentRollConfig, headers: string[]) => {
@@ -226,11 +321,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           const fpData = floorPlanLookup[floorPlan]
           unitMap["bed"] = fpData.bedrooms ?? 0
           unitMap["bath"] = fpData.bathrooms ?? 0
-          unitMap["renovated"] = fpData.renovation_status
+          unitMap["renovated"] = fpData.renovation_status ?? "No"
+          console.log(`[updateDataWithConfig] Floor plan "${floorPlan}":`, { bed: unitMap["bed"], bath: unitMap["bath"] })
         } else {
           unitMap["bed"] = 0
           unitMap["bath"] = 0
           unitMap["renovated"] = "No"
+          console.log(`[updateDataWithConfig] No floor plan match for "${floorPlan}". Available:`, Object.keys(floorPlanLookup))
         }
         
         return unitMap
@@ -269,13 +366,13 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
     onConfigChange(newConfig)
   }, [rawData, baseHeaders, updateDataWithConfig, onConfigChange, documentId, updateRentRollConfig])
 
-  // Trigger recalculation when parent config changes
+  // Trigger recalculation when dynamicConfig changes - only if config has actual floor plan data
   useEffect(() => {
-    if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0 && config && config.floorPlans) {
-      console.log("Config changed, recalculating data")
-      updateDataWithConfig(rawData, config, baseHeaders)
+    if (rawData && rawData.length > 0 && baseHeaders && baseHeaders.length > 0 && dynamicConfig && dynamicConfig.floorPlans && dynamicConfig.floorPlans.length > 0) {
+      console.log("DynamicConfig changed, recalculating data with", dynamicConfig.floorPlans.length, "floor plans:", dynamicConfig.floorPlans.map(fp => fp.name))
+      updateDataWithConfig(rawData, dynamicConfig, baseHeaders)
     }
-  }, [config?.floorPlans?.length, rawData?.length, baseHeaders?.length, updateDataWithConfig])
+  }, [dynamicConfig?.floorPlans, rawData?.length, baseHeaders?.length, updateDataWithConfig])
 
   const fetchRentRollData = async () => {
     try {
@@ -325,13 +422,16 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           
           if (floorPlan && floorPlanAnalysis[floorPlan]) {
             const fpData = floorPlanAnalysis[floorPlan]
-            unitMap["bed"] = fpData.bedrooms || 0
-            unitMap["bath"] = fpData.bathrooms || 0
-            unitMap["renovated"] = fpData.renovation_status
+            // Handle both singular (bedroom/bathroom) and plural (bedrooms/bathrooms) field names from API
+            unitMap["bed"] = fpData.bedrooms ?? fpData.bedroom ?? 0
+            unitMap["bath"] = fpData.bathrooms ?? fpData.bathroom ?? 0
+            unitMap["renovated"] = fpData.renovation_status ?? "No"
+            console.log(`[fetchRentRollData] Unit floor plan "${floorPlan}":`, { bed: unitMap["bed"], bath: unitMap["bath"], fpData })
           } else {
             unitMap["bed"] = 0
             unitMap["bath"] = 0
             unitMap["renovated"] = "No"
+            console.log(`[fetchRentRollData] No floor plan match for "${floorPlan}". Available:`, Object.keys(floorPlanAnalysis))
           }
           
           return unitMap
@@ -433,9 +533,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
           
           if (floorPlan && floorPlanAnalysis[floorPlan]) {
             const fpData = floorPlanAnalysis[floorPlan]
-            unitMap["bed"] = fpData.bedrooms || 0
-            unitMap["bath"] = fpData.bathrooms || 0
-            unitMap["renovated"] = fpData.renovation_status
+            // Handle both singular (bedroom/bathroom) and plural (bedrooms/bathrooms) field names from API
+            unitMap["bed"] = fpData.bedrooms ?? fpData.bedroom ?? 0
+            unitMap["bath"] = fpData.bathrooms ?? fpData.bathroom ?? 0
+            unitMap["renovated"] = fpData.renovation_status ?? "No"
           } else {
             unitMap["bed"] = 0
             unitMap["bath"] = 0
@@ -710,27 +811,150 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                 <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
                   <table className="w-full text-xs table-auto">
                     <thead className="bg-gray-50 border-b sticky top-0 z-20">
-                      <tr>
-                        <th className="p-2 text-left font-semibold border-r bg-gray-50 text-gray-700 min-w-[150px]">
+                      {/* Group Header Row */}
+                      <tr className="bg-gray-100">
+                        <th className="p-2 text-left font-semibold border-r bg-gray-100 text-gray-700 min-w-[60px]" rowSpan={2}>
                           Unit
                         </th>
-                        {getDisplayColumns()?.map((column) => (
-                          <th
-                            key={column}
-                            className="p-2 text-left font-semibold border-r text-gray-700 min-w-[100px]"
+                        {/* Ungrouped columns header - OTHER (collapsible) */}
+                        {getUngroupedColumns().length > 0 && (
+                          <th 
+                            colSpan={isGroupCollapsed("other") ? 1 : getUngroupedColumns().length}
+                            className="p-2 text-center font-bold border-r bg-gray-200 text-gray-800 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => toggleGroupCollapse("other")}
                           >
-                            {formatHeaderName(column)}
+                            <div className="flex items-center justify-center gap-2">
+                              {isGroupCollapsed("other") ? (
+                                <ChevronRight className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                              <span>OTHER</span>
+                              {isGroupCollapsed("other") && (
+                                <span className="text-xs opacity-70">({getUngroupedColumns().length})</span>
+                              )}
+                            </div>
                           </th>
-                        ))}
-                        {/* Charge Category Columns */}
-                        {getAllCategories()?.map((category) => (
-                          <th
-                            key={`category-${category}`}
-                            className="p-2 text-right font-semibold border-r text-blue-700 min-w-[120px]"
+                        )}
+                        {/* Group headers with collapse toggle */}
+                        {COLUMN_GROUPS.map((group) => {
+                          const groupCols = getGroupColumns(group)
+                          if (groupCols.length === 0) return null
+                          const isCollapsed = collapsedGroups.has(group.id)
+                          
+                          return (
+                            <th
+                              key={`group-${group.id}`}
+                              colSpan={isCollapsed ? 1 : groupCols.length}
+                              className={`p-2 text-center font-bold border-r cursor-pointer hover:opacity-80 transition-opacity ${group.bgColor} ${group.color}`}
+                              onClick={() => toggleGroupCollapse(group.id)}
+                            >
+                              <div className="flex items-center justify-center gap-2">
+                                {isCollapsed ? (
+                                  <ChevronRight className="w-4 h-4" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4" />
+                                )}
+                                <span>{group.name}</span>
+                                {isCollapsed && (
+                                  <span className="text-xs opacity-70">({groupCols.length})</span>
+                                )}
+                              </div>
+                            </th>
+                          )
+                        })}
+                        {/* Charge Category Columns Header - CHARGE TOTALS (collapsible) */}
+                        {getAllCategories()?.length > 0 && (
+                          <th 
+                            colSpan={isGroupCollapsed("charge_totals") ? 1 : getAllCategories().length}
+                            className="p-2 text-center font-bold border-r bg-indigo-100 text-indigo-800 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => toggleGroupCollapse("charge_totals")}
                           >
-                            {getCategoryDisplayName(category)}
+                            <div className="flex items-center justify-center gap-2">
+                              {isGroupCollapsed("charge_totals") ? (
+                                <ChevronRight className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                              <span>Configured Charges</span>
+                              {isGroupCollapsed("charge_totals") && (
+                                <span className="text-xs opacity-70">({getAllCategories().length})</span>
+                              )}
+                            </div>
                           </th>
-                        ))}
+                        )}
+                      </tr>
+                      {/* Column Names Row */}
+                      <tr>
+                        {/* Ungrouped columns - OTHER */}
+                        {getUngroupedColumns().length > 0 && (
+                          isGroupCollapsed("other") ? (
+                            <th
+                              key="collapsed-other"
+                              className="p-2 text-center font-semibold border-r bg-gray-100 text-gray-600 min-w-[40px] cursor-pointer"
+                              onClick={() => toggleGroupCollapse("other")}
+                            >
+                              <span className="text-xs">Click to expand</span>
+                            </th>
+                          ) : (
+                            getUngroupedColumns()?.map((column) => (
+                              <th
+                                key={column}
+                                className="p-2 text-left font-semibold border-r text-gray-700 min-w-[100px] bg-gray-50"
+                              >
+                                {formatHeaderName(column)}
+                              </th>
+                            ))
+                          )
+                        )}
+                        {/* Grouped columns */}
+                        {COLUMN_GROUPS.map((group) => {
+                          const groupCols = getGroupColumns(group)
+                          if (groupCols.length === 0) return null
+                          const isCollapsed = collapsedGroups.has(group.id)
+                          
+                          if (isCollapsed) {
+                            return (
+                              <th
+                                key={`collapsed-${group.id}`}
+                                className={`p-2 text-center font-semibold border-r ${group.bgColor} ${group.color} min-w-[40px] cursor-pointer`}
+                                onClick={() => toggleGroupCollapse(group.id)}
+                              >
+                                <span className="text-xs">Click to expand</span>
+                              </th>
+                            )
+                          }
+                          
+                          return groupCols.map((column) => (
+                            <th
+                              key={column}
+                              className={`p-2 text-left font-semibold border-r ${group.bgColor} ${group.color} min-w-[100px]`}
+                            >
+                              {formatHeaderName(column)}
+                            </th>
+                          ))
+                        })}
+                        {/* Charge Category Columns - CHARGE TOTALS */}
+                        {getAllCategories()?.length > 0 && (
+                          isGroupCollapsed("charge_totals") ? (
+                            <th
+                              key="collapsed-charge-totals"
+                              className="p-2 text-center font-semibold border-r bg-indigo-50 text-indigo-600 min-w-[40px] cursor-pointer"
+                              onClick={() => toggleGroupCollapse("charge_totals")}
+                            >
+                              <span className="text-xs">Click to expand</span>
+                            </th>
+                          ) : (
+                            getAllCategories()?.map((category) => (
+                              <th
+                                key={`category-${category}`}
+                                className="p-2 text-right font-semibold border-r bg-indigo-50 text-indigo-700 min-w-[100px]"
+                              >
+                                {getCategoryDisplayName(category)}
+                              </th>
+                            ))
+                          )
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -738,57 +962,135 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                         const globalIndex = startIndex + index
                         return (
                         <tr key={globalIndex} className="hover:bg-gray-50 transition-colors">
-                          <td className="p-2 text-sm font-semibold text-gray-900 border-r bg-gray-50 sticky left-0 z-10 min-w-[150px]">
-                            Unit {globalIndex + 1}
+                          <td className="p-2 text-sm font-semibold text-gray-900 border-r bg-gray-50 sticky left-0 z-10 min-w-[60px]">
+                            {globalIndex + 1}
                           </td>
-                          {getDisplayColumns()?.map((column) => {
-                            const value = row[column]
-                            const displayValue =
-                              value === null ||
-                              value === undefined ||
-                              value === "NA" ||
-                              value === "N/A" ||
-                              String(value).toUpperCase() === "NA"
-                                ? "-"
-                                : String(value)
-
-                            // Apply status color styling to the status column
-                            const isStatusColumn = column === "status"
-                            const statusClass = isStatusColumn
-                              ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
-                              : ""
-
-                            return (
+                          {/* Ungrouped columns data - OTHER */}
+                          {getUngroupedColumns().length > 0 && (
+                            isGroupCollapsed("other") ? (
                               <td
-                                key={`${globalIndex}-${column}`}
-                                className="p-2 text-sm text-gray-900 border-r"
+                                key={`collapsed-other-data-${globalIndex}`}
+                                className="p-2 text-center text-xs border-r bg-gray-100 text-gray-500 opacity-50"
                               >
-                                <EditableCell
-                                  value={displayValue}
-                                  rowIndex={globalIndex}
-                                  columnName={column}
-                                  isStatusColumn={isStatusColumn}
-                                  statusClass={statusClass}
-                                  onSave={(newValue) =>
-                                    saveRowData(globalIndex, column, newValue)
-                                  }
-                                />
+                                •••
                               </td>
+                            ) : (
+                              getUngroupedColumns()?.map((column) => {
+                                const value = row[column]
+                                const displayValue =
+                                  value === null ||
+                                  value === undefined ||
+                                  value === "NA" ||
+                                  value === "N/A" ||
+                                  String(value).toUpperCase() === "NA"
+                                    ? "-"
+                                    : String(value)
+
+                                const isStatusColumn = column === "status"
+                                const statusClass = isStatusColumn
+                                  ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
+                                  : ""
+
+                                return (
+                                  <td
+                                    key={`${globalIndex}-${column}`}
+                                    className="p-2 text-sm text-gray-900 border-r"
+                                  >
+                                    <EditableCell
+                                      value={displayValue}
+                                      rowIndex={globalIndex}
+                                      columnName={column}
+                                      isStatusColumn={isStatusColumn}
+                                      statusClass={statusClass}
+                                      onSave={(newValue) =>
+                                        saveRowData(globalIndex, column, newValue)
+                                      }
+                                    />
+                                  </td>
+                                )
+                              })
                             )
-                          })}
-                          {/* Charge Category Totals */}
-                          {getAllCategories()?.map((category) => {
-                            const total = getTotalForCategory(row, category)
+                          )}
+                          {/* Grouped columns data */}
+                          {COLUMN_GROUPS.map((group) => {
+                            const groupCols = getGroupColumns(group)
+                            if (groupCols.length === 0) return null
+                            const isCollapsed = collapsedGroups.has(group.id)
                             
-                            return (
-                              <td
-                                key={`${globalIndex}-category-${category}`}
-                                className="p-2 text-sm font-bold text-right text-blue-700 border-r"
-                              >
-                                {formatCurrency(total)}
-                              </td>
-                            )
+                            if (isCollapsed) {
+                              return (
+                                <td
+                                  key={`collapsed-data-${group.id}-${globalIndex}`}
+                                  className={`p-2 text-center text-xs border-r ${group.bgColor} ${group.color} opacity-50`}
+                                >
+                                  •••
+                                </td>
+                              )
+                            }
+                            
+                            return groupCols.map((column) => {
+                              const value = row[column]
+                              const displayValue =
+                                value === null ||
+                                value === undefined ||
+                                value === "NA" ||
+                                value === "N/A" ||
+                                String(value).toUpperCase() === "NA"
+                                  ? "-"
+                                  : String(value)
+
+                              const isStatusColumn = column === "status"
+                              const statusClass = isStatusColumn
+                                ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
+                                : ""
+                              
+                              // Floor plan derived columns (bed, bath, renovated) are read-only - they come from Floor Plan config
+                              const isFloorPlanColumn = group.id === "floor_plan"
+
+                              return (
+                                <td
+                                  key={`${globalIndex}-${column}`}
+                                  className={`p-2 text-sm text-gray-900 border-r ${group.bgColor.replace('50', '50/30')}`}
+                                >
+                                  <EditableCell
+                                    value={displayValue}
+                                    rowIndex={globalIndex}
+                                    columnName={column}
+                                    isStatusColumn={isStatusColumn}
+                                    statusClass={statusClass}
+                                    isReadOnly={isFloorPlanColumn}
+                                    onSave={(newValue) =>
+                                      saveRowData(globalIndex, column, newValue)
+                                    }
+                                  />
+                                </td>
+                              )
+                            })
                           })}
+                          {/* Charge Category Totals - CHARGE TOTALS */}
+                          {getAllCategories()?.length > 0 && (
+                            isGroupCollapsed("charge_totals") ? (
+                              <td
+                                key={`collapsed-charge-totals-data-${globalIndex}`}
+                                className="p-2 text-center text-xs border-r bg-indigo-50 text-indigo-500 opacity-50"
+                              >
+                                •••
+                              </td>
+                            ) : (
+                              getAllCategories()?.map((category) => {
+                                const total = getTotalForCategory(row, category)
+                                
+                                return (
+                                  <td
+                                    key={`${globalIndex}-category-${category}`}
+                                    className="p-2 text-sm font-bold text-right text-indigo-700 border-r bg-indigo-50/30"
+                                  >
+                                    {formatCurrency(total)}
+                                  </td>
+                                )
+                              })
+                            )
+                          )}
                         </tr>
                         )
                       })}

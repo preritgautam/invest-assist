@@ -34,9 +34,10 @@ import {
   BarChart3,
   Navigation,
 } from "lucide-react"
-import type { PropertyData } from "@/lib/property-data"
+import { getPropertyById, type PropertyData } from "@/lib/property-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PropertyImageCarousel from "./property-images"
+import UnitMix from "./unitMix"
 
 /**
  * Props interface for PropertyTab component
@@ -44,6 +45,7 @@ import PropertyImageCarousel from "./property-images"
 interface PropertyTabProps {
   /** Property data object containing all property information, or null if no property selected */
   property: PropertyData | null
+  documents?: any[]
 }
 
 /**
@@ -81,23 +83,12 @@ function InfoCard({
  * specifications, unit mix, and market analysis. Handles null property state
  * with appropriate placeholder content.
  */
-export function PropertyTab({ property }: PropertyTabProps) {
+export function PropertyTab({ property,documents }: PropertyTabProps) {
   // Handle case where no property is selected
-  if (!property) {
-    return (
-      <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-4 text-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Building className="w-8 h-8 text-gray-400" />
-        </div>
-        <h2 className="text-sm font-bold text-gray-900 mb-2">Property Details</h2>
-        <p className="text-xs sm:text-sm text-gray-600">
-          Select a property from the Home tab to view its details here.
-        </p>
-      </div>
-    )
-  }
 
-  const propertyData = property
+
+  const propertyData = property || getPropertyById("downtown-heights-152") 
+   
 
   return (
     <div className="space-y-4">
@@ -416,64 +407,7 @@ export function PropertyTab({ property }: PropertyTabProps) {
       )}
 
       {/* Unit mix table section */}
-      {propertyData.unitMix && (
-        <div className="space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Unit Mix</h2>
-            <div className="w-16 h-0.5 bg-gray-800 mx-auto mt-2"></div>
-          </div>
-
-          <Card className="bg-white rounded-2xl shadow-lg border-2 border-white overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 tracking-wide">Unit Type</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-900 tracking-wide">Units</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-900 tracking-wide">%</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-900 tracking-wide">Market</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-900 tracking-wide">Post-Reno</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {/* Individual unit mix rows */}
-                  {propertyData.unitMix.map((unit, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">{unit.type}</td>
-                      <td className="px-6 py-4 text-center text-sm font-semibold text-gray-900">{unit.units}</td>
-                      <td className="px-6 py-4 text-center text-sm font-semibold text-gray-900">{unit.percentage}%</td>
-                      <td className="px-6 py-4 text-center text-sm font-semibold text-gray-900">${unit.marketRent}</td>
-                      <td className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                        ${unit.postRenoRent}
-                      </td>
-                    </tr>
-                  ))}
-                  {/* Totals row with calculated averages */}
-                  <tr className="bg-gray-900 text-white">
-                    <td className="px-6 py-4 text-sm font-bold">Total</td>
-                    <td className="px-6 py-4 text-center text-sm font-bold">{propertyData.units}</td>
-                    <td className="px-6 py-4 text-center text-sm font-bold">100%</td>
-                    <td className="px-6 py-4 text-center text-sm font-bold">
-                      $
-                      {Math.round(
-                        propertyData.unitMix.reduce((sum, unit) => sum + unit.marketRent * unit.units, 0) /
-                          propertyData.units,
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center text-sm font-bold">
-                      $
-                      {Math.round(
-                        propertyData.unitMix.reduce((sum, unit) => sum + unit.postRenoRent * unit.units, 0) /
-                          propertyData.units,
-                      )}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
+    <UnitMix documents={documents}/>
 
       {/* Market intelligence and commentary section */}
       <div className="space-y-6">

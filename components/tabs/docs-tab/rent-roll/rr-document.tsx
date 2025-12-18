@@ -299,15 +299,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
 
       const result = await response.json()
 
-      // Debug: Log what we received to help diagnose format issues
-      console.log('[RR Document] API response:', {
-        success: result.success,
-        hasDocument: !!result.document,
-        hasExtractionResult: !!result.document?.extraction_result,
-        extractionResultKeys: result.document?.extraction_result ? Object.keys(result.document.extraction_result) : [],
-        extractionStatus: result.document?.extraction_status,
-      })
-
       // Check if document exists but extraction is still pending/processing
       if (result.success && result.document && !result.document.extraction_result) {
         if (result.document.extraction_status === 'pending' || result.document.extraction_status === 'processing') {

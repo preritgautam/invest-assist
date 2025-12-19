@@ -241,13 +241,43 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   const [rrValidated, setRrValidated] = useState(false)
   const [omValidated, setOmValidated] = useState(false)
   const [hasAutoNavigatedAfterValidation, setHasAutoNavigatedAfterValidation] = useState(false)
+  const [isLoadingValidationStatus, setIsLoadingValidationStatus] = useState(true)
 
   // Check if all documents are validated to unlock Analyze
   const allDocsValidated = osValidated && rrValidated && omValidated
 
+  // Fetch validation status from database on component mount
+  useEffect(() => {
+    async function fetchValidationStatus() {
+      if (!propertyId) {
+        setIsLoadingValidationStatus(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/documents/validation?propertyId=${propertyId}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.validationStatus) {
+            console.log('[DocsTab] Loaded validation status:', data.validationStatus)
+            setOsValidated(data.validationStatus.OS)
+            setRrValidated(data.validationStatus.RR)
+            setOmValidated(data.validationStatus.OM)
+          }
+        }
+      } catch (error) {
+        console.error('[DocsTab] Error fetching validation status:', error)
+      } finally {
+        setIsLoadingValidationStatus(false)
+      }
+    }
+
+    fetchValidationStatus()
+  }, [propertyId])
+
+  // Auto-navigate to Analyze when all docs are validated
   useEffect(() => {
     if (allDocsValidated && !hasAutoNavigatedAfterValidation && activeSection === "t12") {
-      // Show a brief notification before auto-navigating
       setTimeout(() => {
         setActiveSection("normalized")
         setHasAutoNavigatedAfterValidation(true)
@@ -490,41 +520,129 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
     }
   }
 
-  const handleValidateOS = () => {
+  const handleValidateOS = async () => {
     setOsValidated(true)
+    // Persist to database
+    try {
+      await fetch('/api/documents/validation/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          documentType: 'OS',
+          isValidated: true,
+        }),
+      })
+      console.log('[DocsTab] OS validation persisted to database')
+    } catch (error) {
+      console.error('[DocsTab] Error persisting OS validation:', error)
+    }
     // Auto-navigate to Rent Roll after validation
     handleDocTypeChange("RR")
   }
 
-  const handleValidateRR = () => {
+  const handleValidateRR = async () => {
     setRrValidated(true)
+    // Persist to database
+    try {
+      await fetch('/api/documents/validation/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          documentType: 'RR',
+          isValidated: true,
+        }),
+      })
+      console.log('[DocsTab] RR validation persisted to database')
+    } catch (error) {
+      console.error('[DocsTab] Error persisting RR validation:', error)
+    }
     // Auto-navigate to OM after validation
     handleDocTypeChange("OM")
   }
 
-  const handleValidateOM = () => {
+  const handleValidateOM = async () => {
     setOmValidated(true)
-    // Optionally auto-navigate to Analyze
-    // setActiveSection("normalized")
+    // Persist to database
+    try {
+      await fetch('/api/documents/validation/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          documentType: 'OM',
+          isValidated: true,
+        }),
+      })
+      console.log('[DocsTab] OM validation persisted to database')
+    } catch (error) {
+      console.error('[DocsTab] Error persisting OM validation:', error)
+    }
   }
 
-  const handleUnvalidateOS = () => {
+  const handleUnvalidateOS = async () => {
     if (confirm("Are you sure you want to unvalidate T-12 / OS? This will allow you to edit the data again.")) {
       setOsValidated(false)
+      // Persist to database
+      try {
+        await fetch('/api/documents/validation/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            documentType: 'OS',
+            isValidated: false,
+          }),
+        })
+        console.log('[DocsTab] OS unvalidation persisted to database')
+      } catch (error) {
+        console.error('[DocsTab] Error persisting OS unvalidation:', error)
+      }
     }
   }
 
-  const handleUnvalidateRR = () => {
+  const handleUnvalidateRR = async () => {
     if (confirm("Are you sure you want to unvalidate Rent Roll? This will allow you to edit the data again.")) {
       setRrValidated(false)
+      // Persist to database
+      try {
+        await fetch('/api/documents/validation/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            documentType: 'RR',
+            isValidated: false,
+          }),
+        })
+        console.log('[DocsTab] RR unvalidation persisted to database')
+      } catch (error) {
+        console.error('[DocsTab] Error persisting RR unvalidation:', error)
+      }
     }
   }
 
-  const handleUnvalidateOM = () => {
+  const handleUnvalidateOM = async () => {
     if (
       confirm("Are you sure you want to unvalidate Offering Memorandum? This will allow you to edit the data again.")
     ) {
       setOmValidated(false)
+      // Persist to database
+      try {
+        await fetch('/api/documents/validation/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            documentType: 'OM',
+            isValidated: false,
+          }),
+        })
+        console.log('[DocsTab] OM unvalidation persisted to database')
+      } catch (error) {
+        console.error('[DocsTab] Error persisting OM unvalidation:', error)
+      }
     }
   }
 

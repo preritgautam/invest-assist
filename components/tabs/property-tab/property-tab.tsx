@@ -45,6 +45,9 @@ import UnitMix from "./unitMix"
 interface PropertyTabProps {
   /** Property data object containing all property information, or null if no property selected */
   property: PropertyData | null
+  /** Optional database property ID for fetching images and OM data from the API */
+  propertyId?: string
+  /** Optional documents array */
   documents?: any[]
 }
 
@@ -83,48 +86,71 @@ function InfoCard({
  * specifications, unit mix, and market analysis. Handles null property state
  * with appropriate placeholder content.
  */
-export function PropertyTab({ property,documents }: PropertyTabProps) {
-  // Handle case where no property is selected
+export function PropertyTab({ property, propertyId, documents }: PropertyTabProps) {
+  // Handle case where no property is selected AND no propertyId is provided
+  if (!property && !propertyId) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-4 text-center">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Building className="w-8 h-8 text-gray-400" />
+        </div>
+        <h2 className="text-sm font-bold text-gray-900 mb-2">Property Details</h2>
+        <p className="text-xs sm:text-sm text-gray-600">
+          Select a property from the Home tab to view its details here.
+        </p>
+      </div>
+    )
+  }
 
+  // Create a minimal propertyData for cases where we only have propertyId (database property)
+  const propertyData: PropertyData = property || {
+    id: propertyId!,
+    name: 'Property',
+    address: '',
+    units: 0,
+    status: 'Active',
+  }
 
-  const propertyData = property || getPropertyById("downtown-heights-152") 
-   
+  // For database-only properties (no mock data), show a simplified view with just images
+  const isDatabaseOnlyProperty = !property && propertyId
 
   return (
     <div className="space-y-4">
-      {/* Property header with basic information */}
-      <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <Building className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-            </div>
-            <div>
-              <CardTitle className="text-sm font-bold text-gray-900">{propertyData.name}</CardTitle>
-              <p className="text-xs sm:text-sm text-gray-600">{propertyData.address}</p>
-              <div className="flex items-center gap-2 mt-1">
-                {/* Dynamic status badge with conditional styling */}
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    propertyData.status === "Active"
-                      ? "bg-gray-100 text-gray-800"
-                      : propertyData.status === "Under Review"
-                        ? "bg-gray-200 text-gray-800"
-                        : propertyData.status === "Draft"
-                          ? "bg-gray-100 text-gray-600"
-                          : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {propertyData.status}
-                </span>
+      {/* Property header with basic information - only show if we have real property data */}
+      {!isDatabaseOnlyProperty && (
+        <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <Building className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold text-gray-900">{propertyData.name}</CardTitle>
+                <p className="text-xs sm:text-sm text-gray-600">{propertyData.address}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {/* Dynamic status badge with conditional styling */}
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      propertyData.status === "Active"
+                        ? "bg-gray-100 text-gray-800"
+                        : propertyData.status === "Under Review"
+                          ? "bg-gray-200 text-gray-800"
+                          : propertyData.status === "Draft"
+                            ? "bg-gray-100 text-gray-600"
+                            : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {propertyData.status}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </CardHeader>
-      </Card>
+          </CardHeader>
+        </Card>
+      )}
 
-      {/* Main property image section */}
-      <PropertyImageCarousel propertyData={propertyData} />
+      {/* Main property image section - always show when we have propertyId */}
+      <PropertyImageCarousel propertyData={propertyData} propertyId={propertyId || property?.id} />
 
       {/* Interactive location section with Google Maps */}
       {propertyData.coordinates && (

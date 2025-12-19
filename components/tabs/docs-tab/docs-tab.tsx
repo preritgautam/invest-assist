@@ -133,7 +133,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         if (data.documents && data.documents.length > 0) {
           // Map database documents to PropertyDocument interface
           const mappedDocuments: PropertyDocument[] = data.documents.map((doc: DatabaseDocument) => ({
-            id: doc.document_id, // Use process_id as the identifier for fetching
+            id: doc.document_id || doc.process_id || `doc-${doc.id}`, // Use document_id, fallback to process_id or db id
             name: doc.filename,
             type: mapDocumentType(doc.document_type),
             uploadDate: doc.created_at.split('T')[0],
@@ -1056,7 +1056,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                       </div>
                     </div>
                   </div>
-                  <OMDocument />
+                  <OMDocument propertyId={propertyId} />
                 </div>
               )}
 

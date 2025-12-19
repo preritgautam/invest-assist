@@ -114,7 +114,7 @@ export default function PropertyPage({ params }: PropertyPageProps) {
 
   return (
     <PropertyLayoutWrapper propertyId={id} currentTab="property">
-      <PropertyTab property={property} documents={documents} />
+      <PropertyTab property={property} propertyId={id} documents={documents} />
     </PropertyLayoutWrapper>
   )
 }

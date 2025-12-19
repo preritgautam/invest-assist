@@ -16,6 +16,19 @@ const nextConfig = {
       bodySizeLimit: '100mb',
     },
   },
+  // Configure webpack for pdfjs-dist and canvas compatibility
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Externalize native modules for server-side
+      config.externals = config.externals || [];
+      config.externals.push({
+        'canvas': 'commonjs canvas',
+        'pdfjs-dist': 'commonjs pdfjs-dist',
+      });
+    }
+
+    return config;
+  },
   // Configure API routes
   async headers() {
     return [

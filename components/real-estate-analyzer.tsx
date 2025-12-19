@@ -304,7 +304,7 @@ function InvestmentApp() {
         return <HomeTab onPropertyEdit={handlePropertyEdit} />
       case "documents":
         return (
-          <DocumentsTab property={activeProperty}>
+          <DocumentsTab property={activeProperty} propertyId={activePropertyId || undefined}>
             {activeProperty && <T12ActualsTab property={activeProperty} />}
           </DocumentsTab>
         )
@@ -313,7 +313,7 @@ function InvestmentApp() {
       case "underwriting-graphs":
         return <UnderwritingGraphsTab property={activeProperty} />
       case "property":
-        return <PropertyTab property={activeProperty} />
+        return <PropertyTab property={activeProperty} propertyId={activePropertyId || undefined} />
       case "business-plan":
         return <PlanTab property={activeProperty} />
       case "sources-uses":

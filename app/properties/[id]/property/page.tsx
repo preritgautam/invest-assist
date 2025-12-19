@@ -17,7 +17,7 @@ export default function PropertyPage({ params }: PropertyPageProps) {
 
   return (
     <PropertyLayoutWrapper propertyId={id} currentTab="property">
-      <PropertyTab property={property} />
+      <PropertyTab property={property} propertyId={id} />
     </PropertyLayoutWrapper>
   )
 }

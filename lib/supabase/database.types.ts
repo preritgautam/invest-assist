@@ -155,6 +155,74 @@ export interface Database {
           updated_at?: string
         }
       }
+      property_images: {
+        Row: {
+          id: string
+          property_id: string
+          company_id: string
+          document_id: number | null
+          filename: string
+          storage_path: string
+          image_url: string | null
+          source_page: number | null
+          image_category: string | null
+          image_subcategory: string | null
+          ai_rating: number | null
+          ai_positives: string[] | null
+          ai_negatives: string[] | null
+          ai_description: string | null
+          ai_analysis: Json | null
+          display_order: number
+          is_primary: boolean
+          is_thumbnail: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          company_id: string
+          document_id?: number | null
+          filename: string
+          storage_path: string
+          image_url?: string | null
+          source_page?: number | null
+          image_category?: string | null
+          image_subcategory?: string | null
+          ai_rating?: number | null
+          ai_positives?: string[] | null
+          ai_negatives?: string[] | null
+          ai_description?: string | null
+          ai_analysis?: Json | null
+          display_order?: number
+          is_primary?: boolean
+          is_thumbnail?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          company_id?: string
+          document_id?: number | null
+          filename?: string
+          storage_path?: string
+          image_url?: string | null
+          source_page?: number | null
+          image_category?: string | null
+          image_subcategory?: string | null
+          ai_rating?: number | null
+          ai_positives?: string[] | null
+          ai_negatives?: string[] | null
+          ai_description?: string | null
+          ai_analysis?: Json | null
+          display_order?: number
+          is_primary?: boolean
+          is_thumbnail?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       documents: {
         Row: {
           id: number
@@ -275,18 +343,21 @@ export type User = Database['public']['Tables']['users']['Row']
 export type Property = Database['public']['Tables']['properties']['Row']
 export type Scenario = Database['public']['Tables']['scenarios']['Row']
 export type Document = Database['public']['Tables']['documents']['Row']
+export type PropertyImage = Database['public']['Tables']['property_images']['Row']
 
 export type NewCompany = Database['public']['Tables']['companies']['Insert']
 export type NewUser = Database['public']['Tables']['users']['Insert']
 export type NewProperty = Database['public']['Tables']['properties']['Insert']
 export type NewScenario = Database['public']['Tables']['scenarios']['Insert']
 export type NewDocument = Database['public']['Tables']['documents']['Insert']
+export type NewPropertyImage = Database['public']['Tables']['property_images']['Insert']
 
 export type UpdateCompany = Database['public']['Tables']['companies']['Update']
 export type UpdateUser = Database['public']['Tables']['users']['Update']
 export type UpdateProperty = Database['public']['Tables']['properties']['Update']
 export type UpdateScenario = Database['public']['Tables']['scenarios']['Update']
 export type UpdateDocument = Database['public']['Tables']['documents']['Update']
+export type UpdatePropertyImage = Database['public']['Tables']['property_images']['Update']
 
 // Classification result type
 export interface ClassificationResult {
@@ -331,3 +402,131 @@ export type PropertyStatus = 'processing' | 'active' | 'archived'
 
 // Document type enum
 export type DocumentType = 'rent_roll' | 'operating_statement' | 'offering_memorandum' | 'appraisal' | 'insurance' | 'lease_abstract' | 'other'
+
+// OM Extraction types
+export interface OMExtractionResult {
+  property_info: OMPropertyInfo
+  financial_info: OMFinancialInfo
+  investment_info: OMInvestmentInfo
+  returns_info: OMReturnsInfo
+  pro_forma_projections: OMProFormaProjection[] | null
+  sources_uses: OMSourcesUses | null
+  images: OMImageInfo[]
+}
+
+export interface OMPropertyInfo {
+  property_name: string | null
+  property_address: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
+  property_type: string | null
+  class_rating: string | null
+  year_built: number | null
+  year_renovated: number | null
+  total_units: number | null
+  avg_unit_size: number | null
+  unit_mix_breakdown: OMUnitMix[] | null
+  building_count: number | null
+  stories: number | null
+  amenity_list: string[] | null
+  parking_ratio: number | null
+  acreage: number | null
+  owner: string | null
+  manager: string | null
+  occupancy_rate: number | null
+  coordinates: { lat: number; lng: number } | null
+}
+
+export interface OMUnitMix {
+  unit_type: string
+  count: number
+  avg_sqft: number | null
+  avg_rent: number | null
+  post_reno_rent: number | null
+  percentage: number | null
+}
+
+export interface OMFinancialInfo {
+  offer_price: number | null
+  price_per_unit: number | null
+  price_per_sf: number | null
+  cap_rate: number | null
+  noi: number | null
+  effective_gross_income: number | null
+  total_operating_expenses: number | null
+  rent_growth_rate: number | null
+  market_rent_psf: number | null
+  market_rent_unit: number | null
+  loan_amount: number | null
+  interest_rate: number | null
+  amortization: number | null
+  loan_term: number | null
+  ltv: number | null
+  dscr: number | null
+  expense_ratio: number | null
+}
+
+export interface OMReturnsInfo {
+  irr: number | null
+  cash_on_cash: number | null
+  equity_multiple: number | null
+  hold_period: string | null
+  average_annual_return: number | null
+}
+
+export interface OMProFormaProjection {
+  year: number
+  year_label: string
+  noi: number | null
+  cash_flow: number | null
+  property_value: number | null
+}
+
+export interface OMSourcesUses {
+  sources: OMSourceUseItem[]
+  uses: OMSourceUseItem[]
+  total_sources: number | null
+  total_uses: number | null
+}
+
+export interface OMSourceUseItem {
+  item: string
+  amount: number
+  percentage: number | null
+}
+
+export interface OMInvestmentInfo {
+  investment_highlights: string[] | null
+  property_description: string | null
+  investment_thesis: string | null
+  submarket_description: string | null
+  renovation_plan: string | null
+  business_plan: string[] | null
+  median_household_income: number | null
+  population_growth_rate: number | null
+  population_radius_1mi: number | null
+  population_radius_3mi: number | null
+  employment_growth_rate: number | null
+  major_employers: string[] | null
+}
+
+export interface OMImageInfo {
+  page_number: number
+  image_index: number
+  description: string | null
+  estimated_category: 'exterior' | 'interior' | 'amenity' | 'aerial' | 'map' | 'floorplan' | 'other'
+  estimated_subcategory: string | null
+}
+
+// Image analysis types
+export interface ImageAnalysisResult {
+  category: 'exterior' | 'interior' | 'amenity' | 'aerial' | 'map' | 'floorplan' | 'other'
+  subcategory: string | null
+  rating: number  // 1-10
+  positives: string[]
+  negatives: string[]
+  description: string
+}
+
+export type ImageCategory = 'exterior' | 'interior' | 'amenity' | 'aerial' | 'map' | 'floorplan' | 'other'

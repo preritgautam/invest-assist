@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { ClassificationResult, DocumentSegment } from '@/lib/supabase/database.types'
+import { ClassificationResult, OMExtractionResult, OMPropertyInfo, OMFinancialInfo, OMInvestmentInfo, OMReturnsInfo, OMProFormaProjection, OMSourcesUses, OMSourceUseItem, OMImageInfo, Json } from '@/lib/supabase/database.types'
 import { PDFDocument } from 'pdf-lib'
 
 const BUCKET_NAME = 'documents'
@@ -33,6 +33,67 @@ async function getUserCompanyId(supabase: Awaited<ReturnType<typeof createClient
   }
   return userData.company_id
 }
+
+// OM Extraction Prompt - used when document is classified as offering_memorandum
+const OM_EXTRACTION_PROMPT = `You are an expert commercial real estate analyst. This document has been identified as an Offering Memorandum. Extract ALL property information comprehensively.
+
+## Extract the following data:
+
+### Property Information
+Extract: property_name, property_address, city, state, zip_code, property_type, class_rating, year_built, year_renovated, total_units, avg_unit_size, building_count, stories, amenity_list (array), parking_ratio, acreage, owner, manager, occupancy_rate (as decimal like 0.95 for 95%)
+
+### Unit Mix (CRITICAL - extract fully)
+Extract unit_mix_breakdown as array: [{unit_type, count, avg_sqft, avg_rent, post_reno_rent, percentage}]
+- unit_type: "Studio", "1BR", "2BR", "3BR", etc.
+- count: number of units of this type
+- avg_sqft: average square footage
+- avg_rent: current/market rent
+- post_reno_rent: post-renovation rent if mentioned (null if not available)
+- percentage: percentage of total units (calculate if not explicit)
+
+### Financial Information
+Extract: offer_price, price_per_unit, price_per_sf, cap_rate (as decimal), noi, effective_gross_income, total_operating_expenses, rent_growth_rate, market_rent_psf, market_rent_unit, loan_amount, interest_rate, amortization, loan_term, ltv, dscr (debt service coverage ratio), expense_ratio
+
+### Returns Information (CRITICAL - look for investment returns section)
+Extract: irr (internal rate of return as decimal), cash_on_cash (as decimal), equity_multiple (like 2.4 for 2.4X), hold_period (like "5 years"), average_annual_return
+
+### Pro Forma Projections (if available)
+Extract pro_forma_projections as array: [{year: 1, year_label: "Year 1", noi, cash_flow, property_value}]
+Look for multi-year projections showing NOI growth, cash flow, and property values over the hold period.
+
+### Sources & Uses of Capital (if available)
+Extract sources_uses: {
+  sources: [{item: "Equity", amount: number, percentage: number}, {item: "Debt", amount: number, percentage: number}],
+  uses: [{item: "Purchase Price", amount: number, percentage: number}, {item: "Closing Costs", amount: number}, {item: "Renovation", amount: number}, ...],
+  total_sources: number,
+  total_uses: number
+}
+
+### Investment Information
+Extract: investment_highlights (array of key selling points), property_description, investment_thesis, submarket_description, renovation_plan, business_plan (array of strategic steps), median_household_income, population_growth_rate, population_radius_1mi, population_radius_3mi, employment_growth_rate, major_employers (array)
+
+### Images Found
+For each property PHOTO (not charts/graphs), provide:
+- page_number (1-indexed)
+- image_index (0-indexed on page)
+- description
+- estimated_category: "exterior"|"interior"|"amenity"|"aerial"|"map"|"floorplan"|"other"
+- estimated_subcategory: specific type like "pool", "clubhouse", "living_room", etc.
+
+## Response Format:
+{
+  "om_extraction": {
+    "property_info": {...},
+    "financial_info": {...},
+    "returns_info": {...},
+    "investment_info": {...},
+    "pro_forma_projections": [...],
+    "sources_uses": {...},
+    "images": [...]
+  }
+}
+
+Use null for any values not found. Convert percentages to decimals (5.5% -> 0.055, 18.2% IRR -> 0.182).`
 
 // Classification prompt for Gemini Vision - Enhanced for segment and period detection
 const CLASSIFICATION_PROMPT = `You are a document classification expert for commercial real estate documents. Analyze this document thoroughly.
@@ -147,6 +208,13 @@ export async function POST(request: NextRequest) {
       .eq('id', documentId)
 
     // Download file from storage
+    if (!document.storage_path) {
+      return NextResponse.json(
+        { error: 'Document has no storage path' },
+        { status: 400 }
+      )
+    }
+
     const { data: fileData, error: downloadError } = await supabase.storage
       .from(BUCKET_NAME)
       .download(document.storage_path)
@@ -308,7 +376,7 @@ export async function POST(request: NextRequest) {
       .from('documents')
       .update({
         document_type: classificationResult.document_type,
-        classification_result: classificationResult,
+        classification_result: classificationResult as unknown as Json,
         classification_status: 'completed',
         total_pages: classificationResult.total_pages || null,
         is_source_file: true,
@@ -326,9 +394,111 @@ export async function POST(request: NextRequest) {
 
     console.log('[Classification API] Document classified:', documentId, classificationResult.document_type)
 
+    // If document is an Offering Memorandum, perform additional extraction
+    let omExtraction: OMExtractionResult | null = null
+
+    if (classificationResult.document_type === 'offering_memorandum') {
+      console.log('[Classification API] OM detected, performing additional extraction...')
+
+      try {
+        const omResult = await model.generateContent([
+          {
+            inlineData: {
+              mimeType,
+              data: base64Data,
+            },
+          },
+          { text: OM_EXTRACTION_PROMPT },
+        ])
+
+        const omResponse = omResult.response
+        const omText = omResponse.text()
+
+        // Parse OM extraction JSON
+        const omJsonMatch = omText.match(/\{[\s\S]*\}/)
+        if (omJsonMatch) {
+          const omParsed = JSON.parse(omJsonMatch[0])
+          const omData = omParsed.om_extraction || omParsed
+
+          omExtraction = {
+            property_info: normalizeOMPropertyInfo(omData.property_info || {}),
+            financial_info: normalizeOMFinancialInfo(omData.financial_info || {}),
+            investment_info: normalizeOMInvestmentInfo(omData.investment_info || {}),
+            returns_info: normalizeOMReturnsInfo(omData.returns_info || {}),
+            pro_forma_projections: normalizeOMProFormaProjections(omData.pro_forma_projections || []),
+            sources_uses: normalizeOMSourcesUses(omData.sources_uses),
+            images: normalizeOMImages(omData.images || []),
+          }
+
+          console.log('[Classification API] OM extraction completed:', {
+            property_name: omExtraction.property_info.property_name,
+            total_units: omExtraction.property_info.total_units,
+            offer_price: omExtraction.financial_info.offer_price,
+            images_found: omExtraction.images.length,
+          })
+
+          // Update document with OM extraction result
+          await supabase
+            .from('documents')
+            .update({
+              extraction_result: {
+                classification: classificationResult,
+                om_extraction: omExtraction,
+              } as unknown as Json,
+              extraction_status: 'completed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', documentId)
+
+          // If property_id is set, update the property with extracted data
+          if (document.property_id) {
+            await updatePropertyFromOMExtraction(supabase, document.property_id, companyId, omExtraction)
+
+            // Trigger image extraction from the OM PDF
+            console.log('[Classification API] Triggering image extraction for property:', document.property_id)
+            try {
+              // Call the om-images API internally to extract and store images
+              const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+              const imageExtractionResponse = await fetch(`${baseUrl}/api/documents/om-images`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  // Forward the auth cookie if available
+                  'Cookie': request.headers.get('cookie') || '',
+                },
+                body: JSON.stringify({
+                  documentId: documentId,
+                  propertyId: document.property_id,
+                  imageInfos: omExtraction.images,
+                }),
+              })
+
+              if (imageExtractionResponse.ok) {
+                const imageResult = await imageExtractionResponse.json()
+                console.log('[Classification API] Image extraction completed:', {
+                  totalExtracted: imageResult.totalExtracted,
+                  totalInserted: imageResult.totalInserted,
+                })
+              } else {
+                const errorText = await imageExtractionResponse.text()
+                console.error('[Classification API] Image extraction failed:', errorText)
+              }
+            } catch (imgError) {
+              console.error('[Classification API] Image extraction error:', imgError)
+              // Don't fail the whole request, just log the error
+            }
+          }
+        }
+      } catch (omError) {
+        console.error('[Classification API] OM extraction failed:', omError)
+        // Don't fail the whole request, just log the error
+      }
+    }
+
     return NextResponse.json({
       success: true,
       classification: classificationResult,
+      om_extraction: omExtraction,
     }, { status: 200 })
 
   } catch (error) {
@@ -337,6 +507,213 @@ export async function POST(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// Normalize OM property info
+function normalizeOMPropertyInfo(data: any): OMPropertyInfo {
+  // Normalize unit mix with new fields
+  const normalizedUnitMix = Array.isArray(data.unit_mix_breakdown)
+    ? data.unit_mix_breakdown.map((unit: any) => ({
+        unit_type: unit.unit_type || 'Unknown',
+        count: typeof unit.count === 'number' ? unit.count : 0,
+        avg_sqft: typeof unit.avg_sqft === 'number' ? unit.avg_sqft : null,
+        avg_rent: typeof unit.avg_rent === 'number' ? unit.avg_rent : null,
+        post_reno_rent: typeof unit.post_reno_rent === 'number' ? unit.post_reno_rent : null,
+        percentage: typeof unit.percentage === 'number' ? unit.percentage : null,
+      }))
+    : null
+
+  // Normalize coordinates
+  const normalizedCoordinates = data.coordinates &&
+    typeof data.coordinates.lat === 'number' &&
+    typeof data.coordinates.lng === 'number'
+      ? { lat: data.coordinates.lat, lng: data.coordinates.lng }
+      : null
+
+  return {
+    property_name: data.property_name || null,
+    property_address: data.property_address || null,
+    city: data.city || null,
+    state: data.state || null,
+    zip_code: data.zip_code || null,
+    property_type: data.property_type || null,
+    class_rating: data.class_rating || null,
+    year_built: typeof data.year_built === 'number' ? data.year_built : null,
+    year_renovated: typeof data.year_renovated === 'number' ? data.year_renovated : null,
+    total_units: typeof data.total_units === 'number' ? data.total_units : null,
+    avg_unit_size: typeof data.avg_unit_size === 'number' ? data.avg_unit_size : null,
+    unit_mix_breakdown: normalizedUnitMix,
+    building_count: typeof data.building_count === 'number' ? data.building_count : null,
+    stories: typeof data.stories === 'number' ? data.stories : null,
+    amenity_list: Array.isArray(data.amenity_list) ? data.amenity_list : null,
+    parking_ratio: typeof data.parking_ratio === 'number' ? data.parking_ratio : null,
+    acreage: typeof data.acreage === 'number' ? data.acreage : null,
+    owner: data.owner || null,
+    manager: data.manager || null,
+    occupancy_rate: typeof data.occupancy_rate === 'number' ? data.occupancy_rate : null,
+    coordinates: normalizedCoordinates,
+  }
+}
+
+// Normalize OM financial info
+function normalizeOMFinancialInfo(data: any): OMFinancialInfo {
+  return {
+    offer_price: typeof data.offer_price === 'number' ? data.offer_price : null,
+    price_per_unit: typeof data.price_per_unit === 'number' ? data.price_per_unit : null,
+    price_per_sf: typeof data.price_per_sf === 'number' ? data.price_per_sf : null,
+    cap_rate: typeof data.cap_rate === 'number' ? data.cap_rate : null,
+    noi: typeof data.noi === 'number' ? data.noi : null,
+    effective_gross_income: typeof data.effective_gross_income === 'number' ? data.effective_gross_income : null,
+    total_operating_expenses: typeof data.total_operating_expenses === 'number' ? data.total_operating_expenses : null,
+    rent_growth_rate: typeof data.rent_growth_rate === 'number' ? data.rent_growth_rate : null,
+    market_rent_psf: typeof data.market_rent_psf === 'number' ? data.market_rent_psf : null,
+    market_rent_unit: typeof data.market_rent_unit === 'number' ? data.market_rent_unit : null,
+    loan_amount: typeof data.loan_amount === 'number' ? data.loan_amount : null,
+    interest_rate: typeof data.interest_rate === 'number' ? data.interest_rate : null,
+    amortization: typeof data.amortization === 'number' ? data.amortization : null,
+    loan_term: typeof data.loan_term === 'number' ? data.loan_term : null,
+    ltv: typeof data.ltv === 'number' ? data.ltv : null,
+    dscr: typeof data.dscr === 'number' ? data.dscr : null,
+    expense_ratio: typeof data.expense_ratio === 'number' ? data.expense_ratio : null,
+  }
+}
+
+// Normalize OM investment info
+function normalizeOMInvestmentInfo(data: any): OMInvestmentInfo {
+  return {
+    investment_highlights: Array.isArray(data.investment_highlights) ? data.investment_highlights : null,
+    property_description: data.property_description || null,
+    investment_thesis: data.investment_thesis || null,
+    submarket_description: data.submarket_description || null,
+    renovation_plan: data.renovation_plan || null,
+    business_plan: Array.isArray(data.business_plan) ? data.business_plan : null,
+    median_household_income: typeof data.median_household_income === 'number' ? data.median_household_income : null,
+    population_growth_rate: typeof data.population_growth_rate === 'number' ? data.population_growth_rate : null,
+    population_radius_1mi: typeof data.population_radius_1mi === 'number' ? data.population_radius_1mi : null,
+    population_radius_3mi: typeof data.population_radius_3mi === 'number' ? data.population_radius_3mi : null,
+    employment_growth_rate: typeof data.employment_growth_rate === 'number' ? data.employment_growth_rate : null,
+    major_employers: Array.isArray(data.major_employers) ? data.major_employers : null,
+  }
+}
+
+// Normalize OM returns info
+function normalizeOMReturnsInfo(data: any): OMReturnsInfo {
+  return {
+    irr: typeof data.irr === 'number' ? data.irr : null,
+    cash_on_cash: typeof data.cash_on_cash === 'number' ? data.cash_on_cash : null,
+    equity_multiple: typeof data.equity_multiple === 'number' ? data.equity_multiple : null,
+    hold_period: data.hold_period || null,
+    average_annual_return: typeof data.average_annual_return === 'number' ? data.average_annual_return : null,
+  }
+}
+
+// Normalize OM pro forma projections
+function normalizeOMProFormaProjections(data: any[]): OMProFormaProjection[] | null {
+  if (!Array.isArray(data) || data.length === 0) return null
+
+  return data.map((proj: any, index: number) => ({
+    year: typeof proj.year === 'number' ? proj.year : index + 1,
+    year_label: proj.year_label || `Year ${index + 1}`,
+    noi: typeof proj.noi === 'number' ? proj.noi : null,
+    cash_flow: typeof proj.cash_flow === 'number' ? proj.cash_flow : null,
+    property_value: typeof proj.property_value === 'number' ? proj.property_value : null,
+  }))
+}
+
+// Normalize OM sources & uses
+function normalizeOMSourcesUses(data: any): OMSourcesUses | null {
+  if (!data || typeof data !== 'object') return null
+
+  const normalizeItems = (items: any[]): OMSourceUseItem[] => {
+    if (!Array.isArray(items)) return []
+    return items.map((item: any) => ({
+      item: item.item || 'Unknown',
+      amount: typeof item.amount === 'number' ? item.amount : 0,
+      percentage: typeof item.percentage === 'number' ? item.percentage : null,
+    }))
+  }
+
+  return {
+    sources: normalizeItems(data.sources),
+    uses: normalizeItems(data.uses),
+    total_sources: typeof data.total_sources === 'number' ? data.total_sources : null,
+    total_uses: typeof data.total_uses === 'number' ? data.total_uses : null,
+  }
+}
+
+// Normalize OM images
+function normalizeOMImages(data: any[]): OMImageInfo[] {
+  if (!Array.isArray(data)) return []
+
+  const validCategories = ['exterior', 'interior', 'amenity', 'aerial', 'map', 'floorplan', 'other']
+
+  return data.map((img, index) => ({
+    page_number: typeof img.page_number === 'number' ? img.page_number : index + 1,
+    image_index: typeof img.image_index === 'number' ? img.image_index : 0,
+    description: img.description || null,
+    estimated_category: validCategories.includes(img.estimated_category?.toLowerCase())
+      ? img.estimated_category.toLowerCase() as OMImageInfo['estimated_category']
+      : 'other',
+    estimated_subcategory: img.estimated_subcategory || null,
+  }))
+}
+
+// Update property with OM extraction data
+async function updatePropertyFromOMExtraction(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  companyId: string,
+  extraction: OMExtractionResult
+) {
+  const { property_info, financial_info, returns_info } = extraction
+
+  const updateData: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  // Property info
+  if (property_info.property_name) updateData.name = property_info.property_name
+  if (property_info.property_address) updateData.address = property_info.property_address
+  if (property_info.city) updateData.city = property_info.city
+  if (property_info.state) updateData.state = property_info.state
+  if (property_info.zip_code) updateData.zip_code = property_info.zip_code
+  if (property_info.total_units) updateData.units = property_info.total_units
+  if (property_info.year_built) updateData.year_built = property_info.year_built
+  if (property_info.avg_unit_size) updateData.avg_sqft_per_unit = property_info.avg_unit_size
+  // Map occupancy_rate to occupancy column (convert decimal to percentage)
+  if (property_info.occupancy_rate != null) {
+    updateData.occupancy = property_info.occupancy_rate * 100
+  }
+
+  // Financial info
+  if (financial_info.offer_price) updateData.offer_price = financial_info.offer_price
+  if (financial_info.cap_rate) updateData.cap_rate = financial_info.cap_rate * 100 // Convert decimal to percentage
+
+  // Store full extraction in metadata (includes returns_info, pro_forma_projections, sources_uses, etc.)
+  updateData.metadata = {
+    om_extraction: extraction,
+    om_extracted_at: new Date().toISOString(),
+  }
+
+  // Update status to active since we have data now
+  updateData.status = 'active'
+
+  const { error } = await supabase
+    .from('properties')
+    .update(updateData)
+    .eq('id', propertyId)
+    .eq('company_id', companyId)
+
+  if (error) {
+    console.error('[Classification API] Failed to update property:', error)
+  } else {
+    console.log('[Classification API] Updated property with OM data:', propertyId, {
+      mapped_fields: ['name', 'address', 'city', 'state', 'zip_code', 'units', 'year_built', 'avg_sqft_per_unit', 'occupancy', 'offer_price', 'cap_rate'],
+      has_returns_info: !!returns_info?.irr,
+      has_pro_forma: !!extraction.pro_forma_projections?.length,
+      has_sources_uses: !!extraction.sources_uses,
+    })
   }
 }
 

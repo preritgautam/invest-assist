@@ -19,6 +19,8 @@ import {
   Users,
   BookOpen,
 } from "lucide-react"
+import { uploadFilesToRex } from "@/lib/rex-client"
+import { useRexPolling } from "@/hooks/use-rex-polling"
 
 interface UploadedFile {
   id: string
@@ -36,17 +38,21 @@ interface AddDocumentDialogProps {
   onClose: () => void
   onComplete?: (files: UploadedFile[], documentType: DocumentType) => void
   propertyId?: string
+  onDocumentsRefresh?: () => void
 }
 
-export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId }: AddDocumentDialogProps) {
+export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onDocumentsRefresh }: AddDocumentDialogProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string>("")
+  const [isPollingInProgress, setIsPollingInProgress] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { startPolling, isPolling: pollingActive } = useRexPolling()
 
   // Reset dialog state when it closes
   useEffect(() => {
@@ -57,6 +63,8 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId }: A
       setError(null)
       setUploadSuccess(false)
       setSelectedDocType(null)
+      setUploadProgress("")
+      setIsPollingInProgress(false)
     }
   }, [isOpen])
 
@@ -180,21 +188,148 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId }: A
 
     setIsProcessing(true)
     setError(null)
+    setUploadProgress("Preparing upload...")
 
     try {
-      // TODO: Implement actual upload logic here
-      // For now, just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Map document type to REX document type
+      const docTypeMap: Record<DocumentType, string> = {
+        OS: "operating_statement",
+        RR: "rent_roll",
+        OM: "offering_memorandum",
+      }
+
+      const rexDocType = docTypeMap[selectedDocType]
+      const uploadedProcessIds: { processId: string; documentId: string; filename: string }[] = []
+
+      // Process each selected file
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
+        setUploadProgress(`Uploading ${file.name} (${i + 1}/${selectedFiles.length})...`)
+
+        // 1. Upload to REX API
+        const rexResult = await uploadFilesToRex([file.file], {
+          documentType: rexDocType,
+          clientReference: `UPLOAD-${propertyId || 'no-property'}-${rexDocType}-${Date.now()}`,
+          pageRange: 'all',
+          templateId: "docin-default",
+          templateName: "Docin Default"
+        })
+
+        console.log(`[AddDocumentDialog] REX upload successful for ${file.name}:`, rexResult)
+        setUploadProgress(`Storing ${file.name} in database...`)
+
+        // 2. Store document in database with propertyId
+        const storeResponse = await fetch('/api/documents/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            processId: rexResult.processId,
+            documentId: rexResult.documentId,
+            filename: file.name,
+            documentType: rexDocType,
+            fileSize: file.size,
+            propertyId: propertyId,
+          }),
+        })
+
+        if (!storeResponse.ok) {
+          const errorData = await storeResponse.json()
+          throw new Error(errorData.error || 'Failed to store document in database')
+        }
+
+        const storeResult = await storeResponse.json()
+        console.log(`[AddDocumentDialog] Document stored successfully:`, storeResult)
+
+        // 3. Update extraction status to processing
+        await fetch('/api/documents/update', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            processId: rexResult.processId,
+            extractionStatus: 'processing',
+            uploadStatus: 'completed',
+          }),
+        })
+
+        uploadedProcessIds.push({
+          processId: rexResult.processId,
+          documentId: rexResult.documentId,
+          filename: file.name,
+        })
+      }
       
+      setUploadProgress("Processing documents... This may take a few minutes.")
+      setIsPollingInProgress(true)
+
+      // 4. Start polling for each uploaded document
+      for (const { processId, documentId, filename } of uploadedProcessIds) {
+        console.log(`[AddDocumentDialog] Starting polling for ${filename} (processId: ${processId})`)
+        
+        startPolling(processId, {
+          maxAttempts: 120, // 10 minutes with 5-second interval
+          interval: 5000,
+          onStatusUpdate: (status) => {
+            console.log(`[AddDocumentDialog] Status update for ${filename}:`, status)
+            setUploadProgress(`Processing ${filename}: ${status.status || 'in progress'}...`)
+          },
+          onCompleted: async (result) => {
+            console.log(`[AddDocumentDialog] Extraction completed for ${filename}:`, result)
+            
+            // Update document status to completed and store the extraction result
+            try {
+              await fetch('/api/documents/update', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  processId: processId,
+                  extractionStatus: 'completed',
+                  extractionResult: result,
+                  documentId: documentId,
+                }),
+              })
+              console.log(`[AddDocumentDialog] Document ${filename} updated with extraction result`)
+            } catch (updateErr) {
+              console.error(`[AddDocumentDialog] Failed to update document ${filename}:`, updateErr)
+            }
+
+            // Refresh documents list
+            onDocumentsRefresh?.()
+          },
+          onError: async (err) => {
+            console.error(`[AddDocumentDialog] Polling error for ${filename}:`, err)
+            
+            // Update document status to failed
+            try {
+              await fetch('/api/documents/update', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  processId: processId,
+                  extractionStatus: 'failed',
+                  errorMessage: err.message,
+                }),
+              })
+            } catch (updateErr) {
+              console.error(`[AddDocumentDialog] Failed to update error status for ${filename}:`, updateErr)
+            }
+          },
+        }, documentId)
+      }
+      
+      setUploadProgress("Upload complete! Documents are being processed in the background.")
       setUploadSuccess(true)
+      
+      // Trigger documents refresh
+      onDocumentsRefresh?.()
       onComplete?.(selectedFiles, selectedDocType)
       
       setTimeout(() => {
         onClose()
-      }, 1500)
+      }, 2000)
     } catch (err: any) {
-      console.error("Upload failed:", err)
+      console.error("[AddDocumentDialog] Upload failed:", err)
       setError(err.message || "Failed to upload files. Please try again.")
+      setIsPollingInProgress(false)
     } finally {
       setIsProcessing(false)
     }
@@ -329,6 +464,14 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId }: A
                 <div className="flex items-center justify-center gap-3 p-6">
                   <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                   <span className="text-sm text-gray-600">Processing files...</span>
+                </div>
+              )}
+
+              {/* Upload Progress Indicator */}
+              {isProcessing && uploadProgress && uploadedFiles.length > 0 && (
+                <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  <span className="text-sm text-blue-700 font-medium">{uploadProgress}</span>
                 </div>
               )}
 

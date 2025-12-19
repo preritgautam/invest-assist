@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import {
   FileText,
   Plus,
@@ -112,88 +112,51 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   const [activeSection, setActiveSection] = useState<"t12" | "normalized" | "summary">("t12")
   const [activeDocType, setActiveDocType] = useState<"OS" | "RR" | "OM">("OS")
 
-  // Fetch documents from database
-  useEffect(() => {
-    async function fetchDocuments() {
-      try {
-        setDocumentsLoading(true)
-        setDocumentsError(null)
+  // Fetch documents from database - extracted as a reusable function
+  const fetchDocuments = useCallback(async () => {
+    try {
+      setDocumentsLoading(true)
+      setDocumentsError(null)
 
-        // Build URL with propertyId filter if available
-        const url = propertyId
-          ? `/api/documents/list?propertyId=${encodeURIComponent(propertyId)}`
-          : '/api/documents/list'
-        const response = await fetch(url)
-        const data = await response.json()
+      // Build URL with propertyId filter if available
+      const url = propertyId
+        ? `/api/documents/list?propertyId=${encodeURIComponent(propertyId)}`
+        : '/api/documents/list'
+      const response = await fetch(url)
+      const data = await response.json()
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch documents')
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch documents')
+      }
+
+      if (data.documents && data.documents.length > 0) {
+        // Map database documents to PropertyDocument interface
+        const mappedDocuments: PropertyDocument[] = data.documents.map((doc: DatabaseDocument) => ({
+          id: doc.document_id || doc.process_id || `doc-${doc.id}`, // Use document_id, fallback to process_id or db id
+          name: doc.filename,
+          type: mapDocumentType(doc.document_type),
+          uploadDate: doc.created_at.split('T')[0],
+          stage: mapProcessingStage(doc.extraction_status),
+          // For RR documents, we'll load the rent roll data when selected
+          rentRollData: mapDocumentType(doc.document_type) === "RR" ? mockRentRollData : undefined,
+          extractedData: mapDocumentType(doc.document_type) === "OS" ? mockBrokerData : undefined,
+          version: 1,
+          holdPeriod: 7,
+        }))
+
+        setDocuments(mappedDocuments)
+
+        // Set selectedDoc to first document if not already set
+        if (mappedDocuments.length > 0) {
+          // Find the first OS document to select, or fall back to first document
+          const firstOsDoc = mappedDocuments.find(d => d.type === "OS")
+          const docToSelect = firstOsDoc || mappedDocuments[0]
+          setSelectedDoc(docToSelect.id)
+          // Always default to OS (T-12/OS) tab - don't auto-switch based on document types
+          // User can manually switch to other tabs if needed
         }
-
-        if (data.documents && data.documents.length > 0) {
-          // Map database documents to PropertyDocument interface
-          const mappedDocuments: PropertyDocument[] = data.documents.map((doc: DatabaseDocument) => ({
-            id: doc.document_id || doc.process_id || `doc-${doc.id}`, // Use document_id, fallback to process_id or db id
-            name: doc.filename,
-            type: mapDocumentType(doc.document_type),
-            uploadDate: doc.created_at.split('T')[0],
-            stage: mapProcessingStage(doc.extraction_status),
-            // For RR documents, we'll load the rent roll data when selected
-            rentRollData: mapDocumentType(doc.document_type) === "RR" ? mockRentRollData : undefined,
-            extractedData: mapDocumentType(doc.document_type) === "OS" ? mockBrokerData : undefined,
-            version: 1,
-            holdPeriod: 7,
-          }))
-
-          setDocuments(mappedDocuments)
-
-          // Set selectedDoc to first document if not already set
-          if (mappedDocuments.length > 0) {
-            // Find the first OS document to select, or fall back to first document
-            const firstOsDoc = mappedDocuments.find(d => d.type === "OS")
-            const docToSelect = firstOsDoc || mappedDocuments[0]
-            setSelectedDoc(docToSelect.id)
-            // Always default to OS (T-12/OS) tab - don't auto-switch based on document types
-            // User can manually switch to other tabs if needed
-          }
-        } else {
-          // No documents in database, use mock data as fallback
-          const mockDocuments: PropertyDocument[] = [
-            {
-              id: "mock-1",
-              name: `${property?.name || "Property"}_OS_2024.pdf`,
-              type: "OS",
-              uploadDate: "2024-01-15",
-              stage: "review",
-              extractedData: mockBrokerData,
-              version: 1,
-              holdPeriod: 7,
-            },
-            {
-              id: "mock-2",
-              name: `${property?.name || "Property"}_RentRoll_Q4.xlsx`,
-              type: "RR",
-              uploadDate: "2024-01-14",
-              stage: "verified",
-              rentRollData: mockRentRollData,
-            },
-            {
-              id: "mock-3",
-              name: `${property?.name || "Property"}_OM.pdf`,
-              type: "OM",
-              uploadDate: "2024-01-10",
-              stage: "review",
-            },
-          ]
-          setDocuments(mockDocuments)
-          setSelectedDoc("mock-1")
-          setActiveDocType("OS")
-        }
-      } catch (error) {
-        console.error('[DocsTab] Error fetching documents:', error)
-        setDocumentsError(error instanceof Error ? error.message : 'Failed to fetch documents')
-
-        // Use mock data on error
+      } else {
+        // No documents in database, use mock data as fallback
         const mockDocuments: PropertyDocument[] = [
           {
             id: "mock-1",
@@ -224,13 +187,51 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         setDocuments(mockDocuments)
         setSelectedDoc("mock-1")
         setActiveDocType("OS")
+      }
+    } catch (error) {
+      console.error('[DocsTab] Error fetching documents:', error)
+      setDocumentsError(error instanceof Error ? error.message : 'Failed to fetch documents')
+
+      // Use mock data on error
+      const mockDocuments: PropertyDocument[] = [
+        {
+          id: "mock-1",
+          name: `${property?.name || "Property"}_OS_2024.pdf`,
+          type: "OS",
+          uploadDate: "2024-01-15",
+          stage: "review",
+          extractedData: mockBrokerData,
+          version: 1,
+          holdPeriod: 7,
+        },
+        {
+          id: "mock-2",
+          name: `${property?.name || "Property"}_RentRoll_Q4.xlsx`,
+          type: "RR",
+          uploadDate: "2024-01-14",
+          stage: "verified",
+          rentRollData: mockRentRollData,
+        },
+        {
+            id: "mock-3",
+            name: `${property?.name || "Property"}_OM.pdf`,
+            type: "OM",
+            uploadDate: "2024-01-10",
+            stage: "review",
+          },
+        ]
+        setDocuments(mockDocuments)
+        setSelectedDoc("mock-1")
+        setActiveDocType("OS")
       } finally {
         setDocumentsLoading(false)
       }
-    }
-
-    fetchDocuments()
   }, [property?.name, propertyId])
+
+  // Fetch documents on mount and when propertyId changes
+  useEffect(() => {
+    fetchDocuments()
+  }, [fetchDocuments])
 
   const [extractedData, setExtractedData] = useState<LineItem[]>(mockBrokerData)
 
@@ -1149,6 +1150,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         isOpen={uploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
         propertyId={propertyId}
+        onDocumentsRefresh={fetchDocuments}
         onComplete={(files, documentType) => {
           setUploadDialogOpen(false)
           // Switch to the uploaded document type

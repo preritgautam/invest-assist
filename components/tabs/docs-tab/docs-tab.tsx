@@ -240,19 +240,28 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   const [osValidated, setOsValidated] = useState(false)
   const [rrValidated, setRrValidated] = useState(false)
   const [omValidated, setOmValidated] = useState(false)
+  const [hasAutoNavigatedAfterValidation, setHasAutoNavigatedAfterValidation] = useState(false)
 
   // Check if all documents are validated to unlock Analyze
   const allDocsValidated = osValidated && rrValidated && omValidated
 
   useEffect(() => {
-    if (allDocsValidated && activeSection === "t12") {
+    if (allDocsValidated && !hasAutoNavigatedAfterValidation && activeSection === "t12") {
       // Show a brief notification before auto-navigating
       setTimeout(() => {
         setActiveSection("normalized")
+        setHasAutoNavigatedAfterValidation(true)
       }, 1000)
     }
-  }, [allDocsValidated, activeSection])
+  }, [allDocsValidated])
   // </CHANGE>
+
+  // Reset auto-navigation flag when user manually changes section
+  useEffect(() => {
+    if (activeSection !== "normalized") {
+      setHasAutoNavigatedAfterValidation(false)
+    }
+  }, [activeSection])
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false)

@@ -21,37 +21,60 @@ interface ColumnGroup {
   bgColor: string
 }
 
-const COLUMN_GROUPS: ColumnGroup[] = [
-   {
+// Static column groups - Unit Info and Lease Terms have fixed columns
+// Tenant Charges will be populated dynamically from API Transaction Codes
+const STATIC_COLUMN_GROUPS: ColumnGroup[] = [
+  {
     id: "unit_info",
     name: "UNIT INFORMATION",
-    columns: ["Floor Plan", "Square Feet", "Suite Number"],
+    columns: [
+      "Floor Plan", 
+      "Square Feet", 
+      "Suite Number",
+      // Derived from Floor Plan Analysis
+      "bed", 
+      "bath", 
+      "renovated"
+    ],
     color: "text-blue-700",
     bgColor: "bg-blue-50"
   },
   {
     id: "lease_terms",
     name: "LEASE TERMS",
-    columns: ["status", "End Date", "base_rent", "Start Date", "Market Rent", "Tenant Name", "Move In Date", "Move Out Date", "Month To Month", "Lease Description", "Total Charges Paid", "total_contractual_rent"],
+    columns: [
+      "status",
+      "End Date",
+      "base_rent",
+      "Start Date",
+      "Market Rent",
+      "Tenant Name",
+      "Move In Date",
+      "Move Out Date",
+      "Month To Month",
+      "Lease Description",
+      "Total Charges Paid",
+      "total_contractual_rent",
+      // Additional lease-related fields
+      "occupancy_status",
+      "Occupancy Status"
+    ],
     color: "text-orange-700",
     bgColor: "bg-orange-50"
   },
-  {
-    id: "floor_plan",
-    name: "FLOOR PLAN",
-    columns: ["bed", "bath", "renovated"],
-    color: "text-purple-700",
-    bgColor: "bg-purple-50"
-  },
- 
-  {
-    id: "tenant_charges",
-    name: "TENANT CHARGES",
-    columns: ["RENT", "WATER", "Unit Upgrades", "WASH/DRY"],
-    color: "text-green-700",
-    bgColor: "bg-green-50"
-  },
-  
+]
+
+// Allowed categories for Configured Charges section (from "Mapping for the charges")
+const ALLOWED_CONFIGURED_CHARGE_CATEGORIES = [
+  "laundry",
+  "parking",
+  "pet_fee",
+  "vacancy",
+  "monthly_rent",
+  "monthly rent",  // Handle variations in naming
+  "corporate_unit",
+  "month_to_month_fees",
+  "utility_reimbursement",
 ]
 
 export interface TenantChargeConfig {
@@ -211,10 +234,23 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
   const [rawData, setRawData] = useState<any[]>(() => cachedData?.rawData || [])
   const [baseHeaders, setBaseHeaders] = useState<string[]>(() => cachedData?.baseHeaders || [])
   const [normalizedChargesMapping, setNormalizedChargesMapping] = useState<Record<string, string>>(() => cachedData?.normalizedChargesMapping || {})
+  const [transactionCodes, setTransactionCodes] = useState<string[]>(() => cachedData?.transactionCodes || [])
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [isUsingFallbackData, setIsUsingFallbackData] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
+  // Build dynamic column groups - static groups + dynamic tenant charges from Transaction Codes
+  const COLUMN_GROUPS: ColumnGroup[] = [
+    ...STATIC_COLUMN_GROUPS,
+    {
+      id: "tenant_charges",
+      name: "TENANT CHARGES",
+      columns: transactionCodes, // Dynamically populated from API Transaction Codes
+      color: "text-green-700",
+      bgColor: "bg-green-50"
+    },
+  ]
 
   // Toggle collapse state for a column group
   const toggleGroupCollapse = (groupId: string) => {
@@ -273,6 +309,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       setMetadata(cachedData.metadata)
       setChargesMapping(cachedData.chargesMapping)
       setNormalizedChargesMapping(cachedData.normalizedChargesMapping)
+      setTransactionCodes(cachedData.transactionCodes || [])
       if (cachedData.config) {
         setDynamicConfig(cachedData.config)
         setOriginalConfig(cachedData.config)
@@ -444,6 +481,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
         let normalized: Record<string, string[]> = {}
         let keyMap: Record<string, string> = {}
         let builtConfig: RentRollConfig = config
+        let apiTransactionCodes: string[] = []
         
         if (fetchedMetadata) {
           const originalMapping = fetchedMetadata["Mapping for the charges"] || {}
@@ -453,6 +491,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
             keyMap[normalizedKey] = field
           }
           builtConfig = buildConfigFromMetadata(fetchedMetadata, headers)
+          
+          // Extract Transaction Codes for dynamic Tenant Charges column group
+          apiTransactionCodes = fetchedMetadata["Transaction Codes"] || []
+          console.log('[fetchRentRollData] Transaction Codes from API:', apiTransactionCodes)
         }
 
         // Update local state
@@ -463,6 +505,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
         setMetadata(fetchedMetadata)
         setChargesMapping(normalized)
         setNormalizedChargesMapping(keyMap)
+        setTransactionCodes(apiTransactionCodes)
         setOriginalConfig(builtConfig)
         setDynamicConfig(builtConfig)
 
@@ -477,6 +520,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
             config: builtConfig,
             chargesMapping: normalized,
             normalizedChargesMapping: keyMap,
+            transactionCodes: apiTransactionCodes,
             fetchedAt: Date.now(),
           }
           setRentRollData(documentId, cacheData)
@@ -632,9 +676,16 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
   }
 
   // Get ALL available categories from the original API mapping (for display even if $0.00)
+  // Filter to only show allowed configured charge categories
   const getAllCategories = (): string[] => {
-    // Return normalized keys from chargesMapping
-    return Object.keys(chargesMapping).sort()
+    // Return normalized keys from chargesMapping, filtered to only allowed categories
+    const allKeys = Object.keys(chargesMapping)
+    return allKeys.filter(key => {
+      const normalizedKey = key.toLowerCase().replace(/\s+/g, "_")
+      return ALLOWED_CONFIGURED_CHARGE_CATEGORIES.some(
+        allowed => allowed.toLowerCase().replace(/\s+/g, "_") === normalizedKey
+      )
+    }).sort()
   }
 
   // Get display name for a category
@@ -1044,8 +1095,8 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                                 ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
                                 : ""
                               
-                              // Floor plan derived columns (bed, bath, renovated) are read-only - they come from Floor Plan config
-                              const isFloorPlanColumn = group.id === "floor_plan"
+                              // Columns derived from Floor Plan Analysis are read-only
+                              const isFloorPlanDerivedColumn = ["bed", "bath", "renovated"].includes(column.toLowerCase())
 
                               return (
                                 <td
@@ -1058,7 +1109,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                                     columnName={column}
                                     isStatusColumn={isStatusColumn}
                                     statusClass={statusClass}
-                                    isReadOnly={isFloorPlanColumn}
+                                    isReadOnly={isFloorPlanDerivedColumn}
                                     onSave={(newValue) =>
                                       saveRowData(globalIndex, column, newValue)
                                     }

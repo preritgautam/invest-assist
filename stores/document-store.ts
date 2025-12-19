@@ -24,6 +24,7 @@ export interface RentRollDocumentData {
   config: RentRollConfig | null
   chargesMapping: Record<string, string[]>
   normalizedChargesMapping: Record<string, string>
+  transactionCodes?: string[] // Dynamic transaction codes from API
   fetchedAt: number // timestamp for cache invalidation if needed
 }
 

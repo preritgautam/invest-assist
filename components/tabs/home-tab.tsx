@@ -78,21 +78,11 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   // State management for view mode, properties, and search
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   
-  // Initialize properties from cache if available, otherwise use mock data
-  const [properties, setProperties] = useState<PropertyData[]>(() => {
-    const cachedProperties = getAllCachedProperties()
-    const mockProperties = getAllProperties()
-    if (cachedProperties.length > 0) {
-      // Merge cached DB properties with mock properties
-      return [...cachedProperties, ...mockProperties]
-    }
-    return mockProperties
-  })
+  // Initialize with empty array - will be populated after API fetch
+  const [properties, setProperties] = useState<PropertyData[]>([])
   
-  // Only show loading if we don't have cached data
-  const [isLoadingProperties, setIsLoadingProperties] = useState(() => {
-    return getAllCachedProperties().length === 0
-  })
+  // Always show loading initially while fetching from API
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true)
   
   const [searchQuery, setSearchQuery] = useState("")
   const [showUploadDialog, setShowUploadDialog] = useState(false)
@@ -100,17 +90,10 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Fetch properties from database API only if not cached
+  // Fetch properties from database API on mount
   useEffect(() => {
-    // Check if we already have cached data
-    const cachedProperties = getAllCachedProperties()
-    if (cachedProperties.length > 0) {
-      // Data already cached, no need to fetch
-      setIsLoadingProperties(false)
-      return
-    }
-    
     const fetchProperties = async () => {
+      setIsLoadingProperties(true)
       try {
         const response = await fetch('/api/properties')
         if (response.ok) {
@@ -121,11 +104,18 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
             // Merge with mock data (mock data IDs won't conflict with UUIDs)
             const mockProperties = getAllProperties()
             setProperties([...dbProperties, ...mockProperties])
+          } else {
+            // No DB properties, use mock data only
+            setProperties(getAllProperties())
           }
+        } else {
+          // API error, fall back to mock data
+          setProperties(getAllProperties())
         }
       } catch (error) {
         console.error('[HomeTab] Error fetching properties:', error)
-        // On error, just use mock data
+        // On error, fall back to mock data
+        setProperties(getAllProperties())
       } finally {
         setIsLoadingProperties(false)
       }
@@ -335,6 +325,8 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
     </button>
   )
 
+  console.log("properties", properties, "isLoadingProperties", isLoadingProperties)
+
   return (
     <div className="space-y-4 px-2 sm:px-0">
       <UploadDialog
@@ -518,7 +510,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
               </AppCard>
 
               {/* Skeleton loaders while fetching */}
-              {isLoadingProperties && properties.length === 0 && (
+              {isLoadingProperties && (
                 <>
                   <PropertyCardSkeleton />
                   <PropertyCardSkeleton />
@@ -529,7 +521,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
               )}
 
               {/* Property cards with hover effects and dropdown menus */}
-              {properties.map((property) => (
+              {!isLoadingProperties && properties.map((property) => (
                 <div
                   key={property.id}
                   onClick={(e) => handlePropertyClick(property.id, e)}
@@ -628,7 +620,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                 {/* Property list items */}
                 <div className="divide-y divide-gray-100">
                   {/* Skeleton loaders while fetching */}
-                  {isLoadingProperties && properties.length === 0 && (
+                  {isLoadingProperties && (
                     <>
                       <PropertyListSkeleton />
                       <PropertyListSkeleton />
@@ -638,7 +630,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                     </>
                   )}
 
-                  {properties.map((property) => (
+                  {!isLoadingProperties && properties.map((property) => (
                     <div
                       key={property.id}
                       onClick={(e) => handlePropertyClick(property.id, e)}

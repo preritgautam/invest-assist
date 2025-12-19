@@ -45,6 +45,7 @@ import { generateRentRollUnits } from "./utils"
 import LineItemRow, { type LineItem as LineItemType } from "./LineItemRow"
 import { RentRollConfig, RRConfigure } from "./rent-roll/rr-configure"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { AddDocumentDialog } from "./add-document-dialog"
 
 // near the other imports at the top of the file
 
@@ -256,6 +257,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false)
   const [rrConfigOpen, setRrConfigOpen] = useState(false)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [rrConfig, setRrConfig] = useState<RentRollConfig>({
     tenantCharges: [
       { id: "1", name: "RENT", apiField: "monthly_rent", frequency: "Monthly", targetFrequency: "Monthly" },
@@ -810,7 +812,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                     <TooltipTrigger asChild>
 
                       <button
-                        onClick={() => { }}
+                        onClick={() => setUploadDialogOpen(true)}
                         className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
                       >
                         <Plus className="w-5 h-5" />
@@ -1015,7 +1017,17 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         </div>
       </div>
 
-
+      {/* Add Document Dialog */}
+      <AddDocumentDialog
+        isOpen={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+        propertyId={propertyId}
+        onComplete={(files, documentType) => {
+          setUploadDialogOpen(false)
+          // Switch to the uploaded document type
+          handleDocTypeChange(documentType)
+        }}
+      />
     </div>
   )
 }

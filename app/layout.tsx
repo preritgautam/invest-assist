@@ -1,10 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Montserrat, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
-const inter = Inter({
+const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
+      <body className={`${montserrat.variable} ${jetbrainsMono.variable} font-sans`}>
         {children}
         <Toaster />
       </body>

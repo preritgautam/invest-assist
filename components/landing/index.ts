@@ -1,0 +1,10 @@
+// Landing page components barrel export
+export { Navbar } from "./navbar"
+export { Hero } from "./hero"
+export { Features } from "./features"
+export { Workflow } from "./workflow"
+export { WhyUs } from "./why-us"
+export { Security } from "./security"
+export { Pricing } from "./pricing"
+export { CTA } from "./cta"
+export { Footer } from "./footer"

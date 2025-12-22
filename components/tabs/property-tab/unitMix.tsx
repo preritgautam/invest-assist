@@ -34,6 +34,21 @@ const UnitMix: React.FC<UnitMixProps> = ({ documents }) => {
 
   const documentId = documents?.[0]?.id
 
+  const [images, setImages] = useState([])
+
+  const propertyId = 'b3ae0daf-a454-490c-8796-40de30027b55' // Replace with actual property ID as needed
+
+useEffect(() => {
+  async function fetchImages() {
+    const res = await fetch(`/api/properties/images?propertyId=${propertyId}`)
+    const data = await res.json()
+    if (data.success) {
+      setImages(data.images)
+    }
+  }
+  fetchImages()
+}, [propertyId])
+
   // Fetch rent roll data
   useEffect(() => {
     if (!documentId) return
@@ -211,6 +226,11 @@ const UnitMix: React.FC<UnitMixProps> = ({ documents }) => {
             </tbody>
           </table>
         </div>
+      </div>
+      <div>
+        {images.map(img => (
+  <img key={img.id} src={img.signed_url} alt={img.filename} />
+))}
       </div>
     </div>
   )

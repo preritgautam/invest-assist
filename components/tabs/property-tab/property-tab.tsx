@@ -38,6 +38,7 @@ import { getPropertyById, type PropertyData } from "@/lib/property-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PropertyImageCarousel from "./property-images"
 import UnitMix from "./unitMix"
+ import WalkScore from "./walkscore"
 
 /**
  * Props interface for PropertyTab component
@@ -119,26 +120,38 @@ export function PropertyTab({ property, propertyId, documents }: PropertyTabProp
       {/* Property header with basic information - only show if we have real property data */}
       {!isDatabaseOnlyProperty && (
         <Card className="bg-white rounded-2xl shadow-lg border-2 border-white">
+
+
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gray-100 rounded-lg">
                 <Building className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+
+
+              </div>
+
+              <div>
+                <WalkScore
+                  address="Aqua Cove Apartments"
+                  lat={30.483629287246565}
+                  lon={-84.29125597288181}
+                />
               </div>
               <div>
+
                 <CardTitle className="text-sm font-bold text-gray-900">{propertyData.name}</CardTitle>
                 <p className="text-xs sm:text-sm text-gray-600">{propertyData.address}</p>
                 <div className="flex items-center gap-2 mt-1">
                   {/* Dynamic status badge with conditional styling */}
                   <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      propertyData.status === "Active"
-                        ? "bg-gray-100 text-gray-800"
-                        : propertyData.status === "Under Review"
-                          ? "bg-gray-200 text-gray-800"
-                          : propertyData.status === "Draft"
-                            ? "bg-gray-100 text-gray-600"
-                            : "bg-gray-100 text-gray-800"
-                    }`}
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${propertyData.status === "Active"
+                      ? "bg-gray-100 text-gray-800"
+                      : propertyData.status === "Under Review"
+                        ? "bg-gray-200 text-gray-800"
+                        : propertyData.status === "Draft"
+                          ? "bg-gray-100 text-gray-600"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
                   >
                     {propertyData.status}
                   </span>
@@ -433,7 +446,7 @@ export function PropertyTab({ property, propertyId, documents }: PropertyTabProp
       )}
 
       {/* Unit mix table section */}
-    <UnitMix documents={documents}/>
+      <UnitMix documents={documents} />
 
       {/* Market intelligence and commentary section */}
       <div className="space-y-6">

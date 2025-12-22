@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Users,
   BookOpen,
+  ImageIcon,
 } from "lucide-react"
 import { uploadFilesToRex } from "@/lib/rex-client"
 import { useRexPolling } from "@/hooks/use-rex-polling"
@@ -31,7 +32,7 @@ interface UploadedFile {
   file: File
 }
 
-type DocumentType = "OS" | "RR" | "OM"
+type DocumentType = "OS" | "RR" | "OM" | "Photos"
 
 interface AddDocumentDialogProps {
   isOpen: boolean
@@ -173,6 +174,77 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
     setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }, [])
 
+  // Handle Photos upload - direct to storage without REX processing
+  const handlePhotosUpload = async (selectedFiles: UploadedFile[]) => {
+    try {
+      if (!propertyId) {
+        setError("Property ID is required to upload photos")
+        setIsProcessing(false)
+        return
+      }
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
+        setUploadProgress(`Uploading photo ${file.name} (${i + 1}/${selectedFiles.length})...`)
+
+        // Create FormData for storage upload
+        const formData = new FormData()
+        formData.append('file', file.file)
+        formData.append('propertyId', propertyId)
+        formData.append('imageCategory', 'user_uploaded') // Mark as user uploaded
+
+        // Upload to storage API
+        const response = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to upload photo')
+        }
+
+        const result = await response.json()
+        console.log(`[AddDocumentDialog] Photo uploaded successfully:`, result)
+
+        // Create property_images record
+        const imageResponse = await fetch('/api/properties/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId: propertyId,
+            filename: file.name,
+            storagePath: result.document?.storage_path,
+            imageCategory: 'user_uploaded',
+            displayOrder: i,
+          }),
+        })
+
+        if (!imageResponse.ok) {
+          console.error(`[AddDocumentDialog] Failed to create property_images record for ${file.name}`)
+        } else {
+          console.log(`[AddDocumentDialog] Property image record created for ${file.name}`)
+        }
+      }
+
+      setUploadProgress("Photos uploaded successfully!")
+      setUploadSuccess(true)
+
+      // Trigger refresh
+      onDocumentsRefresh?.()
+      onComplete?.(selectedFiles, "Photos")
+
+      setTimeout(() => {
+        onClose()
+      }, 1500)
+    } catch (err: any) {
+      console.error("[AddDocumentDialog] Photo upload failed:", err)
+      setError(err.message || "Failed to upload photos. Please try again.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleProceed = async () => {
     const selectedFiles = uploadedFiles.filter((f) => f.selected)
 
@@ -191,8 +263,14 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
     setUploadProgress("Preparing upload...")
 
     try {
+      // Handle Photos upload separately (direct to storage, no REX processing)
+      if (selectedDocType === "Photos") {
+        await handlePhotosUpload(selectedFiles)
+        return
+      }
+
       // Map document type to REX document type
-      const docTypeMap: Record<DocumentType, string> = {
+      const docTypeMap: Record<Exclude<DocumentType, "Photos">, string> = {
         OS: "operating_statement",
         RR: "rent_roll",
         OM: "offering_memorandum",
@@ -350,6 +428,8 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
         return <Users className="w-6 h-6" />
       case "OM":
         return <BookOpen className="w-6 h-6" />
+      case "Photos":
+        return <ImageIcon className="w-6 h-6" />
     }
   }
 
@@ -361,6 +441,8 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
         return "Rent Roll"
       case "OM":
         return "Offering Memorandum"
+      case "Photos":
+        return "Property Photos"
     }
   }
 
@@ -372,6 +454,8 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
         return "Current tenant and unit information"
       case "OM":
         return "Property marketing and investment details"
+      case "Photos":
+        return "Upload property images and photos"
     }
   }
 
@@ -407,8 +491,8 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
             <>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Select Document Type</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {(["OS", "RR", "OM"] as DocumentType[]).map((type) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {(["OS", "RR", "OM", "Photos"] as DocumentType[]).map((type) => (
                     <button
                       key={type}
                       onClick={() => setSelectedDocType(type)}
@@ -446,7 +530,7 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                 >
                   <Upload className={`w-10 h-10 mx-auto mb-3 ${isDragging ? "text-blue-500" : "text-gray-400"}`} />
                   <p className="text-sm font-medium text-gray-700 mb-1">
-                    Drag and drop your {getDocTypeLabel(selectedDocType)} file here
+                    Drag and drop your {getDocTypeLabel(selectedDocType)} {selectedDocType === "Photos" ? "images" : "file"} here
                   </p>
                   <p className="text-xs text-gray-500 mb-4">or</p>
                   <button
@@ -455,7 +539,11 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                   >
                     Browse Files
                   </button>
-                  <p className="text-xs text-gray-400 mt-4">Supported: PDF, Excel, Images (max 50MB)</p>
+                  <p className="text-xs text-gray-400 mt-4">
+                    {selectedDocType === "Photos" 
+                      ? "Supported: JPG, PNG, GIF, WebP (max 50MB)"
+                      : "Supported: PDF, Excel, Images (max 50MB)"}
+                  </p>
                 </div>
               )}
 
@@ -480,7 +568,7 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
+                accept={selectedDocType === "Photos" ? ".jpg,.jpeg,.png,.gif,.webp" : ".pdf,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"}
                 onChange={handleFileInputChange}
                 className="hidden"
               />

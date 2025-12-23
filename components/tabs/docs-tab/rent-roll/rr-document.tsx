@@ -1220,7 +1220,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       <ResizableHandle withHandle />
 
 
-<OSDocument propertyId={"034f2082-c240-413d-ad81-9ff588a9f9d5"} />
+<OSDocument propertyId={documentId} />
 
       {/* Configure Modal - Right side panel */}
       {isOpen && (

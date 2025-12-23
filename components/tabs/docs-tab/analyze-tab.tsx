@@ -110,17 +110,17 @@ export function AnalyzeTab({ property }: AnalyzeTabProps) {
   }
 
   return (
-    <div className="space-y-2 p-2">
-      <div className="bg-white border-b border-gray-200 px-2 py-1.5">
-        <div className="flex items-center gap-1 overflow-x-auto">
+    <div className="space-y-4 p-4">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-3 py-3 rounded-t-xl">
+        <div className="flex items-center gap-1.5 p-1 bg-gray-100/60 rounded-xl overflow-x-auto">
           {sections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                 activeSection === section.id
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:bg-white/60 hover:text-gray-900"
               }`}
             >
               {section.icon}
@@ -131,7 +131,7 @@ export function AnalyzeTab({ property }: AnalyzeTabProps) {
       </div>
 
       {/* Section Content */}
-      <div className="bg-white border border-gray-200 p-3">{renderSectionContent()}</div>
+      <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">{renderSectionContent()}</div>
     </div>
   )
 }

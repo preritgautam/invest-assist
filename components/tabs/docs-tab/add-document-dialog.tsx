@@ -461,27 +461,27 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto p-4 sm:p-6 max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto p-5 sm:p-6 max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl font-bold">Add New Document</DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+          <DialogTitle className="text-lg sm:text-xl font-semibold">Add New Document</DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
             Upload a document and select its type
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6 mt-4">
+        <div className="space-y-5 mt-4">
           {/* Error Message */}
           {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
 
           {/* Success Message */}
           {uploadSuccess && (
-            <div className="flex items-start gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-              <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
+              <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-green-600">Document uploaded successfully!</p>
             </div>
           )}
@@ -490,23 +490,23 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
           {!uploadSuccess && (
             <>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Select Document Type</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Select Document Type</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   {(["OS", "RR", "OM", "Photos"] as DocumentType[]).map((type) => (
                     <button
                       key={type}
                       onClick={() => setSelectedDocType(type)}
-                      className={`text-card-foreground flex flex-col items-center gap-3 py-6 px-4 rounded-2xl shadow-lg hover:shadow-xl duration-200 cursor-pointer border-2 border-dashed transition-all touch-manipulation text-center ${
+                      className={`flex flex-col items-center gap-3 py-5 px-4 rounded-xl transition-all duration-200 cursor-pointer border-2 touch-manipulation text-center ${
                         selectedDocType === type
-                          ? "border-blue-500 bg-blue-50 shadow-blue-100"
-                          : "bg-white border-border hover:border-muted-foreground"
+                          ? "border-gray-900 bg-gray-50 shadow-sm"
+                          : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
-                      <div className={`p-3 rounded-xl ${selectedDocType === type ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
+                      <div className={`p-3 rounded-xl transition-colors duration-200 ${selectedDocType === type ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}>
                         {getDocTypeIcon(type)}
                       </div>
                       <div>
-                        <h4 className={`text-sm font-semibold mb-1 ${selectedDocType === type ? "text-blue-900" : "text-gray-900"}`}>
+                        <h4 className={`text-sm font-medium mb-1 ${selectedDocType === type ? "text-gray-900" : "text-gray-800"}`}>
                           {getDocTypeLabel(type)}
                         </h4>
                         <p className="text-xs text-gray-500">{getDocTypeDescription(type)}</p>
@@ -522,20 +522,22 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all ${
+                  className={`border-2 border-dashed rounded-xl p-10 sm:p-12 text-center transition-all duration-200 ${
                     isDragging
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:border-gray-400 bg-gray-50"
+                      ? "border-gray-900 bg-gray-50"
+                      : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
                   }`}
                 >
-                  <Upload className={`w-10 h-10 mx-auto mb-3 ${isDragging ? "text-blue-500" : "text-gray-400"}`} />
+                  <div className={`w-14 h-14 mx-auto mb-4 rounded-xl flex items-center justify-center ${isDragging ? "bg-gray-900 text-white" : "bg-gray-100"}`}>
+                    <Upload className={`w-7 h-7 ${isDragging ? "text-white" : "text-gray-500"}`} />
+                  </div>
                   <p className="text-sm font-medium text-gray-700 mb-1">
                     Drag and drop your {getDocTypeLabel(selectedDocType)} {selectedDocType === "Photos" ? "images" : "file"} here
                   </p>
                   <p className="text-xs text-gray-500 mb-4">or</p>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     Browse Files
                   </button>
@@ -550,16 +552,16 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
               {/* Processing Indicator */}
               {isProcessing && uploadedFiles.length === 0 && (
                 <div className="flex items-center justify-center gap-3 p-6">
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
                   <span className="text-sm text-gray-600">Processing files...</span>
                 </div>
               )}
 
               {/* Upload Progress Indicator */}
               {isProcessing && uploadProgress && uploadedFiles.length > 0 && (
-                <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                  <span className="text-sm text-blue-700 font-medium">{uploadProgress}</span>
+                <div className="flex items-center justify-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-700" />
+                  <span className="text-sm text-gray-700 font-medium">{uploadProgress}</span>
                 </div>
               )}
 
@@ -575,14 +577,14 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
 
               {/* Uploaded Files List */}
               {uploadedFiles.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">
+                    <h3 className="text-sm font-medium text-gray-700">
                       Selected Files ({uploadedFiles.filter((f) => f.selected).length})
                     </h3>
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors"
                     >
                       + Add more files
                     </button>
@@ -592,17 +594,17 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                     {uploadedFiles.map((file) => (
                       <div
                         key={file.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                        className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all duration-200 ${
                           file.selected
-                            ? "bg-blue-50 border-blue-200"
-                            : "bg-gray-50 border-gray-200"
+                            ? "bg-gray-50 border-gray-300"
+                            : "bg-white border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={file.selected}
                           onChange={() => toggleFileSelection(file.id)}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
                         />
                         <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -611,7 +613,7 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                         </div>
                         <button
                           onClick={() => removeFile(file.id)}
-                          className="p-1 rounded hover:bg-gray-200 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                         >
                           <X className="w-4 h-4 text-gray-500" />
                         </button>
@@ -620,24 +622,24 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <button
                       onClick={handleReset}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       Reset
                     </button>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleProceed}
                         disabled={isProcessing || uploadedFiles.filter((f) => f.selected).length === 0}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-xl hover:bg-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg"
                       >
                         {isProcessing ? (
                           <>

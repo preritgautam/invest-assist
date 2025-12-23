@@ -2118,37 +2118,37 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
   }
 
   return (
-    <div className="space-y-2 sm:space-y-4 p-1 sm:p-2 md:p-4">
+    <div className="space-y-4 p-3 sm:p-4 md:p-6">
       {/* Validation Banner */}
-      <div className="bg-white rounded-lg border p-2 sm:p-3 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="text-xs text-gray-600">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/60 p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-600">
             {validated ? (
-              <span className="text-green-600 font-semibold flex items-center gap-2">
+              <span className="text-green-600 font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
                 T-12 / OS Data Validated
               </span>
             ) : (
-              <span>Review all line items and validate the data before proceeding</span>
+              <span className="text-gray-500">Review all line items and validate the data before proceeding</span>
             )}
           </div>
           <div className="flex items-center gap-2">
             {validated && (
               <button
                 onClick={onUnvalidate}
-                className="px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
+                className="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1.5"
               >
-                <Edit3 className="w-3 h-3" />
+                <Edit3 className="w-3.5 h-3.5" />
                 Edit
               </button>
             )}
             <button
               onClick={onValidate}
               disabled={validated}
-              className={`px-3 sm:px-4 py-1.5 rounded text-xs sm:text-sm font-medium transition-colors ${
+              className={`px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 validated
-                  ? "bg-green-100 text-green-700 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+                  ? "bg-green-50 text-green-700 cursor-not-allowed"
+                  : "bg-gray-900 text-white hover:bg-gray-800 shadow-md hover:shadow-lg"
               }`}
             >
               {validated ? "✓ Validated" : "Validate Data"}
@@ -2157,28 +2157,28 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
         </div>
       </div>
 
-      <div className="md:hidden bg-white rounded-lg border p-2 shadow-sm">
-        <div className="flex gap-1 overflow-x-auto">
+      <div className="md:hidden bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/60 p-2 shadow-sm">
+        <div className="flex gap-1 p-1 bg-gray-100/60 rounded-lg">
           <button
             onClick={() => setMobileSection("income")}
-            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-              mobileSection === "income" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+              mobileSection === "income" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Income
           </button>
           <button
             onClick={() => setMobileSection("expense")}
-            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-              mobileSection === "expense" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+              mobileSection === "expense" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Expenses
           </button>
           <button
             onClick={() => setMobileSection("noi")}
-            className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-              mobileSection === "noi" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+              mobileSection === "noi" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
             }`}
           >
             NOI
@@ -2188,10 +2188,10 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       {/* </CHANGE> */}
 
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <button
           onClick={() => setShowMonthlyColumns(!showMonthlyColumns)}
-          className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm font-medium text-gray-700 flex items-center justify-center gap-2"
+          className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 text-sm font-medium text-gray-700 flex items-center justify-center gap-2 shadow-sm"
         >
           {showMonthlyColumns ? (
             <>
@@ -2206,19 +2206,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           )}
         </button>
 
-        <div className="flex items-center gap-2 text-xs text-gray-600">
+        <div className="flex items-center gap-2.5 text-sm text-gray-600">
           <span className="font-medium">Total Units:</span>
           <input
             type="number"
             value={totalUnits}
             onChange={(e) => setTotalUnits(Number.parseInt(e.target.value) || 0)}
-            className="w-16 sm:w-20 px-2 py-1 border border-gray-300 rounded text-center"
+            className="w-16 sm:w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all duration-200"
           />
         </div>
 
         <button
           onClick={handleAddLineItem}
-          className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
+          className="px-4 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
         >
           <Plus className="w-4 h-4" />
           <span>Add Line Item</span>
@@ -2226,14 +2226,14 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       </div>
 
       <div className={`${mobileSection !== "income" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Income</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 px-1">Income</h3>
+        <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden shadow-sm">
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
             <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <thead className="bg-gray-50/80 border-b border-gray-100 sticky top-0 z-20">
                 <tr>
                   <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                    className="p-2.5 text-left font-medium text-gray-600 border-r border-gray-100 sticky left-0 bg-gray-50/80 z-20 text-xs uppercase tracking-wide"
                     style={{
                       width: `${lineItemColumnWidth}px`,
                       minWidth: `${lineItemColumnWidth}px`,
@@ -2245,19 +2245,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                       <div
                         onMouseDown={handleResizeStart}
                         onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 bg-gray-200 transition-colors touch-none"
                         title="Drag to resize column"
                       />
                     </div>
                   </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
+                  <th className="p-2.5 text-right font-medium text-gray-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide">
                     Per Unit
                   </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
+                  <th className="p-2.5 text-right font-medium text-blue-600 border-r border-gray-100 w-[120px] min-w-[120px] max-w-[120px] text-xs uppercase tracking-wide">
                     Doc Total
                   </th>
                   <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[120px] min-w-[120px] max-w-[120px]`}
+                    className={`p-2.5 text-right font-medium text-emerald-600 border-r border-gray-100 w-[120px] min-w-[120px] max-w-[120px] text-xs uppercase tracking-wide`}
                   >
                     Calc Total
                   </th>
@@ -2265,19 +2265,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                     months.map((month) => (
                       <th
                         key={month}
-                        className="p-2 text-right font-semibold w-[90px] min-w-[90px] max-w-[90px] border-r"
+                        className="p-2.5 text-right font-medium text-gray-500 w-[90px] min-w-[90px] max-w-[90px] border-r border-gray-100 text-xs"
                       >
                         {month.charAt(0).toUpperCase() + month.slice(1)}
                       </th>
                     ))}
                   <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
+                    className={`p-2.5 text-left font-medium text-gray-600 ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"} text-xs uppercase tracking-wide`}
                   >
                     Notes
                   </th>
                 </tr>
               </thead>
-              <tbody>{incomeItems.map((item) => renderLineItem(item, incomeItems, setIncomeItems, 0))}</tbody>
+              <tbody className="divide-y divide-gray-50">{incomeItems.map((item) => renderLineItem(item, incomeItems, setIncomeItems, 0))}</tbody>
             </table>
           </div>
         </div>
@@ -2285,14 +2285,14 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       {/* </CHANGE> */}
 
       <div className={`${mobileSection !== "expense" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Expenses</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 px-1">Expenses</h3>
+        <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden shadow-sm">
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
             <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <thead className="bg-gray-50/80 border-b border-gray-100 sticky top-0 z-20">
                 <tr>
                   <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                    className="p-2.5 text-left font-medium text-gray-600 border-r border-gray-100 sticky left-0 bg-gray-50/80 z-20 text-xs uppercase tracking-wide"
                     style={{
                       width: `${lineItemColumnWidth}px`,
                       minWidth: `${lineItemColumnWidth}px`,
@@ -2304,19 +2304,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                       <div
                         onMouseDown={handleResizeStart}
                         onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 bg-gray-200 transition-colors touch-none"
                         title="Drag to resize column"
                       />
                     </div>
                   </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
+                  <th className="p-2.5 text-right font-medium text-gray-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide">
                     Per Unit
                   </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
+                  <th className="p-2.5 text-right font-medium text-blue-600 border-r border-gray-100 w-[120px] min-w-[120px] max-w-[120px] text-xs uppercase tracking-wide">
                     Doc Total
                   </th>
                   <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[100px] min-w-[100px] max-w-[100px]`}
+                    className={`p-2.5 text-right font-medium text-emerald-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide`}
                   >
                     Calc Total
                   </th>
@@ -2324,19 +2324,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                     months.map((month) => (
                       <th
                         key={month}
-                        className="p-2 text-right font-semibold w-[70px] min-w-[70px] max-w-[70px] border-r"
+                        className="p-2.5 text-right font-medium text-gray-500 w-[70px] min-w-[70px] max-w-[70px] border-r border-gray-100 text-xs"
                       >
                         {month.charAt(0).toUpperCase() + month.slice(1)}
                       </th>
                     ))}
                   <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
+                    className={`p-2.5 text-left font-medium text-gray-600 ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"} text-xs uppercase tracking-wide`}
                   >
                     Notes
                   </th>
                 </tr>
               </thead>
-              <tbody>{expenseItems.map((item) => renderLineItem(item, expenseItems, setExpenseItems, 0))}</tbody>
+              <tbody className="divide-y divide-gray-50">{expenseItems.map((item) => renderLineItem(item, expenseItems, setExpenseItems, 0))}</tbody>
             </table>
           </div>
         </div>
@@ -2344,14 +2344,14 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       {/* </CHANGE> */}
 
       <div className={`${mobileSection !== "expense" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Capital Expenditures</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 px-1">Capital Expenditures</h3>
+        <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden shadow-sm">
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
             <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <thead className="bg-gray-50/80 border-b border-gray-100 sticky top-0 z-20">
                 <tr>
                   <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                    className="p-2.5 text-left font-medium text-gray-600 border-r border-gray-100 sticky left-0 bg-gray-50/80 z-20 text-xs uppercase tracking-wide"
                     style={{
                       width: `${lineItemColumnWidth}px`,
                       minWidth: `${lineItemColumnWidth}px`,
@@ -2363,19 +2363,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                       <div
                         onMouseDown={handleResizeStart}
                         onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 bg-gray-200 transition-colors touch-none"
                         title="Drag to resize column"
                       />
                     </div>
                   </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
+                  <th className="p-2.5 text-right font-medium text-gray-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide">
                     Per Unit
                   </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
+                  <th className="p-2.5 text-right font-medium text-blue-600 border-r border-gray-100 w-[120px] min-w-[120px] max-w-[120px] text-xs uppercase tracking-wide">
                     Doc Total
                   </th>
                   <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[100px] min-w-[100px] max-w-[100px]`}
+                    className={`p-2.5 text-right font-medium text-emerald-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide`}
                   >
                     Calc Total
                   </th>
@@ -2383,19 +2383,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                     months.map((month) => (
                       <th
                         key={month}
-                        className="p-2 text-right font-semibold w-[70px] min-w-[70px] max-w-[70px] border-r"
+                        className="p-2.5 text-right font-medium text-gray-500 w-[70px] min-w-[70px] max-w-[70px] border-r border-gray-100 text-xs"
                       >
                         {month.charAt(0).toUpperCase() + month.slice(1)}
                       </th>
                     ))}
                   <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
+                    className={`p-2.5 text-left font-medium text-gray-600 ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"} text-xs uppercase tracking-wide`}
                   >
                     Notes
                   </th>
                 </tr>
               </thead>
-              <tbody>{capitalItems.map((item) => renderLineItem(item, capitalItems, setCapitalItems, 0))}</tbody>
+              <tbody className="divide-y divide-gray-50">{capitalItems.map((item) => renderLineItem(item, capitalItems, setCapitalItems, 0))}</tbody>
             </table>
           </div>
         </div>
@@ -2403,14 +2403,14 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
       {/* </CHANGE> */}
 
       <div className={`${mobileSection !== "expense" ? "hidden md:block" : ""}`}>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 px-2">Debt Service</h3>
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 px-1">Debt Service</h3>
+        <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden shadow-sm">
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh] md:max-h-none">
             <table className="w-full text-xs table-auto" style={{ minWidth: showMonthlyColumns ? "1400px" : "600px" }}>
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
+              <thead className="bg-gray-50/80 border-b border-gray-100 sticky top-0 z-20">
                 <tr>
                   <th
-                    className="p-2 text-left font-semibold border-r sticky left-0 bg-gray-50 z-20"
+                    className="p-2.5 text-left font-medium text-gray-600 border-r border-gray-100 sticky left-0 bg-gray-50/80 z-20 text-xs uppercase tracking-wide"
                     style={{
                       width: `${lineItemColumnWidth}px`,
                       minWidth: `${lineItemColumnWidth}px`,
@@ -2422,19 +2422,19 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                       <div
                         onMouseDown={handleResizeStart}
                         onTouchStart={handleResizeStart}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-500 bg-gray-300 transition-colors touch-none"
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 bg-gray-200 transition-colors touch-none"
                         title="Drag to resize column"
                       />
                     </div>
                   </th>
-                  <th className="p-2 text-right font-semibold border-r w-[100px] min-w-[100px] max-w-[100px]">
+                  <th className="p-2.5 text-right font-medium text-gray-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide">
                     Per Unit
                   </th>
-                  <th className="p-2 text-right font-semibold border-r text-blue-700 w-[120px] min-w-[120px] max-w-[120px]">
+                  <th className="p-2.5 text-right font-medium text-blue-600 border-r border-gray-100 w-[120px] min-w-[120px] max-w-[120px] text-xs uppercase tracking-wide">
                     Doc Total
                   </th>
                   <th
-                    className={`p-2 text-right font-semibold border-r text-green-700 w-[100px] min-w-[100px] max-w-[100px]`}
+                    className={`p-2.5 text-right font-medium text-emerald-600 border-r border-gray-100 w-[100px] min-w-[100px] max-w-[100px] text-xs uppercase tracking-wide`}
                   >
                     Calc Total
                   </th>
@@ -2442,59 +2442,56 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
                     months.map((month) => (
                       <th
                         key={month}
-                        className="p-2 text-right font-semibold w-[70px] min-w-[70px] max-w-[70px] border-r"
+                        className="p-2.5 text-right font-medium text-gray-500 w-[70px] min-w-[70px] max-w-[70px] border-r border-gray-100 text-xs"
                       >
                         {month.charAt(0).toUpperCase() + month.slice(1)}
                       </th>
                     ))}
                   <th
-                    className={`p-2 text-left font-semibold ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
+                    className={`p-2.5 text-left font-medium text-gray-600 ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"} text-xs uppercase tracking-wide`}
                   >
                     Notes
                   </th>
                 </tr>
               </thead>
-              <tbody>{debtItems.map((item) => renderLineItem(item, debtItems, setDebtItems, 0))}</tbody>
+              <tbody className="divide-y divide-gray-50">{debtItems.map((item) => renderLineItem(item, debtItems, setDebtItems, 0))}</tbody>
             </table>
           </div>
         </div>
       </div>
       {/* </CHANGE> */}
 
-      <div className={`${mobileSection !== "noi" ? "hidden md:block" : "block"} px-2 sm:px-4 pb-4`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+      <div className={`${mobileSection !== "noi" ? "hidden md:block" : "block"} px-1 sm:px-2 pb-4`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* NET OPERATING INCOME Card */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2.5 border-l-4 border-l-blue-500">
+          <div className="bg-white rounded-xl border border-gray-200/60 shadow-sm p-4 transition-all duration-200 hover:shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
+                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
                   Net Operating Income
                 </h3>
-                <span className="text-base font-semibold text-gray-900">${calculateNOI().toLocaleString('en-US')}</span>
+                <span className="text-xl font-semibold text-gray-900">${calculateNOI().toLocaleString('en-US')}</span>
               </div>
-              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
               </div>
             </div>
           </div>
-          {/* </CHANGE> */}
 
           {/* NET CASH FLOW Card */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2.5 border-l-4 border-l-emerald-500">
+          <div className="bg-white rounded-xl border border-gray-200/60 shadow-sm p-4 transition-all duration-200 hover:shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">Net Cash Flow</h3>
-                <span className="text-base font-semibold text-gray-900">${calculateNCF().toLocaleString('en-US')}</span>
+                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Net Cash Flow</h3>
+                <span className="text-xl font-semibold text-gray-900">${calculateNCF().toLocaleString('en-US')}</span>
               </div>
-              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
               </div>
             </div>
           </div>
-          {/* </CHANGE> */}
         </div>
       </div>
-      {/* </CHANGE> */}
     </div>
   )
 }

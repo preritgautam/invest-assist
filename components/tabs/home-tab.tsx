@@ -39,6 +39,9 @@ import {
   Edit,
   Trash2,
   Loader2,
+  ArrowUpRight,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type PropertyData, getAllProperties, addProperty } from "@/lib/property-data"
@@ -251,29 +254,29 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
    * Skeleton loader for property cards
    */
   const PropertyCardSkeleton = () => (
-    <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100/80 overflow-hidden shadow-sm">
       {/* Image skeleton */}
-      <Skeleton className="h-36 w-full" />
-      <div className="p-4 space-y-3">
+      <Skeleton className="h-44 w-full" />
+      <div className="p-5 space-y-4">
         {/* Badge skeleton */}
-        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-6 w-24 rounded-full" />
         {/* Title skeleton */}
-        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-5 w-4/5" />
         {/* Address skeleton */}
         <Skeleton className="h-4 w-full" />
         {/* Metrics skeleton */}
-        <div className="grid grid-cols-3 gap-2 pt-2">
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-12" />
-            <Skeleton className="h-5 w-16" />
+        <div className="grid grid-cols-3 gap-3 pt-3">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-6 w-20" />
           </div>
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-12" />
-            <Skeleton className="h-5 w-14" />
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-6 w-16" />
           </div>
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-12" />
-            <Skeleton className="h-5 w-10" />
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-6 w-12" />
           </div>
         </div>
       </div>
@@ -284,28 +287,18 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
    * Skeleton loader for property list rows
    */
   const PropertyListSkeleton = () => (
-    <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-      <div className="flex items-center gap-4">
-        <Skeleton className="h-16 w-24 rounded-lg flex-shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <div className="flex gap-6">
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-10" />
-            <Skeleton className="h-5 w-16" />
-          </div>
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-10" />
-            <Skeleton className="h-5 w-12" />
-          </div>
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-10" />
-            <Skeleton className="h-5 w-8" />
-          </div>
+    <div className="flex items-center gap-5 p-5">
+      <Skeleton className="h-20 w-28 rounded-xl flex-shrink-0" />
+      <div className="flex-1 space-y-3">
+        <Skeleton className="h-5 w-56" />
+        <Skeleton className="h-4 w-72" />
+        <div className="flex gap-8">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-14" />
         </div>
       </div>
+      <Skeleton className="h-9 w-9 rounded-lg" />
     </div>
   )
 
@@ -316,11 +309,13 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   const ViewModeButton = ({ mode, icon, label }: { mode: ViewMode; icon: React.ReactNode; label: string }) => (
     <button
       onClick={() => setViewMode(mode)}
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-        viewMode === mode ? "bg-gray-900 text-white shadow-lg" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+        viewMode === mode 
+          ? "bg-gray-900 text-white shadow-md" 
+          : "text-gray-500 hover:text-gray-900 hover:bg-gray-100/80"
       }`}
     >
-      <AppIcon size="sm">{icon}</AppIcon>
+      {icon}
       <span className="hidden sm:inline">{label}</span>
     </button>
   )
@@ -328,294 +323,320 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   console.log("properties", properties, "isLoadingProperties", isLoadingProperties)
 
   return (
-    <div className="space-y-4 px-2 sm:px-0">
-      <UploadDialog
-        isOpen={showUploadDialog}
-        onClose={() => setShowUploadDialog(false)}
-        onComplete={handleUploadComplete}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-slate-100/50">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <UploadDialog
+          isOpen={showUploadDialog}
+          onClose={() => setShowUploadDialog(false)}
+          onComplete={handleUploadComplete}
+        />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Property</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold text-gray-900">{propertyToDelete?.name}</span>?
-              This action cannot be undone. All associated documents and data will be permanently removed.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false)
-                setPropertyToDelete(null)
-              }}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeleteProperty}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Property
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Delete Property</DialogTitle>
+              <DialogDescription className="text-gray-500">
+                Are you sure you want to delete <span className="font-semibold text-gray-700">{propertyToDelete?.name}</span>?
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-3 sm:gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false)
+                  setPropertyToDelete(null)
+                }}
+                disabled={isDeleting}
+                className="rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteProperty}
+                disabled={isDeleting}
+                className="bg-red-500 hover:bg-red-600 rounded-xl"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Mobile-specific add property button */}
-      <div className="block sm:hidden mb-4">
-        <AppButton
-          onClick={handleAddProperty}
-          className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white shadow-lg hover:bg-gray-800 transition-colors duration-200"
-          size="lg"
-        >
-          <Plus className="w-5 h-5" />
-          Add Property
-        </AppButton>
-      </div>
-
-      {/* Portfolio summary metrics strip */}
-      <AppCard className="overflow-hidden">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <MetricCard
-            icon={<Building className="w-4 h-4 text-gray-600" />}
-            label="Properties"
-            value={totalProperties}
-          />
-          <MetricCard
-            icon={<DollarSign className="w-4 h-4 text-gray-600" />}
-            label="Total Value"
-            value={`$${totalValue.toFixed(1)}M`}
-          />
-          <MetricCard
-            icon={<TrendingUp className="w-4 h-4 text-gray-600" />}
-            label="Avg Cap Rate"
-            value={`${avgCapRate.toFixed(1)}%`}
-          />
-          <MetricCard
-            icon={<BarChart3 className="w-4 h-4 text-gray-600" />}
-            label="Total Units"
-            value={totalUnits.toLocaleString('en-US')}
-          />
-        </div>
-      </AppCard>
-
-      {/* Main layout: Sidebar (25%) + Properties area (75%) */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* Left sidebar - Use cases and analysis tools */}
-        <div className="w-full lg:w-1/4 space-y-3">
-          {/* Document Analysis use case card */}
-          <AppCard hover className="cursor-pointer">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
-                <FileText className="w-4 h-4 text-gray-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-bold text-gray-900">Document Analysis</h4>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600 mb-2">Extract data from rent rolls, OM, and financial statements</p>
-            <AppButton variant="ghost" size="sm" className="w-full justify-start p-0 h-auto text-xs">
-              View Analysis →
-            </AppButton>
-          </AppCard>
-
-          {/* Financial Modeling use case card */}
-          <AppCard hover className="cursor-pointer">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
-                <Calculator className="w-4 h-4 text-gray-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-bold text-gray-900">Financial Modeling</h4>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600 mb-2">Build pro formas and compare returns across portfolio</p>
-            <AppButton variant="ghost" size="sm" className="w-full justify-start p-0 h-auto text-xs">
-              Run Models →
-            </AppButton>
-          </AppCard>
-
-          {/* Portfolio Reports use case card */}
-          <AppCard hover className="cursor-pointer">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
-                <PieChart className="w-4 h-4 text-gray-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-bold text-gray-900">Portfolio Reports</h4>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600 mb-2">Generate custom insights and investor presentations</p>
-            <AppButton variant="ghost" size="sm" className="w-full justify-start p-0 h-auto text-xs">
-              Create Report →
-            </AppButton>
-          </AppCard>
+        {/* Welcome Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Portfolio Overview</h1>
+            <p className="text-gray-500 mt-1">Manage and analyze your investment properties</p>
+          </div>
+          <button
+            onClick={handleAddProperty}
+            className="inline-flex items-center gap-2 px-5 py-3 bg-gray-900 text-white rounded-xl font-medium shadow-lg shadow-gray-900/10 hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/15 transition-all duration-200"
+          >
+            <Plus className="w-5 h-5" />
+            Add Property
+          </button>
         </div>
 
-        {/* Right main area - Properties display */}
-        <div className="w-full lg:w-3/4 space-y-4">
-          {/* Search and view mode controls */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            {/* Search input with icon */}
-            <div className="relative flex-1 max-w-md w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search properties..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white shadow-sm font-medium placeholder:text-gray-400"
-              />
+        {/* Portfolio Metrics Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-blue-50 rounded-xl">
+                <Building className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Active</span>
             </div>
-            {/* View mode toggle buttons */}
-            <div className="flex items-center gap-2">
-              <ViewModeButton mode="card" icon={<Grid3X3 className="w-4 h-4" />} label="Cards" />
-              <ViewModeButton mode="list" icon={<List className="w-4 h-4" />} label="List" />
-              <ViewModeButton mode="map" icon={<Map className="w-4 h-4" />} label="Map" />
+            <p className="text-sm text-gray-500 font-medium">Properties</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalProperties}</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-emerald-50 rounded-xl">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+              </div>
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+            </div>
+            <p className="text-sm text-gray-500 font-medium">Total Value</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">${totalValue.toFixed(1)}M</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-violet-50 rounded-xl">
+                <TrendingUp className="w-5 h-5 text-violet-600" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 font-medium">Avg Cap Rate</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{avgCapRate.toFixed(1)}%</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-amber-50 rounded-xl">
+                <BarChart3 className="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 font-medium">Total Units</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalUnits.toLocaleString('en-US')}</p>
+          </div>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Quick Actions Sidebar */}
+          <div className="xl:col-span-1 space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Quick Actions
+              </h3>
+              <div className="space-y-2">
+                <button className="w-full flex items-center justify-between p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors duration-200 group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <FileText className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-900">Document Analysis</p>
+                      <p className="text-xs text-gray-500">Extract rent roll data</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all" />
+                </button>
+
+                <button className="w-full flex items-center justify-between p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors duration-200 group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <Calculator className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-900">Financial Models</p>
+                      <p className="text-xs text-gray-500">Build pro formas</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all" />
+                </button>
+
+                <button className="w-full flex items-center justify-between p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors duration-200 group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <PieChart className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-900">Reports</p>
+                      <p className="text-xs text-gray-500">Generate insights</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all" />
+                </button>
+              </div>
+            </div>
+
+            {/* Recent Activity - Only show on larger screens */}
+            <div className="hidden xl:block bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white">
+              <h3 className="text-sm font-semibold mb-3">Pro Tip</h3>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                Upload rent rolls and operating statements to automatically extract and analyze property data.
+              </p>
+              <button className="mt-4 text-sm font-medium text-white/80 hover:text-white flex items-center gap-1 transition-colors">
+                Learn more <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          {/* Card view mode - Grid layout with property cards */}
-          {viewMode === "card" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {/* Add Property Card - Always first */}
-              <AppCard
-                onClick={handleAddProperty}
-                className="bg-gray-50 border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-100 transition-all duration-200 cursor-pointer group min-h-[200px] flex items-center justify-center"
-              >
-                <div className="text-center p-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-gray-300 transition-colors">
+          {/* Properties Area */}
+          <div className="xl:col-span-3 space-y-4">
+            {/* Search and View Controls */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="relative flex-1 max-w-md w-full">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search properties..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 placeholder:text-gray-400 transition-all duration-200"
+                />
+              </div>
+              <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl">
+                <ViewModeButton mode="card" icon={<Grid3X3 className="w-4 h-4" />} label="Cards" />
+                <ViewModeButton mode="list" icon={<List className="w-4 h-4" />} label="List" />
+                <ViewModeButton mode="map" icon={<Map className="w-4 h-4" />} label="Map" />
+              </div>
+            </div>
+
+            {/* Card view mode - Grid layout with property cards */}
+            {viewMode === "card" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
+                {/* Add Property Card - Always first */}
+                <button
+                  onClick={handleAddProperty}
+                  className="bg-white/60 backdrop-blur-sm rounded-2xl border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-white transition-all duration-200 cursor-pointer group min-h-[280px] flex flex-col items-center justify-center p-6"
+                >
+                  <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-gray-200 group-hover:scale-105 transition-all duration-200">
+                    <Plus className="w-6 h-6 text-gray-500" />
+                  </div>
+                  <h3 className="text-base font-semibold text-gray-700 mb-1">Add Property</h3>
+                  <p className="text-sm text-gray-500 text-center">Upload documents to start analysis</p>
+                </button>
+
+                {/* Skeleton loaders while fetching */}
+                {isLoadingProperties && (
+                  <>
+                    <PropertyCardSkeleton />
+                    <PropertyCardSkeleton />
+                    <PropertyCardSkeleton />
+                    <PropertyCardSkeleton />
+                    <PropertyCardSkeleton />
+                  </>
+                )}
+
+                {/* Property cards with hover effects and dropdown menus */}
+                {!isLoadingProperties && properties.map((property) => (
+                  <div
+                    key={property.id}
+                    onClick={(e) => handlePropertyClick(property.id, e)}
+                    className="bg-white rounded-2xl border border-gray-100/80 overflow-hidden shadow-sm hover:shadow-lg hover:border-gray-200 transition-all duration-300 cursor-pointer group relative"
+                  >
+                    {/* Property actions dropdown */}
+                    <div className="absolute top-3 right-3 z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 rounded-xl bg-white/90 backdrop-blur-sm hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 border border-gray-100"
+                          >
+                            <MoreVertical className="w-4 h-4 text-gray-600" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                          <DropdownMenuItem
+                            onClick={(e) => handleEditProperty(property.id, e)}
+                            className="flex items-center gap-2 cursor-pointer rounded-lg"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit Property
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => handleDeleteProperty(property.id, e)}
+                            className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Property
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Property image with hover zoom effect */}
+                    <div className="aspect-[16/10] overflow-hidden bg-gray-100">
+                      <img
+                        src={property.thumbnail || "/placeholder.svg?height=150&width=250&query=apartment building"}
+                        alt={`${property.name} exterior view`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+
+                    {/* Property details section */}
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge className="bg-gray-100 text-gray-700 text-xs px-2.5 py-1 font-medium rounded-full hover:bg-gray-100">
+                          {property.status}
+                        </Badge>
+                      </div>
+                      <h3 className="text-base font-semibold text-gray-900 mb-1.5 line-clamp-1">{property.name}</h3>
+                      <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5 line-clamp-1">
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                        {property.address}
+                      </p>
+                      {/* Property metrics grid */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center p-2.5 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500 mb-0.5">Price</p>
+                          <p className="text-sm font-semibold text-gray-900">{property.offerPrice}</p>
+                        </div>
+                        <div className="text-center p-2.5 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500 mb-0.5">Cap Rate</p>
+                          <p className="text-sm font-semibold text-gray-900">{property.capRate}</p>
+                        </div>
+                        <div className="text-center p-2.5 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500 mb-0.5">Units</p>
+                          <p className="text-sm font-semibold text-gray-900">{property.units}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* List view mode - Table-like layout */}
+            {viewMode === "list" && (
+              <div className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden">
+                {/* Add Property List Item - Always first */}
+                <button
+                  onClick={handleAddProperty}
+                  className="w-full flex items-center gap-5 p-5 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200 cursor-pointer group bg-gray-50/50"
+                >
+                  <div className="w-20 h-14 flex-shrink-0 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-gray-200 transition-colors">
                     <Plus className="w-5 h-5 text-gray-500" />
                   </div>
-                  <h3 className="text-sm font-bold text-gray-700 mb-1">Add Property</h3>
-                  <p className="text-xs text-gray-500">Start tracking a new investment</p>
-                </div>
-              </AppCard>
-
-              {/* Skeleton loaders while fetching */}
-              {isLoadingProperties && (
-                <>
-                  <PropertyCardSkeleton />
-                  <PropertyCardSkeleton />
-                  <PropertyCardSkeleton />
-                  <PropertyCardSkeleton />
-                  <PropertyCardSkeleton />
-                </>
-              )}
-
-              {/* Property cards with hover effects and dropdown menus */}
-              {!isLoadingProperties && properties.map((property) => (
-                <div
-                  key={property.id}
-                  onClick={(e) => handlePropertyClick(property.id, e)}
-                  className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group relative"
-                >
-                  {/* Property actions dropdown */}
-                  <div className="absolute top-2 right-2 z-10">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200"
-                        >
-                          <MoreVertical className="w-4 h-4 text-gray-600" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem
-                          onClick={(e) => handleEditProperty(property.id, e)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Edit Property
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => handleDeleteProperty(property.id, e)}
-                          className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete Property
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-sm font-semibold text-gray-700">Add New Property</h3>
+                    <p className="text-sm text-gray-500">Upload documents to start tracking</p>
                   </div>
-
-                  {/* Property image with hover zoom effect */}
-                  <div className="aspect-[16/9] overflow-hidden">
-                    <img
-                      src={property.thumbnail || "/placeholder.svg?height=150&width=250&query=apartment building"}
-                      alt={`${property.name} exterior view`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                    />
-                  </div>
-
-                  {/* Property details section */}
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs px-2 py-1">
-                        {property.status}
-                      </Badge>
-                    </div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-1 line-clamp-1">{property.name}</h3>
-                    <p className="text-xs text-gray-600 mb-2 flex items-center gap-1 line-clamp-1">
-                      <MapPin className="w-3 h-3 flex-shrink-0" />
-                      {property.address}
-                    </p>
-                    {/* Property metrics grid */}
-                    <div className="grid grid-cols-3 gap-1">
-                      <div className="bg-gray-50 rounded-md p-1.5">
-                        <div className="text-xs font-medium text-gray-600 mb-0.5">Price</div>
-                        <div className="text-xs font-bold text-gray-900">{property.offerPrice}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-md p-1.5">
-                        <div className="text-xs font-medium text-gray-600 mb-0.5">Cap Rate</div>
-                        <div className="text-xs font-bold text-gray-900">{property.capRate}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-md p-1.5">
-                        <div className="text-xs font-medium text-gray-600 mb-0.5">Units</div>
-                        <div className="text-xs font-bold text-gray-900">{property.units}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* List view mode - Table-like layout */}
-          {viewMode === "list" && (
-            <AppCard className="bg-white rounded-2xl shadow-lg border-2 border-white">
-              <div className="p-0">
-                {/* Add Property List Item - Always first */}
-                <div
-                  onClick={handleAddProperty}
-                  className="flex items-center gap-4 p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200 cursor-pointer group border-2 border-dashed border-gray-200 bg-gray-50"
-                >
-                  <div className="w-12 h-8 flex-shrink-0 bg-gray-200 rounded-lg flex items-center justify-center group-hover:bg-gray-300 transition-colors">
-                    <Plus className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xs font-semibold text-gray-700">Add New Property</h3>
-                    <p className="text-xs text-gray-500">Start tracking a new investment opportunity</p>
-                  </div>
-                </div>
+                </button>
 
                 {/* Property list items */}
                 <div className="divide-y divide-gray-100">
@@ -634,10 +655,10 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                     <div
                       key={property.id}
                       onClick={(e) => handlePropertyClick(property.id, e)}
-                      className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors duration-200 cursor-pointer group relative"
+                      className="flex items-center gap-5 p-5 hover:bg-gray-50 transition-colors duration-200 cursor-pointer group relative"
                     >
                       {/* Property thumbnail */}
-                      <div className="w-12 h-8 flex-shrink-0 overflow-hidden rounded-lg">
+                      <div className="w-20 h-14 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
                         <img
                           src={property.thumbnail || "/placeholder.svg?height=32&width=48&query=apartment building"}
                           alt={`${property.name} thumbnail`}
@@ -647,30 +668,31 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
 
                       {/* Property information */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-xs font-semibold text-gray-900 truncate">{property.name}</h3>
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <h3 className="text-sm font-semibold text-gray-900 truncate">{property.name}</h3>
+                          <Badge className="bg-gray-100 text-gray-700 text-xs font-medium rounded-full hover:bg-gray-100">
                             {property.status}
                           </Badge>
                         </div>
-                        <p className="text-xs text-gray-600 truncate mb-1 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                        <p className="text-sm text-gray-500 truncate flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                           {property.address}
                         </p>
-                        {/* Property metrics inline */}
-                        <div className="flex items-center gap-4 text-xs">
-                          <div>
-                            <span className="text-gray-500">Price: </span>
-                            <span className="font-medium text-gray-900">{property.offerPrice}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Cap: </span>
-                            <span className="font-medium text-gray-900">{property.capRate}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Units: </span>
-                            <span className="font-medium text-gray-900">{property.units}</span>
-                          </div>
+                      </div>
+
+                      {/* Property metrics - desktop only */}
+                      <div className="hidden lg:flex items-center gap-6 text-sm">
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 mb-0.5">Price</p>
+                          <p className="font-semibold text-gray-900">{property.offerPrice}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 mb-0.5">Cap Rate</p>
+                          <p className="font-semibold text-gray-900">{property.capRate}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 mb-0.5">Units</p>
+                          <p className="font-semibold text-gray-900">{property.units}</p>
                         </div>
                       </div>
 
@@ -680,22 +702,22 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                           <DropdownMenuTrigger asChild>
                             <button
                               onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 rounded-full hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                              className="p-2.5 rounded-xl hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all duration-200"
                             >
-                              <MoreVertical className="w-4 h-4 text-gray-600" />
+                              <MoreVertical className="w-4 h-4 text-gray-500" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuContent align="end" className="w-44 rounded-xl">
                             <DropdownMenuItem
                               onClick={(e) => handleEditProperty(property.id, e)}
-                              className="flex items-center gap-2 cursor-pointer"
+                              className="flex items-center gap-2 cursor-pointer rounded-lg"
                             >
                               <Edit className="w-4 h-4" />
                               Edit Property
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={(e) => handleDeleteProperty(property.id, e)}
-                              className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700"
+                              className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700 rounded-lg"
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete Property
@@ -707,19 +729,19 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                   ))}
                 </div>
               </div>
-            </AppCard>
-          )}
+            )}
 
-          {/* Map view mode - Interactive property map */}
-          {viewMode === "map" && (
-            <AppCard className="bg-white rounded-2xl shadow-lg border-2 border-white">
-              <PropertyMap
-                properties={properties}
-                activeProperty={null}
-                onPropertySelect={(property) => handlePropertyClick(property.id, {} as React.MouseEvent)}
-              />
-            </AppCard>
-          )}
+            {/* Map view mode - Interactive property map */}
+            {viewMode === "map" && (
+              <div className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden">
+                <PropertyMap
+                  properties={properties}
+                  activeProperty={null}
+                  onPropertySelect={(property) => handlePropertyClick(property.id, {} as React.MouseEvent)}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

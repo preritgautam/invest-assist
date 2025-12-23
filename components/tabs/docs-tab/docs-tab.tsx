@@ -346,7 +346,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
 
   const renderLineItem = (item: LineItem, depth = 0): ReactNode => {
-    const paddingLeft = depth * 24
+    const paddingLeft = depth * 24 + 12
     const isMajorCategory = item.level === 0
     const isSubcategory = item.level === 1
     const isLineItem = item.level === 2
@@ -354,25 +354,30 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
     return (
       <React.Fragment key={item.id}>
         <tr
-          className={`border-b border-gray-200 hover:bg-gray-50 ${isMajorCategory ? "bg-blue-50 font-bold" : isSubcategory ? "bg-gray-50 font-semibold" : ""
-            }`}
+          className={`border-b border-gray-100 transition-colors duration-150 ${
+            isMajorCategory 
+              ? "bg-gradient-to-r from-gray-50 to-slate-50 font-semibold" 
+              : isSubcategory 
+                ? "bg-gray-50/50 font-medium" 
+                : "hover:bg-gray-50/50"
+          }`}
         >
           {/* Expand/Collapse + Line Item Name */}
-          <td className="border-r border-gray-200 p-2 sticky left-0 bg-inherit z-10" style={{ paddingLeft }}>
+          <td className="border-r border-gray-100 py-2.5 px-3 sticky left-0 bg-inherit z-10" style={{ paddingLeft }}>
             <div className="flex items-center gap-2">
               {item.isCategory && item.children && (
                 <button
                   onClick={() => toggleExpand(item.id)}
-                  className="text-gray-600 hover:text-gray-900 flex-shrink-0"
+                  className="w-5 h-5 rounded-md flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-200/60 transition-all duration-150 flex-shrink-0"
                   title={item.isExpanded ? "Collapse category" : "Expand category"}
                 >
-                  {item.isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  {item.isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                 </button>
               )}
               {!item.isCategory && (
                 <button
                   onClick={() => toggleMonthly(item.id)}
-                  className="text-gray-400 hover:text-gray-700 flex-shrink-0"
+                  className="w-5 h-5 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 transition-all duration-150 flex-shrink-0"
                   title={
                     item.showMonthly ? "Hide monthly breakdown" : "Show monthly breakdown (click to see T-12 values)"
                   }
@@ -380,13 +385,13 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                   {item.showMonthly ? <ChevronDown className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                 </button>
               )}
-              <span className={`${isMajorCategory ? "text-sm" : "text-xs"}`}>{item.name}</span>
+              <span className={`${isMajorCategory ? "text-sm text-gray-900" : isSubcategory ? "text-xs text-gray-800" : "text-xs text-gray-700"}`}>{item.name}</span>
             </div>
           </td>
 
           {/* T-12 Actual */}
-          <td className="border-r border-gray-200 p-2 text-right font-mono text-xs">
-            <span className={item.t12Actual < 0 ? "text-red-600" : ""}>
+          <td className="border-r border-gray-100 py-2.5 px-3 text-right font-mono text-xs tabular-nums">
+            <span className={item.t12Actual < 0 ? "text-red-500" : "text-gray-900"}>
               {item.t12Actual < 0
                 ? `($${Math.abs(item.t12Actual).toLocaleString('en-US')})`
                 : `$${item.t12Actual.toLocaleString('en-US')}`}
@@ -394,9 +399,9 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
           </td>
 
           {/* Underwriting */}
-          <td className="border-r border-gray-200 p-2 text-right font-mono text-xs bg-blue-50">
-            <div className="flex items-center justify-end gap-1">
-              <span className={item.underwriting && item.underwriting < 0 ? "text-red-600" : ""}>
+          <td className="border-r border-gray-100 py-2.5 px-3 text-right font-mono text-xs bg-blue-50/50 tabular-nums">
+            <div className="flex items-center justify-end gap-1.5">
+              <span className={item.underwriting && item.underwriting < 0 ? "text-red-500" : "text-gray-900"}>
                 {item.underwriting
                   ? item.underwriting < 0
                     ? `($${Math.abs(item.underwriting).toLocaleString('en-US')})`
@@ -404,15 +409,15 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                   : "-"}
               </span>
               {item.underwritingNote && (
-                <MessageSquare className="w-3 h-3 text-blue-500" title={item.underwritingNote} />
+                <MessageSquare className="w-3 h-3 text-blue-400" title={item.underwritingNote} />
               )}
             </div>
           </td>
 
           {/* Pro Forma Years */}
           {item.proForma.map((value, idx) => (
-            <td key={idx} className="border-r border-gray-200 p-2 text-right font-mono text-xs bg-green-50">
-              <span className={value < 0 ? "text-red-600" : ""}>
+            <td key={idx} className="border-r border-gray-100 py-2.5 px-3 text-right font-mono text-xs bg-emerald-50/40 tabular-nums">
+              <span className={value < 0 ? "text-red-500" : "text-gray-900"}>
                 {value < 0 ? `($${Math.abs(value).toLocaleString('en-US')})` : `$${value.toLocaleString('en-US')}`}
               </span>
             </td>
@@ -421,10 +426,10 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
         {/* Monthly Breakdown Row */}
         {item.showMonthly && item.t12Monthly && (
-          <tr className="bg-gray-50 border-b border-gray-200">
+          <tr className="bg-slate-50/50 border-b border-gray-100">
             <td
-              className="border-r border-gray-200 p-2 text-xs text-gray-600 italic sticky left-0 bg-gray-50 z-10"
-              style={{ paddingLeft: paddingLeft + 32 }}
+              className="border-r border-gray-100 py-2 px-3 text-xs text-gray-500 italic sticky left-0 bg-slate-50/50 z-10"
+              style={{ paddingLeft: paddingLeft + 28 }}
             >
               Monthly Breakdown (T-12)
             </td>
@@ -432,12 +437,12 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-100">
+                    <tr className="bg-gray-100/60">
                       {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map(
                         (month) => (
                           <th
                             key={month}
-                            className="border-r border-gray-200 p-1 text-center font-medium text-gray-600"
+                            className="border-r border-gray-100 py-1.5 px-2 text-center font-medium text-gray-500 text-[10px] uppercase tracking-wide"
                           >
                             {month}
                           </th>
@@ -450,22 +455,19 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                       {item.t12Monthly.map((value, idx) => (
                         <td
                           key={idx}
-                          className="border-r border-gray-200 p-1 text-right font-mono text-xs hover:bg-blue-50 cursor-pointer"
+                          className="border-r border-gray-100 py-1.5 px-2 text-right font-mono text-xs hover:bg-blue-50/60 cursor-pointer transition-colors duration-150 tabular-nums"
                           title={`Double-click to edit ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][idx]}`}
-                          // Added onDoubleClick handler to edit monthly values.
                           onDoubleClick={(e) => {
                             const promptValue = prompt(
                               `Edit value for ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][idx]}:`,
                               value.toString(),
                             )
                             if (promptValue !== null) {
-                              // In a real app, you would update the state here.
-                              // For this example, we'll just log it.
                               console.log(`[v0] Updated monthly value: ${promptValue}`)
                             }
                           }}
                         >
-                          <span className={value < 0 ? "text-red-600" : ""}>
+                          <span className={value < 0 ? "text-red-500" : "text-gray-700"}>
                             {value === 0
                               ? "$0"
                               : value < 0
@@ -493,10 +495,13 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   // Show loading state while property is being fetched
   if (propertyLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-8 text-center">
-        <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Loading...</h2>
-        <p className="text-gray-600">Fetching property details...</p>
+      <div className="min-h-[400px] bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl border border-gray-100 p-12 flex flex-col items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-gray-200 rounded-full"></div>
+          <div className="absolute inset-0 w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mt-6 mb-2">Loading Documents</h2>
+        <p className="text-sm text-gray-500">Fetching property details...</p>
       </div>
     )
   }
@@ -504,10 +509,12 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   // Only show "select property" if we don't have property AND don't have propertyId
   if (!property && !propertyId) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-8 text-center">
-        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Documents</h2>
-        <p className="text-gray-600">Select a property to manage documents.</p>
+      <div className="min-h-[400px] bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl border border-gray-100 p-12 flex flex-col items-center justify-center">
+        <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
+          <FileText className="w-10 h-10 text-gray-400" />
+        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">No Property Selected</h2>
+        <p className="text-sm text-gray-500 text-center max-w-sm">Select a property from your portfolio to view and manage its documents.</p>
       </div>
     )
   }
@@ -648,8 +655,8 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   }
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-white sm:border-2 overflow-hidden">
-      <div className="relative flex h-screen">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
+      <div className="relative flex h-screen bg-gradient-to-br from-gray-50/50 to-slate-50/30">
 
         {/* Mobile Menu */}
         <MobileMenu
@@ -664,28 +671,28 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         <MobileToolbar isOpen={mobileToolbarOpen} onClose={() => setMobileToolbarOpen(false)} />
 
         {/* Left Sidebar - Same level as right sidebar */}
-        <div className="hidden md:flex md:w-16 lg:w-20 bg-white border-r border-gray-200 flex-col items-center gap-2 p-2 flex-shrink-0">
+        <div className="hidden md:flex md:w-16 lg:w-20 bg-white/80 backdrop-blur-sm border-r border-gray-100 flex-col items-center gap-1.5 py-4 px-2 flex-shrink-0">
           <button
             onClick={() => setMenuExpanded(!menuExpanded)}
-            className="w-12 h-12 rounded-lg flex items-center justify-center transition-colors text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+            className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
             title="Toggle Menu"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
           {/* Expandable Menu Overlay */}
           {menuExpanded && (
-            <div className="absolute left-16 lg:left-20 top-0 bg-white shadow-xl rounded-r-lg border border-gray-200 p-4 z-50 min-w-[240px]">
-              <div className="space-y-4">
+            <div className="absolute left-16 lg:left-20 top-0 bg-white/95 backdrop-blur-xl shadow-2xl rounded-r-2xl border border-gray-200/60 p-5 z-50 min-w-[260px]">
+              <div className="space-y-5">
                 {/* Import Section */}
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <FileSpreadsheetIcon className="w-4 h-4" />
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <FileSpreadsheetIcon className="w-3.5 h-3.5" />
                     Import
                   </h4>
-                  <div className="pl-6 space-y-1">
+                  <div className="space-y-1">
                     {documents
                       .filter((d) => d.type === "OS" || d.type === "RR" || d.type === "OM")
                       .map((doc) => (
@@ -696,7 +703,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                             handleDocTypeChange(typeMap[doc.type as keyof typeof typeMap])
                             setMenuExpanded(false)
                           }}
-                          className="w-full text-left px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 truncate"
+                          className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 truncate transition-colors duration-150"
                           title={doc.name}
                         >
                           {doc.name}
@@ -706,22 +713,22 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                 </div>
 
                 {/* Analyze Section */}
-                <div className={!allDocsValidated ? "opacity-50" : ""}>
-                  <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
+                <div className={!allDocsValidated ? "opacity-40" : ""}>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5" />
                     Analyze
-                    {!allDocsValidated && <LockIcon className="w-3 h-3 text-gray-500" />}
+                    {!allDocsValidated && <LockIcon className="w-3 h-3" />}
                   </h4>
-                  <div className="pl-6 space-y-1">
+                  <div className="space-y-1">
                     <button
                       disabled={!allDocsValidated}
-                      className="w-full text-left px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-150"
                     >
                       Inputs & Assumptions
                     </button>
                     <button
                       disabled={!allDocsValidated}
-                      className="w-full text-left px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-150"
                     >
                       Tabular Data
                     </button>
@@ -729,22 +736,22 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                 </div>
 
                 {/* Report Section */}
-                <div className={!allDocsValidated ? "opacity-50" : ""}>
-                  <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
+                <div className={!allDocsValidated ? "opacity-40" : ""}>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <BarChart3 className="w-3.5 h-3.5" />
                     Report
-                    {!allDocsValidated && <LockIcon className="w-3 h-3 text-gray-500" />}
+                    {!allDocsValidated && <LockIcon className="w-3 h-3" />}
                   </h4>
-                  <div className="pl-6 space-y-1">
+                  <div className="space-y-1">
                     <button
                       disabled={!allDocsValidated}
-                      className="w-full text-left px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-150"
                     >
                       Tabular Analysis
                     </button>
                     <button
                       disabled={!allDocsValidated}
-                      className="w-full text-left px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-150"
                     >
                       Visual Analysis
                     </button>
@@ -759,12 +766,14 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
               setActiveSection("t12")
               setMenuExpanded(false)
             }}
-            className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${activeSection === "t12" ? "text-blue-600" : "text-gray-700 hover:text-gray-900"
+            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${activeSection === "t12" 
+              ? "bg-blue-50 text-blue-600 shadow-sm" 
+              : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
               }`}
             title="Upload Documents"
           >
             <FileSpreadsheet className="w-5 h-5" />
-            <span className="text-[10px] mt-1 font-bold">Upload</span>
+            <span className="text-[9px] mt-0.5 font-semibold">Upload</span>
           </button>
 
           {/* Analyze Button */}
@@ -772,20 +781,20 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
             <button
               onClick={() => allDocsValidated && setActiveSection("normalized")}
               disabled={!allDocsValidated}
-              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${activeSection === "normalized"
-                ? "text-blue-600"
+              className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${activeSection === "normalized"
+                ? "bg-blue-50 text-blue-600 shadow-sm"
                 : allDocsValidated
-                  ? "text-gray-700 hover:text-gray-900"
-                  : "text-gray-400 cursor-not-allowed"
+                  ? "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                  : "text-gray-300 cursor-not-allowed"
                 }`}
               title={allDocsValidated ? "Analyze" : "Complete all validations to unlock"}
             >
               <TrendingUp className="w-5 h-5" />
-              <span className="text-[10px] mt-1 font-bold">Analyze</span>
+              <span className="text-[9px] mt-0.5 font-semibold">Analyze</span>
             </button>
             {!allDocsValidated && (
-              <div className="absolute top-0 right-0 bg-white rounded-full p-0.5">
-                <Lock className="w-3 h-3 text-gray-500" />
+              <div className="absolute -top-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
+                <Lock className="w-2.5 h-2.5 text-gray-400" />
               </div>
             )}
           </div>
@@ -795,42 +804,42 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
             <button
               onClick={() => allDocsValidated && setActiveSection("summary")}
               disabled={!allDocsValidated}
-              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-colors ${activeSection === "summary"
-                ? "text-blue-600"
+              className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${activeSection === "summary"
+                ? "bg-blue-50 text-blue-600 shadow-sm"
                 : allDocsValidated
-                  ? "text-gray-700 hover:text-gray-900"
-                  : "text-gray-400 cursor-not-allowed"
+                  ? "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                  : "text-gray-300 cursor-not-allowed"
                 }`}
               title={allDocsValidated ? "Report" : "Complete all validations to unlock"}
             >
               <BarChart3 className="w-5 h-5" />
-              <span className="text-[10px] mt-1 font-bold">Report</span>
+              <span className="text-[9px] mt-0.5 font-semibold">Report</span>
             </button>
             {!allDocsValidated && (
-              <div className="absolute top-0 right-0 bg-white rounded-full p-0.5">
-                <Lock className="w-3 h-3 text-gray-500" />
+              <div className="absolute -top-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
+                <Lock className="w-2.5 h-2.5 text-gray-400" />
               </div>
             )}
           </div>
         </div>
 
         {/* Main Content Area - Now properly centered between sidebars */}
-        <div className="flex-1 flex flex-col bg-gray-50 min-w-0 overflow-hidden">
-          <div className="lg:hidden bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between">
+        <div className="flex-1 flex flex-col bg-transparent min-w-0 overflow-hidden">
+          <div className="lg:hidden bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-3 flex items-center justify-between">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-xl hover:bg-gray-100 transition-all duration-200"
               title="Open Menu"
             >
-              <MenuIcon className="w-5 h-5 text-gray-700" />
+              <MenuIcon className="w-5 h-5 text-gray-600" />
             </button>
             <span className="text-sm font-semibold text-gray-900">Documents</span>
             <button
               onClick={() => setMobileToolbarOpen(true)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-xl hover:bg-gray-100 transition-all duration-200"
               title="Open Tools"
             >
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="5" r="1.5" />
                 <circle cx="12" cy="12" r="1.5" />
                 <circle cx="12" cy="19" r="1.5" />
@@ -846,47 +855,47 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
           {/* Document Type Tabs - Only show in Upload section */}
           {activeSection === "t12" && (
-            <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-2 flex-shrink-0">
-              <div className="flex items-center justify-between gap-2">
+            <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-3 sm:px-4 py-3 flex-shrink-0">
+              <div className="flex items-center justify-between gap-3">
                 {/* Left side: Document type buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl">
                   <button
                     onClick={() => handleDocTypeChange("OS")}
-                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${activeDocType === "OS"
-                      ? "bg-blue-600 text-white shadow-md"
+                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeDocType === "OS"
+                      ? "bg-white text-gray-900 shadow-sm"
                       : osValidated
-                        ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "text-green-700 hover:bg-white/60"
+                        : "text-gray-600 hover:bg-white/60"
                       }`}
 
                   >
                     <FileSpreadsheetIcon className="w-4 h-4" />
                     <span className="hidden sm:inline">T-12 / OS</span>
                     <span className="sm:hidden">T-12</span>
-                    {osValidated && <CheckCircle2Icon className="w-4 h-4 text-green-600" />}
+                    {osValidated && <CheckCircle2Icon className="w-4 h-4 text-green-500" />}
                   </button>
 
                   <div className="relative flex-shrink-0">
                     <button
                       onClick={() => osValidated && handleDocTypeChange("RR")}
                       disabled={!osValidated}
-                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${activeDocType === "RR"
-                        ? "bg-blue-600 text-white shadow-md"
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeDocType === "RR"
+                        ? "bg-white text-gray-900 shadow-sm"
                         : rrValidated
-                          ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
+                          ? "text-green-700 hover:bg-white/60"
                           : osValidated
-                            ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            ? "text-gray-600 hover:bg-white/60"
+                            : "text-gray-400 cursor-not-allowed"
                         }`}
                     >
                       <UsersIcon className="w-4 h-4" />
                       <span className="hidden sm:inline">Rent Roll</span>
                       <span className="sm:hidden">RR</span>
-                      {rrValidated && <CheckCircle2Icon className="w-4 h-4 text-green-600" />}
+                      {rrValidated && <CheckCircle2Icon className="w-4 h-4 text-green-500" />}
                     </button>
                     {!osValidated && (
                       <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                        <LockIcon className="w-3 h-3 text-gray-500" />
+                        <LockIcon className="w-2.5 h-2.5 text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -895,64 +904,66 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                     <button
                       onClick={() => rrValidated && handleDocTypeChange("OM")}
                       disabled={!rrValidated}
-                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center gap-2 ${activeDocType === "OM"
-                        ? "bg-blue-600 text-white shadow-md"
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeDocType === "OM"
+                        ? "bg-white text-gray-900 shadow-sm"
                         : omValidated
-                          ? "bg-green-50 text-gray-700 hover:bg-green-100 border border-green-300"
+                          ? "text-green-700 hover:bg-white/60"
                           : rrValidated
-                            ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            ? "text-gray-600 hover:bg-white/60"
+                            : "text-gray-400 cursor-not-allowed"
                         }`}
                     >
                       <BookOpenIcon className="w-4 h-4" />
                       <span className="hidden sm:inline">Offering Memorandum</span>
                       <span className="sm:hidden">OM</span>
-                      {omValidated && <CheckCircle2Icon className="w-4 h-4 text-green-600" />}
+                      {omValidated && <CheckCircle2Icon className="w-4 h-4 text-green-500" />}
                     </button>
                     {!rrValidated && (
                       <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                        <LockIcon className="w-3 h-3 text-gray-500" />
+                        <LockIcon className="w-2.5 h-2.5 text-gray-400" />
                       </div>
                     )}
                   </div>
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      {activeDocType === "RR" && (<button
-                        onClick={() => setRrConfigOpen(true)}
-                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
-                      >
-                        <InspectionPanel className="w-5 h-5" />
-                      </button>)}
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {activeDocType === "RR" && (<button
+                          onClick={() => setRrConfigOpen(true)}
+                          className="flex-shrink-0 w-9 h-9 rounded-xl bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg"
+                        >
+                          <InspectionPanel className="w-4 h-4" />
+                        </button>)}
 
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Configure Rent Roll</p>
-                    </TooltipContent>
-                  </Tooltip>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="rounded-lg">
+                        <p className="text-xs">Configure Rent Roll</p>
+                      </TooltipContent>
+                    </Tooltip>
 
-                </TooltipProvider>
+                  </TooltipProvider>
 
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
 
-                      <button
-                        onClick={() => setUploadDialogOpen(true)}
-                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors shadow-sm"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
+                        <button
+                          onClick={() => setUploadDialogOpen(true)}
+                          className="flex-shrink-0 w-9 h-9 rounded-xl bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
 
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Add New Document</p>
-                    </TooltipContent>
-                  </Tooltip>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="rounded-lg">
+                        <p className="text-xs">Add New Document</p>
+                      </TooltipContent>
+                    </Tooltip>
 
-                </TooltipProvider>
+                  </TooltipProvider>
+                </div>
 
               </div>
             </div>
@@ -971,34 +982,34 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
               {activeSection === "t12" && activeDocType === "RR" && activeDocument?.rentRollData && (
                 <div className="flex-1 flex flex-col overflow-hidden h-[100%] relative">
-                  <div className="bg-white rounded-lg border p-2 shadow-sm m-2">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/60 p-3 shadow-sm m-3">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-600">
+                      <div className="text-sm text-gray-600">
                         {rrValidated ? (
-                          <span className="text-green-600 font-semibold flex items-center gap-2">
+                          <span className="text-green-600 font-medium flex items-center gap-2">
                             <CheckCircle2Icon className="w-4 h-4" />
                             Rent Roll Data Validated
                           </span>
                         ) : (
-                          <span>Review all rent roll units and validate the data before proceeding</span>
+                          <span className="text-gray-500">Review all rent roll units and validate the data before proceeding</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
                         {rrValidated && (
                           <button
                             onClick={handleUnvalidateRR}
-                            className="px-3 py-1.5 rounded text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
+                            className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1.5"
                           >
-                            <Edit3Icon className="w-3 h-3" />
+                            <Edit3Icon className="w-3.5 h-3.5" />
                             Edit
                           </button>
                         )}
                         <button
                           onClick={handleValidateRR}
                           disabled={rrValidated}
-                          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${rrValidated
-                            ? "bg-green-100 text-green-700 cursor-not-allowed"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${rrValidated
+                            ? "bg-green-50 text-green-700 cursor-not-allowed"
+                            : "bg-gray-900 text-white hover:bg-gray-800 shadow-md hover:shadow-lg"
                             }`}
                         >
                           {rrValidated ? "✓ Validated" : "Validate Data"}
@@ -1022,34 +1033,34 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
               )}
               {activeSection === "t12" && activeDocType === "OM" && (
                 <div>
-                  <div className="bg-white rounded-lg border p-2 shadow-sm m-2">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/60 p-3 shadow-sm m-3">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-600">
+                      <div className="text-sm text-gray-600">
                         {omValidated ? (
-                          <span className="text-green-600 font-semibold flex items-center gap-2">
+                          <span className="text-green-600 font-medium flex items-center gap-2">
                             <CheckCircle2Icon className="w-4 h-4" />
                             Offering Memorandum Data Validated
                           </span>
                         ) : (
-                          <span>Review the offering memorandum and validate the data before proceeding</span>
+                          <span className="text-gray-500">Review the offering memorandum and validate the data before proceeding</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
                         {omValidated && (
                           <button
                             onClick={handleUnvalidateOM}
-                            className="px-3 py-1.5 rounded text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
+                            className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1.5"
                           >
-                            <Edit3Icon className="w-3 h-3" />
+                            <Edit3Icon className="w-3.5 h-3.5" />
                             Edit
                           </button>
                         )}
                         <button
                           onClick={handleValidateOM}
                           disabled={omValidated}
-                          className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${omValidated
-                            ? "bg-green-100 text-green-700 cursor-not-allowed"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${omValidated
+                            ? "bg-green-50 text-green-700 cursor-not-allowed"
+                            : "bg-gray-900 text-white hover:bg-gray-800 shadow-md hover:shadow-lg"
                             }`}
                         >
                           {omValidated ? "✓ Validated" : "Validate Data"}
@@ -1064,71 +1075,71 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
               {activeSection === "normalized" && <AnalyzeTab />}
 
               {activeSection === "summary" && (
-                <div className="p-4 space-y-4">
+                <div className="p-6 space-y-6">
                   <div>
-                    <h2 className="text-sm font-bold text-gray-900 mb-1">Generate Reports</h2>
-                    <p className="text-xs text-gray-600 mb-3">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Generate Reports</h2>
+                    <p className="text-sm text-gray-500">
                       Export comprehensive analysis reports in various formats for stakeholders and lenders.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-white rounded border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer p-3">
-                      <div className="flex items-start justify-between mb-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-2xl border border-gray-200/60 hover:border-gray-300 hover:shadow-lg transition-all duration-300 cursor-pointer p-5 group">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="text-xs font-bold text-slate-900 mb-1">Investment Summary</h3>
-                          <p className="text-xs text-slate-600">Executive summary with key metrics and highlights</p>
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-gray-800">Investment Summary</h3>
+                          <p className="text-sm text-gray-500">Executive summary with key metrics and highlights</p>
                         </div>
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-medium rounded">PDF</span>
+                        <span className="px-2.5 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-lg">PDF</span>
                       </div>
-                      <button className="mt-2 w-full px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                        <FileDown className="w-3 h-3" />
+                      <button className="mt-3 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <FileDown className="w-4 h-4" />
                         Download Report
                       </button>
                     </div>
 
-                    <div className="bg-white rounded border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer p-3">
-                      <div className="flex items-start justify-between mb-2">
+                    <div className="bg-white rounded-2xl border border-gray-200/60 hover:border-gray-300 hover:shadow-lg transition-all duration-300 cursor-pointer p-5 group">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="text-xs font-bold text-slate-900 mb-1">Detailed Underwriting</h3>
-                          <p className="text-xs text-slate-600">
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-gray-800">Detailed Underwriting</h3>
+                          <p className="text-sm text-gray-500">
                             Complete analysis with all assumptions and calculations
                           </p>
                         </div>
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-medium rounded">PDF</span>
+                        <span className="px-2.5 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-lg">PDF</span>
                       </div>
-                      <button className="mt-2 w-full px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                        <FileDown className="w-3 h-3" />
+                      <button className="mt-3 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <FileDown className="w-4 h-4" />
                         Download Report
                       </button>
                     </div>
 
-                    <div className="bg-white rounded border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer p-3">
-                      <div className="flex items-start justify-between mb-2">
+                    <div className="bg-white rounded-2xl border border-gray-200/60 hover:border-gray-300 hover:shadow-lg transition-all duration-300 cursor-pointer p-5 group">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="text-xs font-bold text-slate-900 mb-1">Pro Forma Financials</h3>
-                          <p className="text-xs text-slate-600">10-year cash flow projections and returns analysis</p>
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-gray-800">Pro Forma Financials</h3>
+                          <p className="text-sm text-gray-500">10-year cash flow projections and returns analysis</p>
                         </div>
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-medium rounded">
+                        <span className="px-2.5 py-1 bg-green-50 text-green-600 text-xs font-medium rounded-lg">
                           Excel
                         </span>
                       </div>
-                      <button className="mt-2 w-full px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                        <FileDown className="w-3 h-3" />
+                      <button className="mt-3 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <FileDown className="w-4 h-4" />
                         Download Report
                       </button>
                     </div>
 
-                    <div className="bg-white rounded border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer p-3">
-                      <div className="flex items-start justify-between mb-2">
+                    <div className="bg-white rounded-2xl border border-gray-200/60 hover:border-gray-300 hover:shadow-lg transition-all duration-300 cursor-pointer p-5 group">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="text-xs font-bold text-slate-900 mb-1">Market Analysis</h3>
-                          <p className="text-xs text-slate-600">Comparative market data and benchmarking</p>
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-gray-800">Market Analysis</h3>
+                          <p className="text-sm text-gray-500">Comparative market data and benchmarking</p>
                         </div>
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-medium rounded">PDF</span>
+                        <span className="px-2.5 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-lg">PDF</span>
                       </div>
-                      <button className="mt-2 w-full px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                        <FileDown className="w-3 h-3" />
+                      <button className="mt-3 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <FileDown className="w-4 h-4" />
                         Download Report
                       </button>
                     </div>

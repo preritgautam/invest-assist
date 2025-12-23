@@ -7,6 +7,7 @@ import { EditableCell } from "./editable-cell"
 import { sampleRentRollDocument } from "@/lib/sample-rent-roll-data"
 import { AlertCircle, ChevronRight, ChevronDown } from "lucide-react"
 import { useDocumentStore, type RentRollDocumentData, type Metadata } from "@/stores/document-store"
+import { OSDocument } from "../os-document"
 
 type RentRollUnit = Record<string, any>
 
@@ -1217,6 +1218,9 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       </ResizablePanel>
 
       <ResizableHandle withHandle />
+
+
+<OSDocument propertyId={"034f2082-c240-413d-ad81-9ff588a9f9d5"} />
 
       {/* Configure Modal - Right side panel */}
       {isOpen && (

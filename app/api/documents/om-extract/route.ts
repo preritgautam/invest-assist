@@ -337,6 +337,8 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from('documents')
       .update({
+        document_type: 'offering_memorandum',
+        classification_status: 'completed',
         extraction_status: 'completed',
         extraction_result: extractionResult as unknown as Json,
         updated_at: new Date().toISOString(),

@@ -413,7 +413,8 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
               ...segment,
               id: `${doc.id}-seg-${segIndex}`,
               sourceFileId: doc.id,
-              enabled: segment.type === 'rent_roll' || segment.type === 'operating_statement',
+              // Enable extraction for rent_roll, operating_statement, and offering_memorandum
+              enabled: segment.type === 'rent_roll' || segment.type === 'operating_statement' || segment.type === 'offering_memorandum',
             })
           })
         }
@@ -514,65 +515,136 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
           console.error('[Extraction] Error creating segment records:', segmentErr)
         }
 
-        // For each extractable segment (rent_roll or operating_statement), send to REX
+        // Process each segment based on its type
         for (let i = 0; i < fileSegments.length; i++) {
           const segment = fileSegments[i]
           const createdSegment = createdSegments[i]
 
-          // Only extract rent_roll and operating_statement types
-          if (segment.type !== 'rent_roll' && segment.type !== 'operating_statement') {
+          // Determine extraction method based on segment type
+          // - operating_statement and offering_memorandum: Use Gemini extraction
+          // - rent_roll: Use REX API
+          // - others: Skip
+          if (segment.type !== 'rent_roll' && segment.type !== 'operating_statement' && segment.type !== 'offering_memorandum') {
             console.log(`[Extraction] Skipping non-extractable segment type: ${segment.type}`)
             continue
           }
 
           try {
-            const result = await uploadFilesToRex([sourceFile.file], {
-              documentType: segment.type,
-              clientReference: `UPLOAD-${propertyId}-${segment.type}-${segment.page_range}`,
-              pageRange: segment.page_range || 'all',
-              sheetIndex: segment.sheet_index?.toString() || '',
-              templateId: "docin-default",
-              templateName: "Docin Default"
-            })
+            // Handle OS and OM with Gemini extraction (same as add-document-dialog)
+            if (segment.type === 'operating_statement' || segment.type === 'offering_memorandum') {
+              const extractionEndpoint = segment.type === 'operating_statement' 
+                ? '/api/documents/os-extract' 
+                : '/api/documents/om-extract'
 
-            console.log(`[Extraction] REX upload successful for ${segment.type}:`, result)
+              console.log(`[Extraction] Using Gemini extraction for ${segment.type} via ${extractionEndpoint}`)
 
-            // Update the segment record with the REX process info
-            if (createdSegment) {
-              try {
-                await fetch('/api/documents/update', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    processId: createdSegment.process_id,
-                    extractionStatus: 'processing',
-                    documentId: result.documentId,
-                  }),
-                })
+              // Use the segment document ID for extraction (so extraction result is stored in the segment)
+              // The segment document has the correct document_type and points to the same storage file
+              const extractionDocumentId = createdSegment?.id || sourceFile.documentId
 
-                // Also update with the REX process ID for polling
-                await fetch(`/api/documents/${createdSegment.id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    process_id: result.processId,
-                    document_id: result.documentId,
-                    extraction_status: 'processing',
-                  }),
-                })
-              } catch (updateErr) {
-                console.error('[Extraction] Failed to update segment with REX info:', updateErr)
+              // Update segment status to processing
+              if (createdSegment) {
+                try {
+                  await fetch(`/api/documents/${createdSegment.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      extraction_status: 'processing',
+                    }),
+                  })
+                } catch (updateErr) {
+                  console.error('[Extraction] Failed to update segment status:', updateErr)
+                }
+              }
+
+              // Trigger Gemini extraction using the SEGMENT document ID (not source)
+              // This ensures the extraction result is stored in the segment document
+              // which has the correct document_type for retrieval
+              const extractResponse = await fetch(extractionEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  documentId: extractionDocumentId,
+                  propertyId: propertyId,
+                }),
+              })
+
+              if (!extractResponse.ok) {
+                const errorData = await extractResponse.json()
+                console.error(`[Extraction] Gemini extraction failed for ${segment.type}:`, errorData)
+                
+                // Mark segment as failed
+                if (createdSegment) {
+                  try {
+                    await fetch(`/api/documents/${createdSegment.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        extraction_status: 'failed',
+                        error_message: errorData.error || 'Gemini extraction failed',
+                      }),
+                    })
+                  } catch (updateErr) {
+                    console.error('[Extraction] Failed to update segment error status:', updateErr)
+                  }
+                }
+              } else {
+                const extractResult = await extractResponse.json()
+                console.log(`[Extraction] Gemini extraction completed for ${segment.type}:`, extractResult)
+
+                // Note: The extraction endpoint already updates the document with the extraction result
+                // No need to update again here - the document is already marked as completed
+              }
+            } else {
+              // Handle Rent Roll with REX API
+              const result = await uploadFilesToRex([sourceFile.file], {
+                documentType: segment.type,
+                clientReference: `UPLOAD-${propertyId}-${segment.type}-${segment.page_range}`,
+                pageRange: segment.page_range || 'all',
+                sheetIndex: segment.sheet_index?.toString() || '',
+                templateId: "docin-default",
+                templateName: "Docin Default"
+              })
+
+              console.log(`[Extraction] REX upload successful for ${segment.type}:`, result)
+
+              // Update the segment record with the REX process info
+              if (createdSegment) {
+                try {
+                  await fetch('/api/documents/update', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      processId: createdSegment.process_id,
+                      extractionStatus: 'processing',
+                      documentId: result.documentId,
+                    }),
+                  })
+
+                  // Also update with the REX process ID for polling
+                  await fetch(`/api/documents/${createdSegment.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      process_id: result.processId,
+                      document_id: result.documentId,
+                      extraction_status: 'processing',
+                    }),
+                  })
+                } catch (updateErr) {
+                  console.error('[Extraction] Failed to update segment with REX info:', updateErr)
+                }
+              }
+
+              // Track first extraction for immediate polling (only for REX-based extractions)
+              if (!firstProcessId) {
+                firstProcessId = result.processId
+                firstDocumentId = result.documentId
               }
             }
 
-            // Track first extraction for immediate polling
-            if (!firstProcessId) {
-              firstProcessId = result.processId
-              firstDocumentId = result.documentId
-            }
-
-          } catch (rexErr: any) {
-            console.error(`[Extraction] REX upload failed for ${segment.type}:`, rexErr)
+          } catch (extractErr: any) {
+            console.error(`[Extraction] Extraction failed for ${segment.type}:`, extractErr)
             // Mark segment as failed
             if (createdSegment) {
               try {
@@ -581,7 +653,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     extraction_status: 'failed',
-                    error_message: rexErr.message || 'REX upload failed',
+                    error_message: extractErr.message || 'Extraction failed',
                   }),
                 })
               } catch (updateErr) {

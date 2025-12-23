@@ -104,12 +104,10 @@ export async function GET(
       }
 
       // Extract OM data from document extraction_result
-      const extractionResult = omDocument.extraction_result as {
-        om_extraction?: OMExtractionResult;
-        classification?: unknown;
-      } | null
+      // The extraction_result is stored directly as OMExtractionResult
+      const extractionResult = omDocument.extraction_result as OMExtractionResult | null
 
-      if (!extractionResult?.om_extraction) {
+      if (!extractionResult || !extractionResult.property_info) {
         return NextResponse.json({
           success: true,
           propertyId,
@@ -126,7 +124,7 @@ export async function GET(
         propertyId,
         propertyName: property.name,
         hasOMData: true,
-        omExtraction: extractionResult.om_extraction,
+        omExtraction: extractionResult,
         documentFilename: omDocument.filename,
         extractedAt: omDocument.created_at,
         source: 'document',

@@ -201,9 +201,10 @@ interface RRDocumentProps {
   onConfigChange: (config: RentRollConfig) => void
   documentId?: string
   processId?: string
+  propertyId?: string
 }
 
-export function RRDocument({isOpen, onClose, config, onConfigChange, documentId, processId}: RRDocumentProps) {
+export function RRDocument({isOpen, onClose, config, onConfigChange, documentId, processId,propertyId}: RRDocumentProps) {
   console.log("RRDocument rendered with documentId:", documentId, "processId:", processId)
  
   // Zustand store hooks
@@ -1220,7 +1221,7 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
       <ResizableHandle withHandle />
 
 
-<OSDocument propertyId={documentId} />
+<OSDocument propertyId={propertyId} />
 
       {/* Configure Modal - Right side panel */}
       {isOpen && (

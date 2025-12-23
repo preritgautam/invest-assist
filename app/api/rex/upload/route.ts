@@ -124,3 +124,6 @@ export async function POST(request: NextRequest) {
 // Export runtime config for Next.js 15
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Increase body size limit for file uploads (100MB)
+export const maxDuration = 60; // 60 seconds timeout

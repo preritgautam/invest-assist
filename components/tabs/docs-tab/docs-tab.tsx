@@ -977,6 +977,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                   onValidate={handleValidateOS}
                   validated={osValidated}
                   onUnvalidate={handleUnvalidateOS}
+                    propertyId={propertyId}
                 />
               )}
 

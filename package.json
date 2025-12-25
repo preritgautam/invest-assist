@@ -55,6 +55,7 @@
     "google-maps": "^4.3.3",
     "immer": "latest",
     "input-otp": "^1.4.1",
+    "jsonrepair": "^3.13.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.454.0",
     "mailgun.js": "^10.2.3",

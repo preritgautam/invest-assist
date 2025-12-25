@@ -1,6 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { OMExtractionResult } from '@/lib/supabase/database.types'
+
+// OS Extraction Result interface (matches the os-extract route output)
+interface MonthlyData {
+  jan: number
+  feb: number
+  mar: number
+  apr: number
+  may: number
+  jun: number
+  jul: number
+  aug: number
+  sep: number
+  oct: number
+  nov: number
+  dec: number
+}
+
+interface LineItem {
+  id: string
+  name: string
+  annualAmount: number
+  perUnit: number
+  notes: string
+  isExpanded?: boolean
+  isCalculated?: boolean
+  hasChildren?: boolean
+  hasFormula?: boolean
+  formula?: string
+  docTotal?: number
+  monthlyData?: MonthlyData
+  label?: string
+  isMajorTotal?: boolean
+  children?: LineItem[]
+}
+
+interface OSExtractionResult {
+  property_info: {
+    property_name: string | null
+    total_units: number | null
+    period_start: string | null
+    period_end: string | null
+    fiscal_year: number | null
+  }
+  income_items: LineItem[]
+  expense_items: LineItem[]
+  capital_items: LineItem[]
+  debt_items: LineItem[]
+  summary: {
+    effective_gross_income: number | null
+    total_operating_expenses: number | null
+    net_operating_income: number | null
+    total_capital_expenses: number | null
+    total_debt_service: number | null
+    cash_flow_after_debt: number | null
+  }
+}
 
 // UUID validation helper
 function isValidUUID(str: string): boolean {
@@ -22,7 +77,7 @@ async function getUserCompanyId(supabase: Awaited<ReturnType<typeof createClient
   return userData.company_id
 }
 
-// GET /api/properties/[id]/om-data - Get OM extraction data for a property
+// GET /api/properties/[id]/os-data - Get OS/T-12 extraction data for a property
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -32,14 +87,14 @@ export async function GET(
 
     // Validate UUID format to handle mock data gracefully
     if (!isValidUUID(propertyId)) {
-      console.log(`[OM Data API] Non-UUID propertyId: ${propertyId} (likely mock data)`)
+      console.log(`[OS Data API] Non-UUID propertyId: ${propertyId} (likely mock data)`)
       return NextResponse.json({
         success: true,
         propertyId,
         propertyName: 'Mock Property',
-        hasOMData: false,
-        omExtraction: null,
-        message: 'Mock property - no OM data in database',
+        hasOSData: false,
+        osExtraction: null,
+        message: 'Mock property - no OS data in database',
       }, { status: 200 })
     }
 
@@ -62,7 +117,7 @@ export async function GET(
       )
     }
 
-    // Get property with metadata (which contains om_extraction)
+    // Get property with metadata (which may contain os_extraction)
     const { data: property, error: propError } = await supabase
       .from('properties')
       .select('id, name, metadata')
@@ -77,45 +132,44 @@ export async function GET(
       )
     }
 
-    // Check if OM extraction data exists in metadata
-    const metadata = property.metadata as { om_extraction?: OMExtractionResult; om_extracted_at?: string } | null
+    // Check if OS extraction data exists in metadata
+    const metadata = property.metadata as { os_extraction?: OSExtractionResult; os_extracted_at?: string } | null
 
-    if (!metadata?.om_extraction) {
-      // Try to find from documents table
-      const { data: omDocument, error: docError } = await supabase
+    if (!metadata?.os_extraction) {
+      // Try to find from documents table - check for both operating_statement and t12 types
+      const { data: osDocument, error: docError } = await supabase
         .from('documents')
         .select('extraction_result, document_type, filename, created_at')
         .eq('property_id', propertyId)
         .eq('company_id', companyId)
-        .eq('document_type', 'offering_memorandum')
+        .in('document_type', ['operating_statement', 't12'])
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
 
-      if (docError || !omDocument) {
+      if (docError || !osDocument) {
         return NextResponse.json({
           success: true,
           propertyId,
           propertyName: property.name,
-          hasOMData: false,
-          omExtraction: null,
-          message: 'No OM document found for this property',
+          hasOSData: false,
+          osExtraction: null,
+          message: 'No Operating Statement / T-12 document found for this property',
         }, { status: 200 })
       }
 
-      // Extract OM data from document extraction_result
-      // The extraction_result is stored directly as OMExtractionResult
-      const extractionResult = omDocument.extraction_result as OMExtractionResult | null
+      // Extract OS data from document extraction_result
+      const extractionResult = osDocument.extraction_result as OSExtractionResult | null
 
-      if (!extractionResult || !extractionResult.property_info) {
+      if (!extractionResult || !extractionResult.income_items) {
         return NextResponse.json({
           success: true,
           propertyId,
           propertyName: property.name,
-          hasOMData: false,
-          omExtraction: null,
-          documentFilename: omDocument.filename,
-          message: 'OM document found but no extraction data available',
+          hasOSData: false,
+          osExtraction: null,
+          documentFilename: osDocument.filename,
+          message: 'OS document found but no extraction data available',
         }, { status: 200 })
       }
 
@@ -123,27 +177,27 @@ export async function GET(
         success: true,
         propertyId,
         propertyName: property.name,
-        hasOMData: true,
-        omExtraction: extractionResult,
-        documentFilename: omDocument.filename,
-        extractedAt: omDocument.created_at,
+        hasOSData: true,
+        osExtraction: extractionResult,
+        documentFilename: osDocument.filename,
+        extractedAt: osDocument.created_at,
         source: 'document',
       }, { status: 200 })
     }
 
-    // Return OM data from property metadata
+    // Return OS data from property metadata
     return NextResponse.json({
       success: true,
       propertyId,
       propertyName: property.name,
-      hasOMData: true,
-      omExtraction: metadata.om_extraction,
-      extractedAt: metadata.om_extracted_at,
+      hasOSData: true,
+      osExtraction: metadata.os_extraction,
+      extractedAt: metadata.os_extracted_at,
       source: 'property_metadata',
     }, { status: 200 })
 
   } catch (error) {
-    console.error('[OM Data API] Error:', error)
+    console.error('[OS Data API] Error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

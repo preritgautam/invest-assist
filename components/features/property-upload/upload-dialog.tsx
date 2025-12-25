@@ -413,7 +413,8 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
               ...segment,
               id: `${doc.id}-seg-${segIndex}`,
               sourceFileId: doc.id,
-              enabled: segment.type === 'rent_roll' || segment.type === 'operating_statement',
+              // Enable extraction for rent_roll, operating_statement, and offering_memorandum
+              enabled: segment.type === 'rent_roll' || segment.type === 'operating_statement' || segment.type === 'offering_memorandum',
             })
           })
         }
@@ -514,66 +515,80 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
           console.error('[Extraction] Error creating segment records:', segmentErr)
         }
 
-        // For each extractable segment (rent_roll or operating_statement), send to REX
+        // Separate segments by type for different processing strategies
+        const rentRollSegments: { segment: DetectedSegment; createdSegment: any; index: number }[] = []
+        const geminiSegments: { segment: DetectedSegment; createdSegment: any; index: number }[] = []
+
         for (let i = 0; i < fileSegments.length; i++) {
           const segment = fileSegments[i]
           const createdSegment = createdSegments[i]
 
-          // Only extract rent_roll and operating_statement types
-          if (segment.type !== 'rent_roll' && segment.type !== 'operating_statement') {
-            console.log(`[Extraction] Skipping non-extractable segment type: ${segment.type}`)
-            continue
+          if (segment.type === 'rent_roll') {
+            rentRollSegments.push({ segment, createdSegment, index: i })
+          } else if (segment.type === 'operating_statement' || segment.type === 'offering_memorandum') {
+            geminiSegments.push({ segment, createdSegment, index: i })
           }
+        }
 
+        // Process Gemini segments (OS and OM) - one extraction per segment
+        for (const { segment, createdSegment } of geminiSegments) {
           try {
-            const result = await uploadFilesToRex([sourceFile.file], {
-              documentType: segment.type,
-              clientReference: `UPLOAD-${propertyId}-${segment.type}-${segment.page_range}`,
-              pageRange: segment.page_range || 'all',
-              sheetIndex: segment.sheet_index?.toString() || '',
-              templateId: "docin-default",
-              templateName: "Docin Default"
-            })
+            const extractionEndpoint = segment.type === 'operating_statement' 
+              ? '/api/documents/os-extract' 
+              : '/api/documents/om-extract'
 
-            console.log(`[Extraction] REX upload successful for ${segment.type}:`, result)
+            console.log(`[Extraction] Using Gemini extraction for ${segment.type} via ${extractionEndpoint}`)
 
-            // Update the segment record with the REX process info
+            const extractionDocumentId = createdSegment?.id || sourceFile.documentId
+
+            // Update segment status to processing
             if (createdSegment) {
               try {
-                await fetch('/api/documents/update', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    processId: createdSegment.process_id,
-                    extractionStatus: 'processing',
-                    documentId: result.documentId,
-                  }),
-                })
-
-                // Also update with the REX process ID for polling
                 await fetch(`/api/documents/${createdSegment.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    process_id: result.processId,
-                    document_id: result.documentId,
                     extraction_status: 'processing',
                   }),
                 })
               } catch (updateErr) {
-                console.error('[Extraction] Failed to update segment with REX info:', updateErr)
+                console.error('[Extraction] Failed to update segment status:', updateErr)
               }
             }
 
-            // Track first extraction for immediate polling
-            if (!firstProcessId) {
-              firstProcessId = result.processId
-              firstDocumentId = result.documentId
-            }
+            const extractResponse = await fetch(extractionEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                documentId: extractionDocumentId,
+                propertyId: propertyId,
+              }),
+            })
 
-          } catch (rexErr: any) {
-            console.error(`[Extraction] REX upload failed for ${segment.type}:`, rexErr)
-            // Mark segment as failed
+            if (!extractResponse.ok) {
+              const errorData = await extractResponse.json()
+              console.error(`[Extraction] Gemini extraction failed for ${segment.type}:`, errorData)
+              
+              if (createdSegment) {
+                try {
+                  await fetch(`/api/documents/${createdSegment.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      extraction_status: 'failed',
+                      error_message: errorData.error || 'Gemini extraction failed',
+                    }),
+                  })
+                } catch (updateErr) {
+                  console.error('[Extraction] Failed to update segment error status:', updateErr)
+                }
+              }
+            } else {
+              const extractResult = await extractResponse.json()
+              console.log(`[Extraction] Gemini extraction completed for ${segment.type}:`, extractResult)
+            }
+          } catch (extractErr: any) {
+            console.error(`[Extraction] Extraction failed for ${segment.type}:`, extractErr)
             if (createdSegment) {
               try {
                 await fetch(`/api/documents/${createdSegment.id}`, {
@@ -581,11 +596,74 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     extraction_status: 'failed',
-                    error_message: rexErr.message || 'REX upload failed',
+                    error_message: extractErr.message || 'Extraction failed',
                   }),
                 })
               } catch (updateErr) {
                 console.error('[Extraction] Failed to update segment error status:', updateErr)
+              }
+            }
+          }
+        }
+
+        // Process Rent Roll segments - ONE REX upload per source file, link all segments to it
+        if (rentRollSegments.length > 0) {
+          console.log(`[Extraction] Processing ${rentRollSegments.length} rent_roll segments from ${sourceFile.name} with single REX upload`)
+          
+          try {
+            // Upload to REX ONCE for this source file
+            const result = await uploadFilesToRex([sourceFile.file], {
+              documentType: 'rent_roll',
+              clientReference: `UPLOAD-${propertyId}-rent_roll-${sourceFile.name}`,
+              pageRange: 'all', // Let REX process all pages/sheets
+              templateId: "docin-default",
+              templateName: "Docin Default"
+            })
+
+            console.log(`[Extraction] REX upload successful for ${sourceFile.name}:`, result)
+
+            // Update ALL rent_roll segments with the same REX process info
+            for (const { createdSegment } of rentRollSegments) {
+              if (createdSegment) {
+                try {
+                  await fetch(`/api/documents/${createdSegment.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      process_id: result.processId,
+                      document_id: result.documentId,
+                      extraction_status: 'processing',
+                    }),
+                  })
+                } catch (updateErr) {
+                  console.error('[Extraction] Failed to update segment with REX info:', updateErr)
+                }
+              }
+            }
+
+            // Track first extraction for polling
+            if (!firstProcessId) {
+              firstProcessId = result.processId
+              firstDocumentId = result.documentId
+            }
+          } catch (extractErr: any) {
+            console.error(`[Extraction] REX upload failed for ${sourceFile.name}:`, extractErr)
+            
+            // Mark ALL rent_roll segments as failed
+            for (const { createdSegment } of rentRollSegments) {
+              if (createdSegment) {
+                try {
+                  await fetch(`/api/documents/${createdSegment.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      extraction_status: 'failed',
+                      error_message: extractErr.message || 'REX upload failed',
+                    }),
+                  })
+                } catch (updateErr) {
+                  console.error('[Extraction] Failed to update segment error status:', updateErr)
+                }
               }
             }
           }
@@ -1151,11 +1229,11 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                                   onClick={() => toggleSegmentEnabled(segment.id)}
                                   className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                                     segment.enabled
-                                      ? 'bg-data-accent-blue border-data-accent-blue'
-                                      : 'bg-card border-border hover:border-muted-foreground'
+                                      ? 'bg-gray-900 border-gray-900'
+                                      : 'bg-white border-gray-300 hover:border-gray-400'
                                   }`}
                                 >
-                                  {segment.enabled && <Check className="w-3 h-3 text-primary-foreground" />}
+                                  {segment.enabled && <Check className="w-3 h-3 text-white" />}
                                 </button>
 
                                 {/* Segment Info */}
@@ -1362,18 +1440,18 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
                   <div
                     key={file.id}
                     className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border-2 transition-all touch-manipulation ${file.selected
-                        ? "border-data-accent-blue bg-data-accent-blue/5"
-                        : "border-border bg-card hover:border-muted-foreground"
+                        ? "border-gray-900 bg-gray-50"
+                        : "border-gray-200 bg-white hover:border-gray-300"
                       }`}
                   >
                     <button
                       onClick={() => toggleFileSelection(file.id)}
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${file.selected
-                          ? "bg-data-accent-blue border-data-accent-blue"
-                          : "bg-card border-border hover:border-muted-foreground"
+                          ? "bg-gray-900 border-gray-900"
+                          : "bg-white border-gray-300 hover:border-gray-400"
                         }`}
                     >
-                      {file.selected && <Check className="w-3 h-3 text-primary-foreground" />}
+                      {file.selected && <Check className="w-3 h-3 text-white" />}
                     </button>
 
                     <div className="w-7 h-7 sm:w-8 sm:h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">

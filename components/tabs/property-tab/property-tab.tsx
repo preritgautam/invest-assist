@@ -39,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PropertyImageCarousel from "./property-images"
 import UnitMix from "./unitMix"
  import WalkScore from "./walkscore"
+import { useEffect, useState } from "react"
 
 /**
  * Props interface for PropertyTab component
@@ -53,34 +54,6 @@ interface PropertyTabProps {
 }
 
 /**
- * Reusable info card component for displaying property details
- * Used throughout the component for consistent styling
- */
-function InfoCard({
-  title,
-  children,
-  className = "",
-  icon,
-}: {
-  title: string
-  children: React.ReactNode
-  className?: string
-  icon?: React.ReactNode
-}) {
-  return (
-    <Card className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>
-      <CardContent className="p-2">
-        <div className="flex items-center gap-1.5 mb-1">
-          {icon && <div className="p-1 bg-gray-100 rounded-md">{icon}</div>}
-          <h3 className="text-xs font-semibold text-gray-600">{title}</h3>
-        </div>
-        {children}
-      </CardContent>
-    </Card>
-  )
-}
-
-/**
  * PropertyTab Component - Comprehensive property details display
  *
  * Renders detailed property information including images, location data,
@@ -89,6 +62,47 @@ function InfoCard({
  */
 export function PropertyTab({ property, propertyId, documents }: PropertyTabProps) {
   // Handle case where no property is selected AND no propertyId is provided
+const [propertyDetails, setPropertyDetails] = useState<{
+  name?: string;
+  address?: string;
+  city?: string;
+}>({});
+console.log("[PropertyTab] propertyId:", propertyDetails)
+
+
+  useEffect(() => {
+  if (!propertyId) return;
+
+  const fetchOmData = async () => {
+    try {
+      const response = await fetch(
+        `/api/properties/${propertyId}/om-data`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch OM data");
+      }
+
+      const omData = await response.json();
+
+      console.log("[OM Data] Fetched OM data:", omData);
+
+      if (omData.success) {
+        setPropertyDetails({
+          name: omData.omExtraction.property_info.property_name,
+          address: omData.omExtraction.property_info.property_address,
+          city: omData.omExtraction.property_info.city,
+        });
+      }
+    } catch (error) {
+      console.error("[OM Data] Error fetching OM data:", error);
+    }
+  };
+
+  fetchOmData();
+}, [propertyId]);
+
+  
   if (!property && !propertyId) {
     return (
       <div className="bg-white rounded-2xl shadow-lg border-2 border-white p-4 text-center">
@@ -103,11 +117,11 @@ export function PropertyTab({ property, propertyId, documents }: PropertyTabProp
     )
   }
 
+  console.log("[PropertyTab] Rendering property tab for property:", propertyId)
+
   // Create a minimal propertyData for cases where we only have propertyId (database property)
   const propertyData: PropertyData = property || {
-    id: propertyId!,
-    name: 'Property',
-    address: '',
+      address: 'aqua  apartments, tallahassee',
     units: 0,
     status: 'Active',
   }
@@ -130,13 +144,6 @@ export function PropertyTab({ property, propertyId, documents }: PropertyTabProp
 
               </div>
 
-              <div>
-                <WalkScore
-                  address="Aqua Cove Apartments"
-                  lat={30.483629287246565}
-                  lon={-84.29125597288181}
-                />
-              </div>
               <div>
 
                 <CardTitle className="text-sm font-bold text-gray-900">{propertyData.name}</CardTitle>
@@ -162,6 +169,15 @@ export function PropertyTab({ property, propertyId, documents }: PropertyTabProp
         </Card>
       )}
 
+              <div>
+                <WalkScore
+                  address={propertyDetails.address && propertyDetails.city 
+                    ? `${propertyDetails.name || ''}, ${propertyDetails.address}, ${propertyDetails.city}`.replace(/^, /, '') 
+                    : propertyData.address}
+                  lat={propertyData.coordinates?.lat}
+                  lon={propertyData.coordinates?.lng}
+                />
+              </div>
       {/* Main property image section - always show when we have propertyId */}
       <PropertyImageCarousel propertyData={propertyData} propertyId={propertyId || property?.id} />
 

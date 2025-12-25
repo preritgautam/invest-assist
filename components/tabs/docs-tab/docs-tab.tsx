@@ -977,6 +977,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                   onValidate={handleValidateOS}
                   validated={osValidated}
                   onUnvalidate={handleUnvalidateOS}
+                    propertyId={propertyId}
                 />
               )}
 
@@ -1026,6 +1027,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
                         onConfigChange={setRrConfig}
                         documentId={selectedDoc || undefined}
                         processId={selectedDoc || undefined}
+                        propertyId={propertyId}
                       />
                     </div>
                   </div>

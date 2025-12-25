@@ -245,6 +245,88 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
     }
   }
 
+  // Handle OS and OM documents - upload to storage then use Gemini extraction
+  const handleGeminiDocumentUpload = async (selectedFiles: UploadedFile[], docType: "OS" | "OM") => {
+    try {
+      if (!propertyId) {
+        setError("Property ID is required to upload documents")
+        setIsProcessing(false)
+        return
+      }
+
+      const documentType = docType === "OS" ? "operating_statement" : "offering_memorandum"
+      const extractionEndpoint = docType === "OS" ? "/api/documents/os-extract" : "/api/documents/om-extract"
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
+        setUploadProgress(`Uploading ${file.name} (${i + 1}/${selectedFiles.length})...`)
+
+        // 1. Upload to storage
+        const formData = new FormData()
+        formData.append('file', file.file)
+        formData.append('propertyId', propertyId)
+        formData.append('documentType', documentType)
+
+        const uploadResponse = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json()
+          throw new Error(errorData.error || 'Failed to upload document')
+        }
+
+        const uploadResult = await uploadResponse.json()
+        console.log(`[AddDocumentDialog] Document uploaded to storage:`, uploadResult)
+
+        const documentId = uploadResult.document?.id
+
+        if (!documentId) {
+          throw new Error('No document ID returned from upload')
+        }
+
+        // 2. Trigger Gemini extraction
+        setUploadProgress(`Extracting data from ${file.name}... This may take a minute.`)
+
+        const extractResponse = await fetch(extractionEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: documentId,
+            propertyId: propertyId,
+          }),
+        })
+
+        if (!extractResponse.ok) {
+          const errorData = await extractResponse.json()
+          console.error(`[AddDocumentDialog] Extraction failed for ${file.name}:`, errorData)
+          // Don't throw, continue with partial success
+          setUploadProgress(`Warning: Extraction failed for ${file.name}, but document was uploaded.`)
+        } else {
+          const extractResult = await extractResponse.json()
+          console.log(`[AddDocumentDialog] Extraction completed for ${file.name}:`, extractResult)
+        }
+      }
+
+      setUploadProgress(`${docType === "OS" ? "Operating Statement" : "Offering Memorandum"} uploaded and processed!`)
+      setUploadSuccess(true)
+
+      // Trigger refresh
+      onDocumentsRefresh?.()
+      onComplete?.(selectedFiles, docType)
+
+      setTimeout(() => {
+        onClose()
+      }, 1500)
+    } catch (err: any) {
+      console.error(`[AddDocumentDialog] ${docType} upload failed:`, err)
+      setError(err.message || `Failed to upload ${docType} document. Please try again.`)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleProceed = async () => {
     const selectedFiles = uploadedFiles.filter((f) => f.selected)
 
@@ -269,14 +351,14 @@ export function AddDocumentDialog({ isOpen, onClose, onComplete, propertyId, onD
         return
       }
 
-      // Map document type to REX document type
-      const docTypeMap: Record<Exclude<DocumentType, "Photos">, string> = {
-        OS: "operating_statement",
-        RR: "rent_roll",
-        OM: "offering_memorandum",
+      // Handle OS and OM documents with Gemini extraction (not REX)
+      if (selectedDocType === "OS" || selectedDocType === "OM") {
+        await handleGeminiDocumentUpload(selectedFiles, selectedDocType)
+        return
       }
 
-      const rexDocType = docTypeMap[selectedDocType]
+      // REX is only for Rent Roll documents
+      const rexDocType = "rent_roll"
       const uploadedProcessIds: { processId: string; documentId: string; filename: string }[] = []
 
       // Process each selected file

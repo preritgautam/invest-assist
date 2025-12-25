@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import type { PropertyData } from "@/lib/property-data"
 import {
   ChevronDown,
@@ -61,6 +61,7 @@ interface T12ActualsTabProps {
   onValidate?: () => void // Added onValidate prop
   validated?: boolean
   onUnvalidate?: () => void // Added onUnvalidate prop
+    propertyId?: string
 }
 
 interface MonthlyData {
@@ -186,8 +187,10 @@ interface SummaryMetrics {
 
 // REMOVED: type SubTab = "t12-actuals" | "normalized" | "summary"
 
-export function T12ActualsTab({ property, onValidate, validated = false, onUnvalidate }: T12ActualsTabProps) {
+export function T12ActualsTab({ property, onValidate, validated = false, onUnvalidate,propertyId }: T12ActualsTabProps) {
   // REMOVED: const [activeSubTab, setActiveSubTab] = useState<SubTab>("t12-actuals")
+
+  console.log("[T12ActualsTab] validated:", propertyId)
   const [showMonthlyColumns, setShowMonthlyColumns] = useState(true)
   const [lineItemColumnWidth, setLineItemColumnWidth] = useState(180)
   const [isResizing, setIsResizing] = useState(false)
@@ -198,9 +201,144 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
   const [mobileSection, setMobileSection] = useState<"income" | "expense" | "noi">("income")
   // </CHANGE>
 
-  React.useEffect(() => {
+  useEffect(() => {
     setT12DataValidated(validated)
   }, [validated])
+
+  const [osData, setOSData] = useState(null)
+useEffect(() => {
+    if (!propertyId) {
+      setOSData(null)
+      return
+    }
+
+
+    const fetchOSData = async () => {
+      try {
+        const response = await fetch(`/api/properties/${propertyId}/os-data`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch OS data")
+        }
+
+        setOSData(data)
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : "Failed to load OS data")
+      
+      }
+    }
+
+    fetchOSData()
+  }, [propertyId])
+
+  console.log('osData', osData)
+
+  // Update line items from osData when it's loaded
+  useEffect(() => {
+    if (!osData || !(osData as any).hasOSData || !(osData as any).osExtraction) {
+      return
+    }
+
+    const extraction = (osData as any).osExtraction
+
+    // Helper to create empty monthly data
+    const emptyMonthlyData = (): MonthlyData => ({
+      jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
+      jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
+    })
+
+    // Update income items if available
+    if (extraction.income_items && extraction.income_items.length > 0) {
+      setIncomeItems(extraction.income_items.map((item: any) => ({
+        ...item,
+        annualAmount: item.annualAmount ?? 0,
+        perUnit: item.perUnit ?? 0,
+        notes: item.notes ?? "",
+        monthlyData: item.monthlyData ?? emptyMonthlyData(),
+        children: item.children?.map((child: any) => ({
+          ...child,
+          annualAmount: child.annualAmount ?? 0,
+          perUnit: child.perUnit ?? 0,
+          notes: child.notes ?? "",
+          monthlyData: child.monthlyData ?? emptyMonthlyData(),
+          children: child.children?.map((grandchild: any) => ({
+            ...grandchild,
+            annualAmount: grandchild.annualAmount ?? 0,
+            perUnit: grandchild.perUnit ?? 0,
+            notes: grandchild.notes ?? "",
+            monthlyData: grandchild.monthlyData ?? emptyMonthlyData(),
+          }))
+        }))
+      })))
+    }
+
+    // Update expense items if available
+    if (extraction.expense_items && extraction.expense_items.length > 0) {
+      setExpenseItems(extraction.expense_items.map((item: any) => ({
+        ...item,
+        annualAmount: item.annualAmount ?? 0,
+        perUnit: item.perUnit ?? 0,
+        notes: item.notes ?? "",
+        monthlyData: item.monthlyData ?? emptyMonthlyData(),
+        children: item.children?.map((child: any) => ({
+          ...child,
+          annualAmount: child.annualAmount ?? 0,
+          perUnit: child.perUnit ?? 0,
+          notes: child.notes ?? "",
+          monthlyData: child.monthlyData ?? emptyMonthlyData(),
+          children: child.children?.map((grandchild: any) => ({
+            ...grandchild,
+            annualAmount: grandchild.annualAmount ?? 0,
+            perUnit: grandchild.perUnit ?? 0,
+            notes: grandchild.notes ?? "",
+            monthlyData: grandchild.monthlyData ?? emptyMonthlyData(),
+          }))
+        }))
+      })))
+    }
+
+    // Update capital items if available
+    if (extraction.capital_items && extraction.capital_items.length > 0) {
+      setCapitalItems(extraction.capital_items.map((item: any) => ({
+        ...item,
+        annualAmount: item.annualAmount ?? 0,
+        perUnit: item.perUnit ?? 0,
+        notes: item.notes ?? "",
+        monthlyData: item.monthlyData ?? emptyMonthlyData(),
+        children: item.children?.map((child: any) => ({
+          ...child,
+          annualAmount: child.annualAmount ?? 0,
+          perUnit: child.perUnit ?? 0,
+          notes: child.notes ?? "",
+          monthlyData: child.monthlyData ?? emptyMonthlyData(),
+        }))
+      })))
+    }
+
+    // Update debt items if available
+    if (extraction.debt_items && extraction.debt_items.length > 0) {
+      setDebtItems(extraction.debt_items.map((item: any) => ({
+        ...item,
+        annualAmount: item.annualAmount ?? 0,
+        perUnit: item.perUnit ?? 0,
+        notes: item.notes ?? "",
+        monthlyData: item.monthlyData ?? emptyMonthlyData(),
+        children: item.children?.map((child: any) => ({
+          ...child,
+          annualAmount: child.annualAmount ?? 0,
+          perUnit: child.perUnit ?? 0,
+          notes: child.notes ?? "",
+          monthlyData: child.monthlyData ?? emptyMonthlyData(),
+        }))
+      })))
+    }
+
+    // Update total units if available from property info
+    if (extraction.property_info?.total_units) {
+      setTotalUnits(extraction.property_info.total_units)
+    }
+  }, [osData])
 
   const [normalizedItems, setNormalizedItems] = useState<NormalizedLineItem[]>([])
 
@@ -287,6 +425,13 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     return undefined
   }
 
+  // Default empty structure - will be populated from API via osData
+  const emptyMonthlyData: MonthlyData = {
+    jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
+    jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
+  }
+
+  // Dummy data shown when no OS data is loaded
   const [incomeItems, setIncomeItems] = useState<LineItem[]>([
     {
       id: "income",
@@ -318,18 +463,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Market Rent × Occupancy",
               docTotal: 1200000,
               monthlyData: {
-                jan: 100000,
-                feb: 100000,
-                mar: 100000,
-                apr: 100000,
-                may: 100000,
-                jun: 100000,
-                jul: 100000,
-                aug: 100000,
-                sep: 100000,
-                oct: 100000,
-                nov: 100000,
-                dec: 100000,
+                jan: 100000, feb: 100000, mar: 100000, apr: 100000,
+                may: 100000, jun: 100000, jul: 100000, aug: 100000,
+                sep: 100000, oct: 100000, nov: 100000, dec: 100000,
               },
               label: "Rental Income",
             },
@@ -343,18 +479,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Rental Income × Vacancy %",
               docTotal: -60000,
               monthlyData: {
-                jan: -5000,
-                feb: -5000,
-                mar: -5000,
-                apr: -5000,
-                may: -5000,
-                jun: -5000,
-                jul: -5000,
-                aug: -5000,
-                sep: -5000,
-                oct: -5000,
-                nov: -5000,
-                dec: -5000,
+                jan: -5000, feb: -5000, mar: -5000, apr: -5000,
+                may: -5000, jun: -5000, jul: -5000, aug: -5000,
+                sep: -5000, oct: -5000, nov: -5000, dec: -5000,
               },
               label: "Vacancy Loss",
             },
@@ -368,18 +495,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Concession Amount × Units",
               docTotal: -12000,
               monthlyData: {
-                jan: -1000,
-                feb: -1000,
-                mar: -1000,
-                apr: -1000,
-                may: -1000,
-                jun: -1000,
-                jul: -1000,
-                aug: -1000,
-                sep: -1000,
-                oct: -1000,
-                nov: -1000,
-                dec: -1000,
+                jan: -1000, feb: -1000, mar: -1000, apr: -1000,
+                may: -1000, jun: -1000, jul: -1000, aug: -1000,
+                sep: -1000, oct: -1000, nov: -1000, dec: -1000,
               },
               label: "Concessions",
             },
@@ -393,18 +511,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Rental Income × Bad Debt %",
               docTotal: -6000,
               monthlyData: {
-                jan: -500,
-                feb: -500,
-                mar: -500,
-                apr: -500,
-                may: -500,
-                jun: -500,
-                jul: -500,
-                aug: -500,
-                sep: -500,
-                oct: -500,
-                nov: -500,
-                dec: -500,
+                jan: -500, feb: -500, mar: -500, apr: -500,
+                may: -500, jun: -500, jul: -500, aug: -500,
+                sep: -500, oct: -500, nov: -500, dec: -500,
               },
               label: "Bad Debt",
             },
@@ -418,7 +527,7 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           notes: "",
           isCalculated: true,
           hasFormula: true,
-          formula: "= RENTAL_INCOME + VACANCY_LOSS + CONCESSIONS + BAD_DEBT + MODEL_UNITS",
+          formula: "= RENTAL_INCOME + VACANCY_LOSS + CONCESSIONS + BAD_DEBT",
           label: "Net Rental Income",
         },
         {
@@ -441,18 +550,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Parking Spaces × Rate",
               docTotal: 24000,
               monthlyData: {
-                jan: 2000,
-                feb: 2000,
-                mar: 2000,
-                apr: 2000,
-                may: 2000,
-                jun: 2000,
-                jul: 2000,
-                aug: 2000,
-                sep: 2000,
-                oct: 2000,
-                nov: 2000,
-                dec: 2000,
+                jan: 2000, feb: 2000, mar: 2000, apr: 2000,
+                may: 2000, jun: 2000, jul: 2000, aug: 2000,
+                sep: 2000, oct: 2000, nov: 2000, dec: 2000,
               },
               label: "Parking",
             },
@@ -466,18 +566,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Utility Billback",
               docTotal: 18000,
               monthlyData: {
-                jan: 1500,
-                feb: 1500,
-                mar: 1500,
-                apr: 1500,
-                may: 1500,
-                jun: 1500,
-                jul: 1500,
-                aug: 1500,
-                sep: 1500,
-                oct: 1500,
-                nov: 1500,
-                dec: 1500,
+                jan: 1500, feb: 1500, mar: 1500, apr: 1500,
+                may: 1500, jun: 1500, jul: 1500, aug: 1500,
+                sep: 1500, oct: 1500, nov: 1500, dec: 1500,
               },
               label: "RUBS",
             },
@@ -491,18 +582,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Applications × Fee",
               docTotal: 6000,
               monthlyData: {
-                jan: 500,
-                feb: 500,
-                mar: 500,
-                apr: 500,
-                may: 500,
-                jun: 500,
-                jul: 500,
-                aug: 500,
-                sep: 500,
-                oct: 500,
-                nov: 500,
-                dec: 500,
+                jan: 500, feb: 500, mar: 500, apr: 500,
+                may: 500, jun: 500, jul: 500, aug: 500,
+                sep: 500, oct: 500, nov: 500, dec: 500,
               },
               label: "Application Fees",
             },
@@ -516,18 +598,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Late Payments × Fee",
               docTotal: 3600,
               monthlyData: {
-                jan: 300,
-                feb: 300,
-                mar: 300,
-                apr: 300,
-                may: 300,
-                jun: 300,
-                jul: 300,
-                aug: 300,
-                sep: 300,
-                oct: 300,
-                nov: 300,
-                dec: 300,
+                jan: 300, feb: 300, mar: 300, apr: 300,
+                may: 300, jun: 300, jul: 300, aug: 300,
+                sep: 300, oct: 300, nov: 300, dec: 300,
               },
               label: "Late Fees",
             },
@@ -541,18 +614,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Misc Fees",
               docTotal: 9000,
               monthlyData: {
-                jan: 750,
-                feb: 750,
-                mar: 750,
-                apr: 750,
-                may: 750,
-                jun: 750,
-                jul: 750,
-                aug: 750,
-                sep: 750,
-                oct: 750,
-                nov: 750,
-                dec: 750,
+                jan: 750, feb: 750, mar: 750, apr: 750,
+                may: 750, jun: 750, jul: 750, aug: 750,
+                sep: 750, oct: 750, nov: 750, dec: 750,
               },
               label: "Other Fees",
             },
@@ -589,18 +653,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Miscellaneous Income",
               docTotal: 12046,
               monthlyData: {
-                jan: 1004,
-                feb: 1004,
-                mar: 1004,
-                apr: 1004,
-                may: 1004,
-                jun: 1004,
-                jul: 1004,
-                aug: 1004,
-                sep: 1004,
-                oct: 1004,
-                nov: 1004,
-                dec: 1004,
+                jan: 1004, feb: 1004, mar: 1004, apr: 1004,
+                may: 1004, jun: 1004, jul: 1004, aug: 1004,
+                sep: 1004, oct: 1004, nov: 1004, dec: 1004,
               },
               label: "Misc. Income",
             },
@@ -664,18 +719,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Staff Salaries",
               docTotal: 60000,
               monthlyData: {
-                jan: 5000,
-                feb: 5000,
-                mar: 5000,
-                apr: 5000,
-                may: 5000,
-                jun: 5000,
-                jul: 5000,
-                aug: 5000,
-                sep: 5000,
-                oct: 5000,
-                nov: 5000,
-                dec: 5000,
+                jan: 5000, feb: 5000, mar: 5000, apr: 5000,
+                may: 5000, jun: 5000, jul: 5000, aug: 5000,
+                sep: 5000, oct: 5000, nov: 5000, dec: 5000,
               },
               label: "Payroll",
             },
@@ -689,18 +735,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Employee Benefits",
               docTotal: 15000,
               monthlyData: {
-                jan: 1250,
-                feb: 1250,
-                mar: 1250,
-                apr: 1250,
-                may: 1250,
-                jun: 1250,
-                jul: 1250,
-                aug: 1250,
-                sep: 1250,
-                oct: 1250,
-                nov: 1250,
-                dec: 1250,
+                jan: 1250, feb: 1250, mar: 1250, apr: 1250,
+                may: 1250, jun: 1250, jul: 1250, aug: 1250,
+                sep: 1250, oct: 1250, nov: 1250, dec: 1250,
               },
               label: "Benefits",
             },
@@ -714,18 +751,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "EGI × Management %",
               docTotal: 59732,
               monthlyData: {
-                jan: 4978,
-                feb: 4978,
-                mar: 4978,
-                apr: 4978,
-                may: 4978,
-                jun: 4978,
-                jul: 4978,
-                aug: 4978,
-                sep: 4978,
-                oct: 4978,
-                nov: 4978,
-                dec: 4978,
+                jan: 4978, feb: 4978, mar: 4978, apr: 4978,
+                may: 4978, jun: 4978, jul: 4978, aug: 4978,
+                sep: 4978, oct: 4978, nov: 4978, dec: 4978,
               },
               label: "Management Fee",
             },
@@ -739,18 +767,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Office & Admin Costs",
               docTotal: 12000,
               monthlyData: {
-                jan: 1000,
-                feb: 1000,
-                mar: 1000,
-                apr: 1000,
-                may: 1000,
-                jun: 1000,
-                jul: 1000,
-                aug: 1000,
-                sep: 1000,
-                oct: 1000,
-                nov: 1000,
-                dec: 1000,
+                jan: 1000, feb: 1000, mar: 1000, apr: 1000,
+                may: 1000, jun: 1000, jul: 1000, aug: 1000,
+                sep: 1000, oct: 1000, nov: 1000, dec: 1000,
               },
               label: "Administrative",
             },
@@ -764,18 +783,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Marketing & Advertising",
               docTotal: 8000,
               monthlyData: {
-                jan: 667,
-                feb: 667,
-                mar: 667,
-                apr: 667,
-                may: 667,
-                jun: 667,
-                jul: 667,
-                aug: 667,
-                sep: 667,
-                oct: 667,
-                nov: 667,
-                dec: 667,
+                jan: 667, feb: 667, mar: 667, apr: 667,
+                may: 667, jun: 667, jul: 667, aug: 667,
+                sep: 667, oct: 667, nov: 667, dec: 667,
               },
               label: "Marketing",
             },
@@ -789,18 +799,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Legal & Professional",
               docTotal: 6000,
               monthlyData: {
-                jan: 500,
-                feb: 500,
-                mar: 500,
-                apr: 500,
-                may: 500,
-                jun: 500,
-                jul: 500,
-                aug: 500,
-                sep: 500,
-                oct: 500,
-                nov: 500,
-                dec: 500,
+                jan: 500, feb: 500, mar: 500, apr: 500,
+                may: 500, jun: 500, jul: 500, aug: 500,
+                sep: 500, oct: 500, nov: 500, dec: 500,
               },
               label: "Professional Fees",
             },
@@ -814,18 +815,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Repair Costs",
               docTotal: 40000,
               monthlyData: {
-                jan: 3333,
-                feb: 3333,
-                mar: 3333,
-                apr: 3333,
-                may: 3333,
-                jun: 3333,
-                jul: 3333,
-                aug: 3333,
-                sep: 3333,
-                oct: 3333,
-                nov: 3333,
-                dec: 3333,
+                jan: 3333, feb: 3333, mar: 3333, apr: 3333,
+                may: 3333, jun: 3333, jul: 3333, aug: 3333,
+                sep: 3333, oct: 3333, nov: 3333, dec: 3333,
               },
               label: "Repairs",
             },
@@ -839,18 +831,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Maintenance Costs",
               docTotal: 30000,
               monthlyData: {
-                jan: 2500,
-                feb: 2500,
-                mar: 2500,
-                apr: 2500,
-                may: 2500,
-                jun: 2500,
-                jul: 2500,
-                aug: 2500,
-                sep: 2500,
-                oct: 2500,
-                nov: 2500,
-                dec: 2500,
+                jan: 2500, feb: 2500, mar: 2500, apr: 2500,
+                may: 2500, jun: 2500, jul: 2500, aug: 2500,
+                sep: 2500, oct: 2500, nov: 2500, dec: 2500,
               },
               label: "Maintenance",
             },
@@ -864,18 +847,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Unit Turnover Costs",
               docTotal: 20000,
               monthlyData: {
-                jan: 1667,
-                feb: 1667,
-                mar: 1667,
-                apr: 1667,
-                may: 1667,
-                jun: 1667,
-                jul: 1667,
-                aug: 1667,
-                sep: 1667,
-                oct: 1667,
-                nov: 1667,
-                dec: 1667,
+                jan: 1667, feb: 1667, mar: 1667, apr: 1667,
+                may: 1667, jun: 1667, jul: 1667, aug: 1667,
+                sep: 1667, oct: 1667, nov: 1667, dec: 1667,
               },
               label: "Turnover",
             },
@@ -889,18 +863,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Contract Services",
               docTotal: 15000,
               monthlyData: {
-                jan: 1250,
-                feb: 1250,
-                mar: 1250,
-                apr: 1250,
-                may: 1250,
-                jun: 1250,
-                jul: 1250,
-                aug: 1250,
-                sep: 1250,
-                oct: 1250,
-                nov: 1250,
-                dec: 1250,
+                jan: 1250, feb: 1250, mar: 1250, apr: 1250,
+                may: 1250, jun: 1250, jul: 1250, aug: 1250,
+                sep: 1250, oct: 1250, nov: 1250, dec: 1250,
               },
               label: "Contract Services",
             },
@@ -914,18 +879,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Landscaping & Grounds",
               docTotal: 10000,
               monthlyData: {
-                jan: 833,
-                feb: 833,
-                mar: 833,
-                apr: 833,
-                may: 833,
-                jun: 833,
-                jul: 833,
-                aug: 833,
-                sep: 833,
-                oct: 833,
-                nov: 833,
-                dec: 833,
+                jan: 833, feb: 833, mar: 833, apr: 833,
+                may: 833, jun: 833, jul: 833, aug: 833,
+                sep: 833, oct: 833, nov: 833, dec: 833,
               },
               label: "Landscaping",
             },
@@ -939,18 +895,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Supplies & Materials",
               docTotal: 8000,
               monthlyData: {
-                jan: 667,
-                feb: 667,
-                mar: 667,
-                apr: 667,
-                may: 667,
-                jun: 667,
-                jul: 667,
-                aug: 667,
-                sep: 667,
-                oct: 667,
-                nov: 667,
-                dec: 667,
+                jan: 667, feb: 667, mar: 667, apr: 667,
+                may: 667, jun: 667, jul: 667, aug: 667,
+                sep: 667, oct: 667, nov: 667, dec: 667,
               },
               label: "Supplies",
             },
@@ -964,18 +911,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Security Services",
               docTotal: 12000,
               monthlyData: {
-                jan: 1000,
-                feb: 1000,
-                mar: 1000,
-                apr: 1000,
-                may: 1000,
-                jun: 1000,
-                jul: 1000,
-                aug: 1000,
-                sep: 1000,
-                oct: 1000,
-                nov: 1000,
-                dec: 1000,
+                jan: 1000, feb: 1000, mar: 1000, apr: 1000,
+                may: 1000, jun: 1000, jul: 1000, aug: 1000,
+                sep: 1000, oct: 1000, nov: 1000, dec: 1000,
               },
               label: "Security",
             },
@@ -1012,18 +950,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Utility Costs",
               docTotal: 60000,
               monthlyData: {
-                jan: 5000,
-                feb: 5000,
-                mar: 5000,
-                apr: 5000,
-                may: 5000,
-                jun: 5000,
-                jul: 5000,
-                aug: 5000,
-                sep: 5000,
-                oct: 5000,
-                nov: 5000,
-                dec: 5000,
+                jan: 5000, feb: 5000, mar: 5000, apr: 5000,
+                may: 5000, jun: 5000, jul: 5000, aug: 5000,
+                sep: 5000, oct: 5000, nov: 5000, dec: 5000,
               },
               label: "Utilities",
             },
@@ -1037,18 +966,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Property Insurance",
               docTotal: 30000,
               monthlyData: {
-                jan: 2500,
-                feb: 2500,
-                mar: 2500,
-                apr: 2500,
-                may: 2500,
-                jun: 2500,
-                jul: 2500,
-                aug: 2500,
-                sep: 2500,
-                oct: 2500,
-                nov: 2500,
-                dec: 2500,
+                jan: 2500, feb: 2500, mar: 2500, apr: 2500,
+                may: 2500, jun: 2500, jul: 2500, aug: 2500,
+                sep: 2500, oct: 2500, nov: 2500, dec: 2500,
               },
               label: "Insurance",
             },
@@ -1062,18 +982,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Property Taxes",
               docTotal: 100000,
               monthlyData: {
-                jan: 8333,
-                feb: 8333,
-                mar: 8333,
-                apr: 8333,
-                may: 8333,
-                jun: 8333,
-                jul: 8333,
-                aug: 8333,
-                sep: 8333,
-                oct: 8333,
-                nov: 8333,
-                dec: 8333,
+                jan: 8333, feb: 8333, mar: 8333, apr: 8333,
+                may: 8333, jun: 8333, jul: 8333, aug: 8333,
+                sep: 8333, oct: 8333, nov: 8333, dec: 8333,
               },
               label: "Real Estate Tax",
             },
@@ -1087,17 +998,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
               formula: "Other Taxes",
               docTotal: 25027,
               monthlyData: {
-                jan: 2086,
-                feb: 2086,
-                mar: 2086,
-                apr: 2086,
-                may: 2086,
-                jun: 2086,
-                aug: 2086,
-                sep: 2086,
-                oct: 2086,
-                nov: 2086,
-                dec: 2086,
+                jan: 2086, feb: 2086, mar: 2086, apr: 2086,
+                may: 2086, jun: 2086, jul: 2086, aug: 2086,
+                sep: 2086, oct: 2086, nov: 2086, dec: 2086,
               },
               label: "Other Tax",
             },
@@ -1151,18 +1054,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           formula: "$300/unit/year",
           docTotal: 15000,
           monthlyData: {
-            jan: 1250,
-            feb: 1250,
-            mar: 1250,
-            apr: 1250,
-            may: 1250,
-            jun: 1250,
-            jul: 1250,
-            aug: 1250,
-            sep: 1250,
-            oct: 1250,
-            nov: 1250,
-            dec: 1250,
+            jan: 1250, feb: 1250, mar: 1250, apr: 1250,
+            may: 1250, jun: 1250, jul: 1250, aug: 1250,
+            sep: 1250, oct: 1250, nov: 1250, dec: 1250,
           },
           label: "Replacement Reserves",
         },
@@ -1176,18 +1070,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           formula: "CapEx Budget",
           docTotal: 50000,
           monthlyData: {
-            jan: 4167,
-            feb: 4167,
-            mar: 4167,
-            apr: 4167,
-            may: 4167,
-            jun: 4167,
-            jul: 4167,
-            aug: 4167,
-            sep: 4167,
-            oct: 4167,
-            nov: 4167,
-            dec: 4167,
+            jan: 4167, feb: 4167, mar: 4167, apr: 4167,
+            may: 4167, jun: 4167, jul: 4167, aug: 4167,
+            sep: 4167, oct: 4167, nov: 4167, dec: 4167,
           },
           label: "Capital Improvements",
         },
@@ -1201,18 +1086,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           formula: "Leasing Costs",
           docTotal: 12000,
           monthlyData: {
-            jan: 1000,
-            feb: 1000,
-            mar: 1000,
-            apr: 1000,
-            may: 1000,
-            jun: 1000,
-            jul: 1000,
-            aug: 1000,
-            sep: 1000,
-            oct: 1000,
-            nov: 1000,
-            dec: 1000,
+            jan: 1000, feb: 1000, mar: 1000, apr: 1000,
+            may: 1000, jun: 1000, jul: 1000, aug: 1000,
+            sep: 1000, oct: 1000, nov: 1000, dec: 1000,
           },
           label: "Leasing Commissions",
         },
@@ -1252,18 +1128,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           formula: "Loan Amount × Interest Rate",
           docTotal: 200000,
           monthlyData: {
-            jan: 16667,
-            feb: 16667,
-            mar: 16667,
-            apr: 16667,
-            may: 16667,
-            jun: 16667,
-            jul: 16667,
-            aug: 16667,
-            sep: 16667,
-            oct: 16667,
-            nov: 16667,
-            dec: 16667,
+            jan: 16667, feb: 16667, mar: 16667, apr: 16667,
+            may: 16667, jun: 16667, jul: 16667, aug: 16667,
+            sep: 16667, oct: 16667, nov: 16667, dec: 16667,
           },
           label: "Interest Payment",
         },
@@ -1277,18 +1144,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
           formula: "Principal + Interest",
           docTotal: 78870,
           monthlyData: {
-            jan: 6573,
-            feb: 6573,
-            mar: 6573,
-            apr: 6573,
-            may: 6573,
-            jun: 6573,
-            jul: 6573,
-            aug: 6573,
-            sep: 6573,
-            oct: 6573,
-            nov: 6573,
-            dec: 6573,
+            jan: 6573, feb: 6573, mar: 6573, apr: 6573,
+            may: 6573, jun: 6573, jul: 6573, aug: 6573,
+            sep: 6573, oct: 6573, nov: 6573, dec: 6573,
           },
           label: "Debt Service",
         },
@@ -1307,59 +1165,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     },
   ])
 
-  // Helper function to generate normalized items
-  const generateNormalizedItems = (): NormalizedLineItem[] => {
-    const allItems: LineItem[] = [...incomeItems, ...expenseItems, ...capitalItems, ...debtItems]
-    const normalized: NormalizedLineItem[] = []
-
-    const traverse = (items: LineItem[]) => {
-      items.forEach((item) => {
-        if (item.id && !item.isCalculated && !item.id.startsWith("total-")) {
-          // Try to find corresponding data in original items
-          const t12Item = findItem([...incomeItems, ...expenseItems, ...capitalItems, ...debtItems], item.id)
-          normalized.push({
-            ...item,
-            t12Actual: t12Item?.annualAmount ?? 0,
-            underwritten: t12Item?.annualAmount ?? 0, // Initialize with T-12 actual
-            variance: 0,
-            variancePercent: 0,
-          })
-        }
-        if (item.children) {
-          traverse(item.children)
-        }
-      })
-    }
-
-    traverse(allItems)
-    return normalized
-  }
-
-  // REMOVED: useEffect for activeSubTab, as it's no longer used
-  // useEffect(() => {
-  //   if (activeSubTab === "normalized") {
-  //     setNormalizedItems(generateNormalizedItems())
-  //   }
-  // }, [activeSubTab, incomeItems, expenseItems, normalizedAssumptions])
-
-  const updateNormalizedItemUnderwritten = (index: number, value: number) => {
-    setNormalizedItems((prev) => {
-      const updated = [...prev]
-      const item = updated[index]
-      item.underwritten = value
-      item.variance = value - item.t12Actual
-      item.variancePercent = item.t12Actual !== 0 ? ((value - item.t12Actual) / Math.abs(item.t12Actual)) * 100 : 0
-      return updated
-    })
-  }
-
-  const updateNormalizedItemReason = (index: number, reason: string) => {
-    setNormalizedItems((prev) => {
-      const updated = [...prev]
-      updated[index].adjustmentReason = reason
-      return updated
-    })
-  }
 
   const calculateMonthlySum = (monthlyData: MonthlyData | undefined): number => {
     if (!monthlyData) return 0
@@ -1413,13 +1218,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     setDebtItems((prev) => updateNotes(prev))
   }
 
-  const hasValidationMismatch = (item: LineItem): boolean => {
-    if (!item.docTotal || !item.monthlyData) return false
-    if (acceptedDiscrepancies.has(item.id)) return false
-    const calcTotal = calculateMonthlySum(item.monthlyData)
-    const tolerance = 1 // Allow $1 difference for rounding errors
-    return Math.abs(item.docTotal - calcTotal) > tolerance
-  }
 
   const getValidationStatus = (
     item: LineItem,
@@ -1451,39 +1249,9 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
   }
 
   // Handle file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setUploadedFile(file)
-      // Simulate extraction
-      setTimeout(() => {
-        setValidationItems([
-          { lineItem: "Gross Potential Rent", extractedValue: 1200000, verified: false },
-          { lineItem: "Vacancy Loss", extractedValue: 60000, verified: false },
-          { lineItem: "Property Taxes", extractedValue: 50000, verified: false },
-        ])
-      }, 1000)
-    }
-  }
 
-  const handleValidateT12Data = () => {
-    setT12DataValidated(true)
-    if (onValidate) {
-      onValidate()
-    }
-  }
 
-  const handleUnvalidate = () => {
-    setT12DataValidated(false)
-    if (onUnvalidate) {
-      onUnvalidate()
-    }
-  }
 
-  const handleValidateNormalized = () => {
-    setNormalizedValidated(true)
-    // REMOVED: setActiveSubTab("summary")
-  }
 
   // Update line item
   const updateLineItem = (
@@ -1606,49 +1374,8 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     setDebtItems(updateItems(debtItems))
   }
 
-  const toggleMonthly = (items: LineItem[], setItems: React.Dispatch<React.SetStateAction<LineItem[]>>, id: string) => {
-    const updateItems = (items: LineItem[]): LineItem[] => {
-      return items.map((item) => {
-        if (item.id === id) {
-          return { ...item, showMonthly: !item.showMonthly }
-        }
-        if (item.children) {
-          return { ...item, children: updateItems(item.children) }
-        }
-        return item
-      })
-    }
-    setItems(updateItems(items))
-  }
-
-  const handleAnnualAmountChange = (
-    items: LineItem[],
-    setItems: React.Dispatch<React.SetStateAction<LineItem[]>>,
-    id: string,
-    value: string,
-  ) => {
-    const newValue = Number(value)
-    updateLineItem(items, setItems, id, "annualAmount", newValue)
-    // Recalculate perUnit if unitCount is available
-    if (totalUnits > 0) {
-      updateLineItem(items, setItems, id, "perUnit", newValue / totalUnits)
-    }
-    // Update monthly data proportionally if it exists and is not zero
-    const itemToUpdate = findItem(items, id)
-    if (itemToUpdate && itemToUpdate.monthlyData) {
-      const monthlySum = Object.values(itemToUpdate.monthlyData).reduce((sum, val) => sum + val, 0)
-      if (monthlySum !== 0 && newValue !== 0) {
-        const ratio = newValue / monthlySum
-        const updatedMonthlyData = Object.entries(itemToUpdate.monthlyData).reduce((acc, [key, val]) => {
-          acc[key as keyof MonthlyData] = val * ratio
-          return acc
-        }, {} as MonthlyData)
-        // Directly update the monthly data on the found item and then update state
-        const updatedItem = { ...itemToUpdate, monthlyData: updatedMonthlyData }
-        setItems(items.map((i) => (i.id === id ? updatedItem : i))) // This needs proper recursion if deep
-      }
-    }
-  }
+ 
+ 
 
   const handlePerUnitChange = (
     items: LineItem[],
@@ -1664,38 +1391,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     }
   }
 
-  const handleMonthlyAmountChange = (
-    items: LineItem[],
-    setItems: React.Dispatch<React.SetStateAction<LineItem[]>>,
-    id: string,
-    month: keyof MonthlyData,
-    value: string,
-  ) => {
-    const newValue = Number(value)
-
-    const updateItemRecursive = (items: LineItem[]): LineItem[] => {
-      return items.map((item) => {
-        if (item.id === id && item.monthlyData) {
-          const updatedMonthlyData = { ...item.monthlyData, [month]: newValue }
-          const newAnnualAmount = calculateMonthlySum(updatedMonthlyData)
-          const newPerUnit = totalUnits > 0 ? newAnnualAmount / totalUnits : 0
-
-          return {
-            ...item,
-            monthlyData: updatedMonthlyData,
-            annualAmount: newAnnualAmount,
-            perUnit: newPerUnit,
-          }
-        }
-        if (item.children) {
-          return { ...item, children: updateItemRecursive(item.children) }
-        }
-        return item
-      })
-    }
-
-    setItems(updateItemRecursive(items))
-  }
 
   const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"] as const
 
@@ -1997,24 +1692,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     const capitalItem = findItem(capitalItems, "total-capital-expenses")
     return capitalItem?.annualAmount ?? 0
   }
-
-  const calculateOER = (): number => {
-    const totalExpenses = calculateTotalExpenses()
-    const egi = calculateEGI()
-    return egi !== 0 ? (totalExpenses / egi) * 100 : 0
-  }
-
-  const calculateNOIMargin = (): number => {
-    const noi = calculateNOI()
-    const egi = calculateEGI()
-    return egi !== 0 ? (noi / egi) * 100 : 0
-  }
-
-  const calculateCapRate = (): number => {
-    const noi = calculateNOI()
-    return purchasePrice !== 0 ? (noi / purchasePrice) * 100 : 0
-  }
-
   // Placeholder functions for Summary Metrics (to be implemented)
   const calculateSummaryMetrics = (): SummaryMetrics => {
     // These calculations will need to use the normalized data, valuation inputs, etc.
@@ -2106,9 +1783,6 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
   }
 
   // Calculate summary metrics and yearly cashflows once
-  const summaryMetrics = calculateSummaryMetrics()
-  const yearlyCashflows = generateYearlyCashflows()
-
   // Function to add a new line item
   const handleAddLineItem = () => {
     // For simplicity, let's add it to the 'other-income' category for now

@@ -1,21 +1,68 @@
 // app/api/walkscore/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
+async function geocodeWithMapbox(address: string): Promise<{ lat: number; lon: number } | null> {
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1IjoiYmlsbGludmVzdGFzc2lzdCIsImEiOiJjbWppNHpqbWowaWsyM2VzbGltc2NtbW1iIn0.ZdZ7tZuBe3BpM0-OicDzOw'
+
+    if (!mapboxToken) {
+        console.error('Mapbox token not configured')
+        return null
+    }
+
+    try {
+        const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${mapboxToken}&limit=1`
+        
+        const response = await fetch(geocodeUrl)
+        const data = await response.json()
+
+        console.log('Mapbox geocoding response:', data)
+
+        if (data.features && data.features.length > 0) {
+            const [lon, lat] = data.features[0].center
+            console.log(`Geocoded address "${address}" to lat: ${lat}, lon: ${lon}`)
+            return { lat, lon }
+        }
+
+        return null
+    } catch (error) {
+        console.error('Mapbox geocoding error:', error)
+        return null
+    }
+}
+
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const address = searchParams.get('address')
-    const lat = searchParams.get('lat')
-    const lon = searchParams.get('lon')
+    let lat = searchParams.get('lat')
+    let lon = searchParams.get('lon')
 
     // Validate required parameters
-    if (!address || !lat || !lon) {
+    if (!address) {
         return NextResponse.json(
             {
                 success: false,
-                error: 'Missing required parameters: address, lat, and lon are required'
+                error: 'Missing required parameter: address is required'
             },
             { status: 400 }
         )
+    }
+
+    // If lat/lon not provided, geocode the address using Mapbox
+    if (!lat || !lon) {
+        const coords = await geocodeWithMapbox(address)
+        
+        if (!coords) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Could not geocode address. Please provide lat/lon coordinates or check the address.'
+                },
+                { status: 400 }
+            )
+        }
+
+        lat = coords.lat.toString()
+        lon = coords.lon.toString()
     }
 
     const apiKey = process.env.WALKSCORE_API_KEY || '7d88da7b7c118c6da72f0d5cb190a1cd'
@@ -80,7 +127,12 @@ export async function GET(request: NextRequest) {
                 moreInfoLink: data.more_info_link ?? null,
                 logoUrl: data.logo_url ?? null,
                 snappedLat: data.snapped_lat ?? lat,
-                snappedLon: data.snapped_lon ?? lon
+                snappedLon: data.snapped_lon ?? lon,
+                // Include the coordinates used (helpful for debugging)
+                coordinates: {
+                    lat: parseFloat(lat),
+                    lon: parseFloat(lon)
+                }
             }
         })
     } catch (error) {

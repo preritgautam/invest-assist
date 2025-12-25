@@ -1220,9 +1220,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
 
       <ResizableHandle withHandle />
 
-
-<OSDocument propertyId={propertyId} />
-
       {/* Configure Modal - Right side panel */}
       {isOpen && (
         <ResizablePanel defaultSize={25} minSize={20} className="bg-white overflow-hidden">

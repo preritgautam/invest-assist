@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const propertyId = formData.get('propertyId') as string | null
+    const documentType = formData.get('documentType') as string | null
 
     if (!file) {
       return NextResponse.json(
@@ -140,9 +141,10 @@ export async function POST(request: NextRequest) {
         filename: file.name,
         file_size: file.size,
         storage_path: storagePath,
+        document_type: documentType || null,
         upload_status: 'completed',
         extraction_status: 'pending',
-        classification_status: 'pending',
+        classification_status: documentType ? 'completed' : 'pending',
         created_at: now,
         updated_at: now,
       })

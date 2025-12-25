@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react'
 
 interface WalkScoreProps {
     address: string
-    lat: number
-    lon: number
+    lat?: number  // Optional - will geocode from address if not provided
+    lon?: number  // Optional - will geocode from address if not provided
 }
 
 interface WalkScoreData {
@@ -29,9 +29,13 @@ const WalkScore: React.FC<WalkScoreProps> = ({ address, lat, lon }) => {
             setError(null)
 
             try {
-                const response = await fetch(
-                    `/api/walkscore?address=${encodeURIComponent(address)}&lat=${lat}&lon=${lon}`
-                )
+                // Build URL - API will geocode address if lat/lon not provided
+                let url = `/api/walkscore?address=${encodeURIComponent(address)}`
+                if (lat !== undefined && lon !== undefined) {
+                    url += `&lat=${lat}&lon=${lon}`
+                }
+                
+                const response = await fetch(url)
                 const result = await response.json()
 
                 if (result.success) {
@@ -47,7 +51,8 @@ const WalkScore: React.FC<WalkScoreProps> = ({ address, lat, lon }) => {
             }
         }
 
-        if (address && lat && lon) {
+        // Only need address - lat/lon are optional (API will geocode if not provided)
+        if (address) {
             fetchWalkScore()
         }
     }, [address, lat, lon])

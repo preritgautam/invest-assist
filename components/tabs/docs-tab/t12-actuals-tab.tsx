@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import type { PropertyData } from "@/lib/property-data"
 import {
   ChevronDown,
@@ -206,6 +206,8 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
   }, [validated])
 
   const [osData, setOSData] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
+
 useEffect(() => {
     if (!propertyId) {
       setOSData(null)
@@ -1165,6 +1167,106 @@ useEffect(() => {
     },
   ])
 
+  // Save single line item update to database
+  const saveLineItemUpdate = useCallback(
+    async (itemId: string, itemType: 'income' | 'expense' | 'capital' | 'debt', updates: Partial<LineItem>) => {
+      if (!propertyId) {
+        console.log('[T12 Tab] No propertyId available, skipping save')
+        return
+      }
+
+      try {
+        setIsSaving(true)
+        console.log('[T12 Tab] Saving line item update:', { propertyId, itemId, itemType, updates })
+
+        const response = await fetch('/api/documents/os-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            itemId,
+            itemType,
+            updates,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to save line item')
+        }
+
+        console.log('[T12 Tab] Line item saved successfully')
+      } catch (error) {
+        console.error('[T12 Tab] Error saving line item:', error)
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [propertyId]
+  )
+
+  // Save all items to database (bulk update)
+  const saveAllItems = useCallback(
+    async () => {
+      if (!propertyId) {
+        console.log('[T12 Tab] No propertyId available, skipping bulk save')
+        return
+      }
+
+      try {
+        setIsSaving(true)
+        console.log('[T12 Tab] Saving all items:', { propertyId })
+
+        const response = await fetch('/api/documents/os-update', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            incomeItems,
+            expenseItems,
+            capitalItems,
+            debtItems,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to save items')
+        }
+
+        console.log('[T12 Tab] All items saved successfully')
+      } catch (error) {
+        console.error('[T12 Tab] Error saving all items:', error)
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [propertyId, incomeItems, expenseItems, capitalItems, debtItems]
+  )
+
+  // Helper function to determine item type based on which setter is being used
+  const getItemTypeFromSetter = (
+    setItems: React.Dispatch<React.SetStateAction<LineItem[]>>
+  ): 'income' | 'expense' | 'capital' | 'debt' => {
+    if (setItems === setIncomeItems) return 'income'
+    if (setItems === setExpenseItems) return 'expense'
+    if (setItems === setCapitalItems) return 'capital'
+    if (setItems === setDebtItems) return 'debt'
+    return 'income' // default fallback
+  }
+
+  // Helper to find an item in a nested structure and get its full data
+  const findItemById = (items: LineItem[], id: string): LineItem | null => {
+    for (const item of items) {
+      if (item.id === id) return item
+      if (item.children) {
+        const found = findItemById(item.children, id)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
 
   const calculateMonthlySum = (monthlyData: MonthlyData | undefined): number => {
     if (!monthlyData) return 0
@@ -1389,6 +1491,101 @@ useEffect(() => {
     if (totalUnits > 0) {
       updateLineItem(items, setItems, id, "annualAmount", newValue * totalUnits)
     }
+
+    // Save to database after a brief delay (debounced)
+    const itemType = getItemTypeFromSetter(setItems)
+    const annualAmount = totalUnits > 0 ? newValue * totalUnits : 0
+    saveLineItemUpdate(id, itemType, { 
+      perUnit: newValue, 
+      annualAmount 
+    })
+  }
+
+  const handleMonthlyChange = (
+    items: LineItem[],
+    setItems: React.Dispatch<React.SetStateAction<LineItem[]>>,
+    id: string,
+    month: string,
+    value: string,
+  ) => {
+    const newValue = Number(value) || 0
+    let updatedItemData: { monthlyData: MonthlyData; docTotal: number; annualAmount: number; perUnit: number } | null = null
+    
+    const updateMonthly = (items: LineItem[]): LineItem[] => {
+      return items.map((item) => {
+        if (item.id === id) {
+          const newMonthlyData: MonthlyData = {
+            ...(item.monthlyData || { jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0, jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0 }),
+            [month]: newValue,
+          } as MonthlyData
+          // Recalculate docTotal from monthly data
+          const newDocTotal = Object.values(newMonthlyData).reduce((sum, val) => sum + (val || 0), 0)
+          const newPerUnit = totalUnits > 0 ? newDocTotal / totalUnits : 0
+          
+          updatedItemData = {
+            monthlyData: newMonthlyData,
+            docTotal: newDocTotal,
+            annualAmount: newDocTotal,
+            perUnit: newPerUnit,
+          }
+          
+          return {
+            ...item,
+            monthlyData: newMonthlyData,
+            docTotal: newDocTotal,
+            annualAmount: newDocTotal,
+            perUnit: newPerUnit,
+          }
+        }
+        if (item.children) {
+          return { ...item, children: updateMonthly(item.children) }
+        }
+        return item
+      })
+    }
+    setItems(updateMonthly(items))
+
+    // Save to database
+    if (updatedItemData) {
+      const itemType = getItemTypeFromSetter(setItems)
+      saveLineItemUpdate(id, itemType, updatedItemData)
+    }
+  }
+
+  const handleDocTotalChange = (
+    items: LineItem[],
+    setItems: React.Dispatch<React.SetStateAction<LineItem[]>>,
+    id: string,
+    value: string,
+  ) => {
+    const newValue = Number(value) || 0
+    const perUnit = totalUnits > 0 ? newValue / totalUnits : 0
+    
+    const updateDocTotal = (items: LineItem[]): LineItem[] => {
+      return items.map((item) => {
+        if (item.id === id) {
+          return {
+            ...item,
+            docTotal: newValue,
+            annualAmount: newValue,
+            perUnit: perUnit,
+          }
+        }
+        if (item.children) {
+          return { ...item, children: updateDocTotal(item.children) }
+        }
+        return item
+      })
+    }
+    setItems(updateDocTotal(items))
+
+    // Save to database
+    const itemType = getItemTypeFromSetter(setItems)
+    saveLineItemUpdate(id, itemType, {
+      docTotal: newValue,
+      annualAmount: newValue,
+      perUnit: perUnit,
+    })
   }
 
 
@@ -1520,16 +1717,12 @@ useEffect(() => {
           >
             {isCategoryHeader ? (
               <span className="text-gray-400">-</span>
-            ) : item.isCalculated ? (
-              <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                ${(item.perUnit ?? 0).toLocaleString('en-US')}
-              </span>
             ) : (
               <Input
                 type="number"
                 value={item.perUnit ?? 0}
                 onChange={(e) => handlePerUnitChange(items, setItems, item.id, e.target.value)}
-                className="border-0 bg-transparent font-mono text-xs p-0 h-auto text-right"
+                className={`border-0 bg-transparent font-mono text-xs p-0 h-auto text-right ${item.isMajorTotal ? "text-sm font-bold" : item.isCalculated ? "font-semibold" : ""}`}
               />
             )}
           </td>
@@ -1541,12 +1734,14 @@ useEffect(() => {
               <span className="text-gray-400">-</span>
             ) : (
               <div className="flex items-center justify-end gap-1">
+                <Input
+                  type="number"
+                  value={item.docTotal ?? 0}
+                  onChange={(e) => handleDocTotalChange(items, setItems, item.id, e.target.value)}
+                  className={`border-0 bg-transparent font-mono text-xs p-0 h-auto text-right w-[80px] ${item.isMajorTotal ? "text-sm font-bold" : ""}`}
+                />
                 {item.docTotal !== undefined && (
                   <>
-                    <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                      ${item.docTotal.toLocaleString('en-US')}
-                    </span>
-
                     {hasMismatch ? (
                       <div className="flex items-center gap-1">
                         <TooltipProvider>
@@ -1558,9 +1753,9 @@ useEffect(() => {
                               <p className="text-xs">
                                 Discrepancy: ${Math.abs(validation.discrepancy).toLocaleString('en-US')}
                                 <br />
-                                Doc Total: ${item.docTotal.toLocaleString('en-US')}
+                                Doc Total: ${(item.docTotal ?? 0).toLocaleString('en-US')}
                                 <br />
-                                Calc Total: ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString('en-US')}
+                                Calc Total: ${calculateMonthlySum(item.monthlyData).toLocaleString('en-US')}
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -1600,13 +1795,12 @@ useEffect(() => {
               <span className="text-gray-400">-</span>
             ) : (
               <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                ${calculateMonthlySum(item.monthlyData ?? {}).toLocaleString('en-US')}
+                ${calculateMonthlySum(item.monthlyData).toLocaleString('en-US')}
               </span>
             )}
           </td>
           {/* Monthly columns - only show when showMonthlyColumns is true */}
           {showMonthlyColumns &&
-            item.monthlyData &&
             months.map((month) => (
               <td
                 key={month}
@@ -1615,26 +1809,30 @@ useEffect(() => {
                 {isCategoryHeader ? (
                   <span className="text-gray-400">-</span>
                 ) : (
-                  <span className={`font-mono ${item.isMajorTotal ? "text-sm font-bold" : ""}`}>
-                    {item.monthlyData?.[month] !== undefined ? item.monthlyData[month].toLocaleString('en-US') : "-"}
-                  </span>
+                  <Input
+                    type="number"
+                    value={item.monthlyData?.[month] ?? 0}
+                    onChange={(e) => handleMonthlyChange(items, setItems, item.id, month, e.target.value)}
+                    className={`border-0 bg-transparent font-mono text-xs p-0 h-auto text-right w-full ${item.isMajorTotal ? "text-sm font-bold" : ""}`}
+                  />
                 )}
               </td>
             ))}
           <td
             className={`${item.isMajorTotal ? "p-2" : "p-1.5"} text-left text-xs ${showMonthlyColumns ? "w-[150px] min-w-[150px]" : "w-[200px] min-w-[200px]"}`}
           >
-            {isCategoryHeader || item.isCalculated ? (
+            {isCategoryHeader ? (
               <span className="text-gray-400">-</span>
             ) : (
               <Input
                 type="text"
                 value={item.notes || ""}
                 onChange={(e) => {
+                  const newNotes = e.target.value
                   const updateNotes = (items: LineItem[]): LineItem[] => {
                     return items.map((i) => {
                       if (i.id === item.id) {
-                        return { ...i, notes: e.target.value }
+                        return { ...i, notes: newNotes }
                       }
                       if (i.children) {
                         return { ...i, children: updateNotes(i.children) }
@@ -1643,6 +1841,11 @@ useEffect(() => {
                     })
                   }
                   setItems(updateNotes(items))
+                }}
+                onBlur={(e) => {
+                  // Save notes on blur to avoid too many API calls
+                  const itemType = getItemTypeFromSetter(setItems)
+                  saveLineItemUpdate(item.id, itemType, { notes: e.target.value })
                 }}
                 placeholder="Add notes..."
                 className="border-0 bg-transparent text-xs p-0 h-auto"

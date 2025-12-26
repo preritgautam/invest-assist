@@ -324,6 +324,80 @@ export interface Database {
           segment_order?: number
         }
       }
+      property_analysis_data: {
+        Row: {
+          id: string
+          property_id: string
+          company_id: string
+          actual_rent_collected: number | null
+          other_income: number | null
+          total_operating_expenses: number | null
+          property_taxes: number | null
+          insurance: number | null
+          total_noi: number | null
+          unit_count: number | null
+          avg_rent_per_unit: number | null
+          market_rent_per_unit: number | null
+          occupancy_percent: number | null
+          loss_to_lease_percent: number | null
+          vacancy_loss: number | null
+          property_name: string | null
+          year_built: number | null
+          square_footage: number | null
+          market_rent_comparable: number | null
+          is_edited: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          company_id: string
+          actual_rent_collected?: number | null
+          other_income?: number | null
+          total_operating_expenses?: number | null
+          property_taxes?: number | null
+          insurance?: number | null
+          total_noi?: number | null
+          unit_count?: number | null
+          avg_rent_per_unit?: number | null
+          market_rent_per_unit?: number | null
+          occupancy_percent?: number | null
+          loss_to_lease_percent?: number | null
+          vacancy_loss?: number | null
+          property_name?: string | null
+          year_built?: number | null
+          square_footage?: number | null
+          market_rent_comparable?: number | null
+          is_edited?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          company_id?: string
+          actual_rent_collected?: number | null
+          other_income?: number | null
+          total_operating_expenses?: number | null
+          property_taxes?: number | null
+          insurance?: number | null
+          total_noi?: number | null
+          unit_count?: number | null
+          avg_rent_per_unit?: number | null
+          market_rent_per_unit?: number | null
+          occupancy_percent?: number | null
+          loss_to_lease_percent?: number | null
+          vacancy_loss?: number | null
+          property_name?: string | null
+          year_built?: number | null
+          square_footage?: number | null
+          market_rent_comparable?: number | null
+          is_edited?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -344,6 +418,7 @@ export type Property = Database['public']['Tables']['properties']['Row']
 export type Scenario = Database['public']['Tables']['scenarios']['Row']
 export type Document = Database['public']['Tables']['documents']['Row']
 export type PropertyImage = Database['public']['Tables']['property_images']['Row']
+export type PropertyAnalysisData = Database['public']['Tables']['property_analysis_data']['Row']
 
 export type NewCompany = Database['public']['Tables']['companies']['Insert']
 export type NewUser = Database['public']['Tables']['users']['Insert']

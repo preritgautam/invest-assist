@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
             ...currentMetadata,
             os_extraction: extractionResult,
             os_extracted_at: new Date().toISOString(),
-          },
+          } as unknown as Json,
         })
         .eq('id', propertyId)
         .eq('company_id', companyId)
@@ -437,7 +437,7 @@ export async function PUT(request: NextRequest) {
             ...currentMetadata,
             os_extraction: extractionResult,
             os_extracted_at: new Date().toISOString(),
-          },
+          } as unknown as Json,
         })
         .eq('id', propertyId)
         .eq('company_id', companyId)

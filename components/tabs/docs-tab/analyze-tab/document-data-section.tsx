@@ -9,6 +9,8 @@
 import { FileText, Home } from "lucide-react"
 import { InputField } from "./input-field"
 import type { DocumentData } from "./types"
+import { useParams } from 'next/navigation'
+import { useEffect, useState } from "react"
 
 interface DocumentDataSectionProps {
   data: Partial<DocumentData>
@@ -16,9 +18,60 @@ interface DocumentDataSectionProps {
 }
 
 export function DocumentDataSection({ data, setData }: DocumentDataSectionProps) {
+  const params = useParams()
+  const propertyId = params.id as string 
+
   const updateField = (field: string, value: any) => {
     setData((prev: any) => ({ ...prev, [field]: value }))
   }
+
+ const [loading, setLoading] = useState(false)
+const [error, setError] = useState<string | null>(null)
+const [osData, setOSData] = useState(null)
+const [omData, setOmData] = useState(null) // Add state for OM data
+const [showMonthly, setShowMonthly] = useState(false)
+
+useEffect(() => {
+  if (!propertyId) {
+    setOSData(null)
+    setOmData(null)
+    return
+  }
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Fetch both in parallel
+      const [osResponse, omResponse] = await Promise.all([
+        fetch(`/api/properties/${propertyId}/os-data`),
+        fetch(`/api/properties/${propertyId}/om-data`)
+      ])
+
+      const osData = await osResponse.json()
+      const omData = await omResponse.json()
+
+      if (!osResponse.ok) {
+        throw new Error(osData.error || "Failed to fetch OS data")
+      }
+
+      if (!omResponse.ok) {
+        throw new Error(omData.error || "Failed to fetch OM data")
+      }
+
+      setOSData(osData)
+      setOmData(omData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  fetchData()
+}, [propertyId])
+
 
   return (
     <div className="space-y-4">

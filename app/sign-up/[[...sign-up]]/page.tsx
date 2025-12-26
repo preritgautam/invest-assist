@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle } from "lucide-react"
+import { CheckCircle, Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 export default function SignUpPage() {
@@ -25,6 +25,8 @@ export default function SignUpPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -249,32 +251,50 @@ export default function SignUpPage() {
                 <Label htmlFor="password" className="text-sm font-medium text-slate-700">
                   Password
                 </Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Minimum 8 characters"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="h-11 border-slate-200/60 bg-white placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Minimum 8 characters"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    className="h-11 border-slate-200/60 bg-white placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
                   Confirm password
                 </Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  placeholder="Re-enter password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="h-11 border-slate-200/60 bg-white placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20"
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Re-enter password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    className="h-11 border-slate-200/60 bg-white placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
 
               <Button

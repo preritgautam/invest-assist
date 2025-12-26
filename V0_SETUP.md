@@ -21,14 +21,14 @@ If you want to use the real database in v0 playground:
    - Find "Environment Variables" section
 
 2. **Add DATABASE_URL**
-   ```
+   \`\`\`
    DATABASE_URL=<your-prisma-accelerate-url>
-   ```
+   \`\`\`
    
    Or use DIRECT_DATABASE_URL:
-   ```
+   \`\`\`
    DIRECT_DATABASE_URL=postgres://user:password@host:5432/database?sslmode=require
-   ```
+   \`\`\`
 
 3. **Verify in .env.local**
    - Your local `.env.local` has both URLs configured
@@ -43,18 +43,18 @@ If you want to use the real database in v0 playground:
 ## Testing
 
 ### Local Testing (With Real Database)
-```bash
+\`\`\`bash
 pnpm dev
 # Visit http://localhost:3000
 # Database queries should work
-```
+\`\`\`
 
 ### V0 Playground (With Mock Data)
-```bash
+\`\`\`bash
 # V0 runs the dev server without DATABASE_URL
 # API endpoints return mock data automatically
 # No data is lost - UI still works perfectly
-```
+\`\`\`
 
 ## API Behavior
 

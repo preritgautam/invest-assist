@@ -398,6 +398,125 @@ export interface Database {
           updated_at?: string
         }
       }
+      property_assumptions: {
+        Row: {
+          id: string
+          property_id: string
+          company_id: string
+          purchase_price: number | null
+          hold_period: number | null
+          reversion_cap_rate: number | null
+          exit_costs_percent: number | null
+          rent_growth: number | null
+          vacancy_percent: number | null
+          credit_loss_percent: number | null
+          concessions_percent: number | null
+          other_income_growth: number | null
+          management_fee_percent: number | null
+          payroll_per_unit: number | null
+          repairs_per_unit: number | null
+          utilities_per_unit: number | null
+          insurance_per_unit: number | null
+          marketing_per_unit: number | null
+          contract_services_per_unit: number | null
+          replacement_reserves_per_unit: number | null
+          expense_inflation: number | null
+          loan_amount: number | null
+          ltv_percent: number | null
+          interest_rate: number | null
+          amortization_years: number | null
+          loan_term_years: number | null
+          interest_only_years: number | null
+          dscr_target: number | null
+          initial_reserves: number | null
+          capex_reserve_per_unit: number | null
+          is_frozen: boolean
+          frozen_at: string | null
+          frozen_by: string | null
+          created_at: string
+          updated_at: string
+          created_by: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          company_id: string
+          purchase_price?: number | null
+          hold_period?: number | null
+          reversion_cap_rate?: number | null
+          exit_costs_percent?: number | null
+          rent_growth?: number | null
+          vacancy_percent?: number | null
+          credit_loss_percent?: number | null
+          concessions_percent?: number | null
+          other_income_growth?: number | null
+          management_fee_percent?: number | null
+          payroll_per_unit?: number | null
+          repairs_per_unit?: number | null
+          utilities_per_unit?: number | null
+          insurance_per_unit?: number | null
+          marketing_per_unit?: number | null
+          contract_services_per_unit?: number | null
+          replacement_reserves_per_unit?: number | null
+          expense_inflation?: number | null
+          loan_amount?: number | null
+          ltv_percent?: number | null
+          interest_rate?: number | null
+          amortization_years?: number | null
+          loan_term_years?: number | null
+          interest_only_years?: number | null
+          dscr_target?: number | null
+          initial_reserves?: number | null
+          capex_reserve_per_unit?: number | null
+          is_frozen?: boolean
+          frozen_at?: string | null
+          frozen_by?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          company_id?: string
+          purchase_price?: number | null
+          hold_period?: number | null
+          reversion_cap_rate?: number | null
+          exit_costs_percent?: number | null
+          rent_growth?: number | null
+          vacancy_percent?: number | null
+          credit_loss_percent?: number | null
+          concessions_percent?: number | null
+          other_income_growth?: number | null
+          management_fee_percent?: number | null
+          payroll_per_unit?: number | null
+          repairs_per_unit?: number | null
+          utilities_per_unit?: number | null
+          insurance_per_unit?: number | null
+          marketing_per_unit?: number | null
+          contract_services_per_unit?: number | null
+          replacement_reserves_per_unit?: number | null
+          expense_inflation?: number | null
+          loan_amount?: number | null
+          ltv_percent?: number | null
+          interest_rate?: number | null
+          amortization_years?: number | null
+          loan_term_years?: number | null
+          interest_only_years?: number | null
+          dscr_target?: number | null
+          initial_reserves?: number | null
+          capex_reserve_per_unit?: number | null
+          is_frozen?: boolean
+          frozen_at?: string | null
+          frozen_by?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -419,6 +538,7 @@ export type Scenario = Database['public']['Tables']['scenarios']['Row']
 export type Document = Database['public']['Tables']['documents']['Row']
 export type PropertyImage = Database['public']['Tables']['property_images']['Row']
 export type PropertyAnalysisData = Database['public']['Tables']['property_analysis_data']['Row']
+export type PropertyAssumptions = Database['public']['Tables']['property_assumptions']['Row']
 
 export type NewCompany = Database['public']['Tables']['companies']['Insert']
 export type NewUser = Database['public']['Tables']['users']['Insert']

@@ -68,7 +68,7 @@ export function AnalyzeTab({ property }: AnalyzeTabProps) {
     { id: "market" as const, label: "Market Data", icon: <TrendingUp className="w-4 h-4" /> },
     { id: "assumptions" as const, label: "Assumptions", icon: <Settings className="w-4 h-4" /> },
     { id: "analysis" as const, label: "Analysis", icon: <BarChart3 className="w-4 h-4" /> },
-    { id: "scenarios" as const, label: "Scenarios", icon: <GitCompare className="w-4 h-4" /> },
+    // { id: "scenarios" as const, label: "Scenarios", icon: <GitCompare className="w-4 h-4" /> },
   ]
 
   // Calculate key metrics

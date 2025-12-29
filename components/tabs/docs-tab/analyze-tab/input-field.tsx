@@ -14,9 +14,10 @@ interface InputFieldProps {
   suffix?: string
   highlighted?: boolean
   source?: string
+  disabled?: boolean
 }
 
-export function InputField({ label, value, onChange, prefix, suffix, highlighted, source }: InputFieldProps) {
+export function InputField({ label, value, onChange, prefix, suffix, highlighted, source, disabled }: InputFieldProps) {
   return (
     <div>
       <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -29,11 +30,12 @@ export function InputField({ label, value, onChange, prefix, suffix, highlighted
           type="number"
           value={value || ""}
           onChange={(e) => onChange(Number.parseFloat(e.target.value) || 0)}
+          disabled={disabled}
           className={`w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
             prefix ? "pl-6" : ""
           } ${suffix ? "pr-12" : ""} ${
             highlighted ? "bg-blue-50 border-blue-300 font-bold text-blue-900" : "border-gray-300 bg-white"
-          }`}
+          } ${disabled ? "bg-gray-100 cursor-not-allowed opacity-70" : ""}`}
         />
         {suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{suffix}</span>}
       </div>

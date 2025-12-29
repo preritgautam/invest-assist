@@ -190,13 +190,11 @@ interface SummaryMetrics {
 export function T12ActualsTab({ property, onValidate, validated = false, onUnvalidate,propertyId }: T12ActualsTabProps) {
   // REMOVED: const [activeSubTab, setActiveSubTab] = useState<SubTab>("t12-actuals")
 
-  console.log("[T12ActualsTab] validated:", propertyId)
   const [showMonthlyColumns, setShowMonthlyColumns] = useState(true)
   const [lineItemColumnWidth, setLineItemColumnWidth] = useState(180)
   const [isResizing, setIsResizing] = useState(false)
   // </CHANGE>
   const [t12DataValidated, setT12DataValidated] = useState(validated)
-  const [normalizedValidated, setNormalizedValidated] = useState(false)
   const [acceptedDiscrepancies, setAcceptedDiscrepancies] = useState<Set<string>>(new Set())
   const [mobileSection, setMobileSection] = useState<"income" | "expense" | "noi">("income")
   // </CHANGE>
@@ -234,7 +232,6 @@ useEffect(() => {
     fetchOSData()
   }, [propertyId])
 
-  console.log('osData', osData)
 
   // Update line items from osData when it's loaded
   useEffect(() => {
@@ -1633,15 +1630,6 @@ useEffect(() => {
     // Don't mark as mismatch if discrepancy is accepted
     const hasMismatch = !validation.isValid && !validation.isAccepted
     const isCategoryHeader = item.hasChildren && !item.isCalculated
-    if (isCategoryHeader) {
-      console.log("[v0] Category header detected:", {
-        id: item.id,
-        name: item.name, // Added name to debug output
-        hasChildren: item.hasChildren,
-        isCalculated: item.isCalculated,
-        depth: depth, // Fixed depth to use the function parameter
-      })
-    }
     // </CHANGE>
 
     // Determine row background color

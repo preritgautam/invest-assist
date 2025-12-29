@@ -671,7 +671,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
         <MobileToolbar isOpen={mobileToolbarOpen} onClose={() => setMobileToolbarOpen(false)} />
 
         {/* Left Sidebar - Same level as right sidebar */}
-        <div className="hidden md:flex md:w-16 lg:w-20 bg-white/80 backdrop-blur-sm border-r border-gray-100 flex-col items-center gap-1.5 py-4 px-2 flex-shrink-0">
+        <div className="hidden md:flex md:w-16 lg:w-20 bg-white/80 backdrop-blur-sm border-r border-gray-100 flex-col items-center gap-1.5 py-4 px-2 flex-shrink-0 relative z-50">
           <button
             onClick={() => setMenuExpanded(!menuExpanded)}
             className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
@@ -684,7 +684,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
           {/* Expandable Menu Overlay */}
           {menuExpanded && (
-            <div className="absolute left-16 lg:left-20 top-0 bg-white/95 backdrop-blur-xl shadow-2xl rounded-r-2xl border border-gray-200/60 p-5 z-50 min-w-[260px]">
+            <div className="absolute left-16 lg:left-20 top-0 bg-white/95 backdrop-blur-xl shadow-2xl rounded-r-2xl border border-gray-200/60 p-5 z-[100] min-w-[260px]">
               <div className="space-y-5">
                 {/* Import Section */}
                 <div>

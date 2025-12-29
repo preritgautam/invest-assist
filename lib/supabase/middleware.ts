@@ -64,6 +64,13 @@ export async function updateSession(request: NextRequest) {
   // Define public routes that don't require authentication
   const publicRoutes = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/api/health', '/auth/callback', '/landing']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+  
+  // Check if user is on landing page while authenticated - redirect to home
+  if (user && request.nextUrl.pathname === '/landing') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
 
   if (!user && !isPublicRoute) {
     // No user and trying to access protected route - redirect to landing page

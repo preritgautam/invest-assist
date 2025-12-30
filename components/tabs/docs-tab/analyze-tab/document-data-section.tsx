@@ -11,6 +11,7 @@ import { InputField } from "./input-field"
 import type { DocumentData } from "./types"
 import { useParams } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from "react"
+import { useTabData, DocumentDataCombined } from "@/hooks/use-tab-data"
 
 // Types for OS response
 interface MonthlyData {
@@ -165,6 +166,13 @@ function sumLeafItems(items: LineItem[]): number {
 export function DocumentDataSection({ data, setData }: DocumentDataSectionProps) {
   const params = useParams()
   const propertyId = params.id as string 
+
+  // Get prefetched document data from cache
+  const { 
+    data: prefetchedData, 
+    isInitialLoading: prefetchLoading,
+    prefetched 
+  } = useTabData<DocumentDataCombined>(propertyId, 'documentData')
 
   const updateField = (field: string, value: any) => {
     setData((prev: any) => ({ ...prev, [field]: value }))
@@ -364,6 +372,7 @@ export function DocumentDataSection({ data, setData }: DocumentDataSectionProps)
     setHasUnsavedChanges(true) // Mark as having changes so user can save
   }, [osData, omData, extractOSValues, extractOMValues, setData])
 
+  // Use prefetched data when available
   useEffect(() => {
     if (!propertyId) {
       setOSData(null)
@@ -371,6 +380,31 @@ export function DocumentDataSection({ data, setData }: DocumentDataSectionProps)
       return
     }
 
+    // If we have prefetched data, use it immediately
+    if (prefetched && prefetchedData) {
+      const { osData: prefetchedOS, omData: prefetchedOM, analysisData } = prefetchedData
+
+      // Handle analysis/saved data
+      if (analysisData?.hasData && analysisData?.isEdited && analysisData?.data) {
+        setSavedData(analysisData.data)
+        setIsEdited(true)
+        setDataSource('edited')
+        setData((prev) => ({ ...prev, ...analysisData.data }))
+        initialLoadDone.current = true
+      }
+
+      if (prefetchedOS) {
+        setOSData(prefetchedOS)
+      }
+      if (prefetchedOM) {
+        setOmData(prefetchedOM)
+      }
+
+      setLoading(false)
+      return
+    }
+
+    // Fallback: Fetch data if not prefetched
     const fetchData = async () => {
       setLoading(true)
       setError(null)
@@ -414,8 +448,11 @@ export function DocumentDataSection({ data, setData }: DocumentDataSectionProps)
       }
     }
 
-    fetchData()
-  }, [propertyId, setData])
+    // Only fetch if not already prefetched and not currently loading
+    if (!prefetched && !prefetchLoading) {
+      fetchData()
+    }
+  }, [propertyId, setData, prefetched, prefetchedData, prefetchLoading])
 
   // Update form data when OS/OM data changes (only if no saved data)
   useEffect(() => {
@@ -452,7 +489,10 @@ export function DocumentDataSection({ data, setData }: DocumentDataSectionProps)
     }
   }, [osData, omData, extractOSValues, extractOMValues, setData, savedData])
 
-  if (loading) {
+  // Show loading state only if we don't have prefetched data yet
+  const isLoading = (loading || prefetchLoading) && !prefetched
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="w-6 h-6 animate-spin text-gray-500" />

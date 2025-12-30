@@ -13,6 +13,7 @@ export interface PropertyDocument {
   rentRollData?: RentRollUnit[]
   version?: number
   holdPeriod?: number
+  storagePath?: string | null
 }
 
 export interface LineItem {

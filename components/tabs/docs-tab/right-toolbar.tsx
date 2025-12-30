@@ -1,6 +1,6 @@
 "use client"
 
-import { Eye, Download, Undo, Redo, Search, ZoomIn, ZoomOut, Maximize, AlertCircle } from "lucide-react"
+import { Eye, Download, Undo, Redo, Search, ZoomIn, ZoomOut, Maximize, AlertCircle, Loader2 } from "lucide-react"
 
 interface RightToolbarProps {
   onZoomIn?: () => void
@@ -12,6 +12,10 @@ interface RightToolbarProps {
   onFind?: () => void
   onView?: () => void
   onIssues?: () => void
+  documentStoragePath?: string | null
+  documentName?: string
+  isViewEnabled?: boolean
+  isLoadingView?: boolean
 }
 
 export function RightToolbar({
@@ -24,9 +28,14 @@ export function RightToolbar({
   onFind,
   onView,
   onIssues,
+  documentStoragePath,
+  documentName,
+  isViewEnabled = true,
+  isLoadingView = false,
 }: RightToolbarProps = {}) {
+
   const handleView = () => {
-    console.log("[v0] View clicked")
+    console.log("[RightToolbar] View clicked")
     onView?.()
   }
 
@@ -122,13 +131,18 @@ export function RightToolbar({
 
   return (
     <div className="w-16 bg-gradient-to-b from-slate-50 to-white border-l border-slate-200 flex flex-col py-2 shadow-sm">
-      {/* View Button */}
+      {/* View Button - Opens original document preview */}
       <button
         onClick={handleView}
-        className="flex flex-col items-center gap-1 py-3 px-2 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 rounded-lg mx-1"
-        title="View Options"
+        disabled={isLoadingView || !isViewEnabled || !documentStoragePath}
+        className={`flex flex-col items-center gap-1 py-3 px-2 transition-all duration-200 rounded-lg mx-1 ${isViewEnabled && documentStoragePath ? 'hover:bg-blue-50 hover:text-blue-600' : 'opacity-50 cursor-not-allowed'}`}
+        title={!isViewEnabled ? 'View available only in Upload section' : documentStoragePath ? `View original: ${documentName || 'document'}` : 'No original document'}
       >
-        <Eye className="w-5 h-5 text-slate-700 hover:text-blue-600 transition-colors" />
+        {isLoadingView ? (
+          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+        ) : (
+          <Eye className="w-5 h-5 text-slate-700 hover:text-blue-600 transition-colors" />
+        )}
         <span className="text-[10px] font-medium text-slate-700">View</span>
       </button>
 

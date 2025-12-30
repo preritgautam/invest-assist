@@ -10,7 +10,7 @@
  * @file components/property-layout-wrapper.tsx
  */
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import type React from "react"
 import {
@@ -31,6 +31,7 @@ import {
 import { TabBar } from "@/components/tab-bar"
 import { getPropertyById, PropertyData } from "@/lib/property-data"
 import { getCachedProperty, cacheProperty, convertDbPropertyToPropertyData, type DatabaseProperty } from "@/lib/property-cache"
+import { usePropertyPrefetch, TabType } from "@/hooks/use-tab-data"
 
 /**
  * Navigation Item Interface
@@ -113,6 +114,21 @@ export function PropertyLayoutWrapper({
 }: PropertyLayoutWrapperProps) {
   const router = useRouter()
   const pathname = usePathname()
+  
+  // Map current tab to TabType for prefetching
+  const currentTabType = useMemo((): TabType => {
+    // Map URL path segments to tab types
+    if (pathname?.includes('/documents')) return 'os'
+    if (pathname?.includes('/property')) return 'rentRoll'
+    if (pathname?.includes('/pro-forma')) return 'om'
+    if (pathname?.includes('/capital')) return 'assumptions'
+    return 'os'
+  }, [pathname])
+  
+  // Trigger prefetch for current property - this ensures OS data is loaded
+  // and chained prefetching will load the next likely tab
+  usePropertyPrefetch(propertyId, currentTabType)
+  
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [openPropertyIds, setOpenPropertyIds] = useState<string[]>([])

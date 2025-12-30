@@ -31,6 +31,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { OMExtractionResult, OMUnitMix, OMProFormaProjection, OMSourceUseItem } from "@/lib/supabase/database.types"
+import { useTabData } from "@/hooks/use-tab-data"
 
 interface OMDocumentProps {
   propertyId?: string
@@ -117,41 +118,69 @@ function SectionCard({
 }
 
 export function OMDocument({ propertyId }: OMDocumentProps) {
+  // Get prefetched OM data from cache
+  const { 
+    data: prefetchedData, 
+    isInitialLoading: prefetchLoading,
+    prefetched,
+    error: prefetchError
+  } = useTabData<OMDataResponse>(propertyId || '', 'om')
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [omData, setOMData] = useState<OMDataResponse | null>(null)
 
+  // Use prefetched data when available
   useEffect(() => {
     if (!propertyId) {
       setOMData(null)
       return
     }
 
-    const fetchOMData = async () => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch(`/api/properties/${propertyId}/om-data`)
-        const data = await response.json()
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch OM data')
-        }
-
-        setOMData(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load OM data')
-      } finally {
-        setLoading(false)
-      }
+    // If we have prefetched data, use it immediately
+    if (prefetched && prefetchedData) {
+      setOMData(prefetchedData)
+      setLoading(false)
+      return
     }
 
-    fetchOMData()
-  }, [propertyId])
+    // Handle prefetch error
+    if (prefetchError) {
+      setError(prefetchError)
+      setLoading(false)
+      return
+    }
 
-  // Loading state
-  if (loading) {
+    // Fallback: fetch if not prefetched and not currently loading
+    if (!prefetched && !prefetchLoading) {
+      const fetchOMData = async () => {
+        setLoading(true)
+        setError(null)
+
+        try {
+          const response = await fetch(`/api/properties/${propertyId}/om-data`)
+          const data = await response.json()
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to fetch OM data')
+          }
+
+          setOMData(data)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load OM data')
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      fetchOMData()
+    }
+  }, [propertyId, prefetched, prefetchedData, prefetchLoading, prefetchError])
+
+  // Loading state - consider both local loading and prefetch loading
+  const isLoading = (loading || prefetchLoading) && !prefetched
+  
+  if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50 p-8">
         <div className="flex items-center gap-3 text-gray-600">

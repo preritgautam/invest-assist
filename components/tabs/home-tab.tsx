@@ -11,6 +11,7 @@
  * - Add/edit/delete property functionality
  * - Use case sidebar with analysis tools
  * - Interactive property cards with dropdown actions
+ * - Prefetch on navigation intent (hover/pointer)
  *
  * @component
  * @example
@@ -20,7 +21,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Building,
   Plus,
@@ -52,6 +53,8 @@ import { Button } from "@/components/ui/button"
 import { UploadDialog } from "@/components/features/property-upload/upload-dialog"
 import { cacheProperties, getAllCachedProperties, clearPropertyCache, type DatabaseProperty } from "@/lib/property-cache"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useHomePrefetch } from "@/hooks/use-tab-data"
+import { usePropertyDataStore } from "@/stores/property-data-store"
 
 /**
  * Props interface for HomeTab component
@@ -89,6 +92,23 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Extract property IDs for prefetching
+  const propertyIds = properties.map(p => p.id)
+  
+  // Get prefetch function for navigation intent
+  const prefetchOnIntent = usePropertyDataStore(state => state.prefetchOnIntent)
+  
+  // Prefetch all data for all properties in the background
+  // This ensures instant loading when user clicks any property
+  const prefetchStatus = useHomePrefetch(propertyIds, !isLoadingProperties)
+  
+  // Handler for prefetching on hover/pointer intent
+  const createIntentHandlers = useCallback((propertyId: string) => ({
+    onMouseEnter: () => prefetchOnIntent(propertyId),
+    onPointerDown: () => prefetchOnIntent(propertyId),
+    onFocus: () => prefetchOnIntent(propertyId),
+  }), [prefetchOnIntent])
 
   // Fetch properties from database API on mount
   useEffect(() => {
@@ -544,6 +564,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                   <div
                     key={property.id}
                     onClick={(e) => handlePropertyClick(property.id, e)}
+                    {...createIntentHandlers(property.id)}
                     className="bg-white rounded-2xl border border-gray-100/80 overflow-hidden shadow-sm hover:shadow-lg hover:border-gray-200 transition-all duration-300 cursor-pointer group relative"
                   >
                     {/* Property actions dropdown */}
@@ -652,6 +673,7 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
                     <div
                       key={property.id}
                       onClick={(e) => handlePropertyClick(property.id, e)}
+                      {...createIntentHandlers(property.id)}
                       className="flex items-center gap-5 p-5 hover:bg-gray-50 transition-colors duration-200 cursor-pointer group relative"
                     >
                       {/* Property thumbnail */}

@@ -1,6 +1,7 @@
 "use client"
 
-import { Eye, Download, Undo, Redo, Search, ZoomIn, ZoomOut, Maximize, AlertCircle } from "lucide-react"
+import { useState } from "react"
+import { Eye, Download, Undo, Redo, Search, ZoomIn, ZoomOut, Maximize, AlertCircle, Loader2 } from "lucide-react"
 
 interface RightToolbarProps {
   onZoomIn?: () => void
@@ -12,6 +13,8 @@ interface RightToolbarProps {
   onFind?: () => void
   onView?: () => void
   onIssues?: () => void
+  documentStoragePath?: string | null
+  documentName?: string
 }
 
 export function RightToolbar({
@@ -24,9 +27,44 @@ export function RightToolbar({
   onFind,
   onView,
   onIssues,
+  documentStoragePath,
+  documentName,
 }: RightToolbarProps = {}) {
-  const handleView = () => {
-    console.log("[v0] View clicked")
+  const [isLoadingView, setIsLoadingView] = useState(false)
+
+  const handleView = async () => {
+    console.log("[RightToolbar] View clicked, storagePath:", documentStoragePath)
+    
+    if (!documentStoragePath) {
+      alert('No original document available to view')
+      return
+    }
+
+    setIsLoadingView(true)
+    try {
+      // Get signed URL for the document
+      const response = await fetch('/api/storage/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storagePath: documentStoragePath }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to get document URL')
+      }
+
+      const { signedUrl } = await response.json()
+      
+      // Open the document in a new tab
+      window.open(signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      console.error('[RightToolbar] Error opening document:', error)
+      alert(error instanceof Error ? error.message : 'Failed to open document')
+    } finally {
+      setIsLoadingView(false)
+    }
+    
     onView?.()
   }
 
@@ -122,13 +160,18 @@ export function RightToolbar({
 
   return (
     <div className="w-16 bg-gradient-to-b from-slate-50 to-white border-l border-slate-200 flex flex-col py-2 shadow-sm">
-      {/* View Button */}
+      {/* View Button - Opens original document */}
       <button
         onClick={handleView}
-        className="flex flex-col items-center gap-1 py-3 px-2 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 rounded-lg mx-1"
-        title="View Options"
+        disabled={isLoadingView || !documentStoragePath}
+        className={`flex flex-col items-center gap-1 py-3 px-2 transition-all duration-200 rounded-lg mx-1 ${documentStoragePath ? 'hover:bg-blue-50 hover:text-blue-600' : 'opacity-50 cursor-not-allowed'}`}
+        title={documentStoragePath ? `View original: ${documentName || 'document'}` : 'No original document'}
       >
-        <Eye className="w-5 h-5 text-slate-700 hover:text-blue-600 transition-colors" />
+        {isLoadingView ? (
+          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+        ) : (
+          <Eye className="w-5 h-5 text-slate-700 hover:text-blue-600 transition-colors" />
+        )}
         <span className="text-[10px] font-medium text-slate-700">View</span>
       </button>
 

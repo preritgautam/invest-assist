@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useCallback, useRef, useEffect } from "react"
-import { Upload, FileArchive, File, Mail, Edit, X, Check, AlertCircle, Loader2, ChevronDown, ChevronRight, Calendar, FileText, Layers, Eye, Pencil } from "lucide-react"
+import { Upload, FileArchive, File, Mail, Edit, X, Check, AlertCircle, Loader2, ChevronDown, ChevronRight, Calendar, FileText, Layers, Eye, Pencil, Minimize2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { AppButton } from "@/components/ui/app-button"
 import { AppCard } from "@/components/ui/app-card"
@@ -45,9 +45,11 @@ interface UploadDialogProps {
   onComplete?: (files: UploadedFile[], propertyId?: string) => void
 }
 
-type UploadStep = 'select' | 'uploading' | 'classifying' | 'reviewing' | 'processing' | 'complete'
-
 export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps) {
+  // Local minimization state
+  const [isMinimized, setIsMinimized] = useState(false)
+  const [minimizedProgress, setMinimizedProgress] = useState({ current: 0, total: 0, stage: '' })
+
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
 
   console.log('[UploadDialog] Uploaded files:', uploadedFiles)
@@ -59,7 +61,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   const [processId, setProcessId] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
-  const [uploadStep, setUploadStep] = useState<UploadStep>('select');
+  const [uploadStep, setUploadStep] = useState<'select' | 'uploading' | 'classifying' | 'reviewing' | 'processing' | 'complete'>('select');
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const { isPolling, status, result, error: pollingError, startPolling, stopPolling } = useRexPolling();
 
@@ -74,31 +76,99 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   const fileInputZipRef = useRef<HTMLInputElement>(null)
   const fileInputFilesRef = useRef<HTMLInputElement>(null)
 
-  // Reset dialog state when it closes, but NOT the polling queue
+  // Update minimized progress when upload progress changes
   useEffect(() => {
-    if (!isOpen) {
-      // Reset UI state when dialog closes, but preserve polling state
-      // This allows background polling to continue even when dialog is closed
-      setUploadedFiles([])
-      setIsDragging(false)
-      setIsProcessing(false)
-      setUploadMethod(null)
-      setError(null)
-      setUploadSuccess(false)
-      setProcessId(null)
-      setDocumentId(null)
-      setPropertyId(null)
-      setUploadStep('select')
-      setUploadProgress({ current: 0, total: 0 })
-      setDetectedSegments([])
-      setExpandedFiles(new Set())
-      setPreviewFileId(null)
-      setEditingSegmentId(null)
-      setEditPageRange("")
-      // NOTE: We intentionally do NOT clear the polling state here
-      // The polling queue in sessionStorage will persist and resume on next page load
+    if (isProcessing && (uploadStep === 'uploading' || uploadStep === 'classifying' || uploadStep === 'processing')) {
+      let stage = 'Processing...'
+      let total = 1
+      let current = 0
+      
+      if (uploadStep === 'uploading') {
+        stage = 'Uploading files'
+        total = uploadProgress.total
+        current = uploadProgress.current
+      } else if (uploadStep === 'classifying') {
+        stage = 'Analyzing documents'
+        total = uploadedFiles.length
+        current = uploadedFiles.filter(f => f.classificationStatus === 'completed').length
+      } else if (uploadStep === 'processing') {
+        stage = 'Extracting data'
+        total = uploadedFiles.length
+        current = uploadedFiles.filter(f => f.classificationStatus === 'completed').length
+      }
+      
+      setMinimizedProgress({ current, total, stage })
     }
-  }, [isOpen])
+  }, [isProcessing, uploadStep, uploadProgress, uploadedFiles])
+
+  // Reset dialog state when it closes (but not when minimized)
+  useEffect(() => {
+    if (!isOpen && !isMinimized) {
+      // Only reset if not minimized - if minimized, keep state for when restored
+      if (!isProcessing) {
+        // Reset UI state when dialog closes and not uploading
+        setUploadedFiles([])
+        setIsDragging(false)
+        setIsProcessing(false)
+        setUploadMethod(null)
+        setError(null)
+        setUploadSuccess(false)
+        setProcessId(null)
+        setDocumentId(null)
+        setPropertyId(null)
+        setUploadStep('select')
+        setUploadProgress({ current: 0, total: 0 })
+        setDetectedSegments([])
+        setExpandedFiles(new Set())
+        setPreviewFileId(null)
+        setEditingSegmentId(null)
+        setEditPageRange("")
+      }
+    }
+  }, [isOpen, isMinimized, isProcessing])
+
+  // Minimize upload to a toast notification
+  const minimizeUpload = useCallback(() => {
+    setIsMinimized(true)
+  }, [])
+
+  // Restore from minimized state
+  const restoreUpload = useCallback(() => {
+    setIsMinimized(false)
+  }, [])
+
+  // Cancel upload and reset state
+  const cancelUpload = useCallback(() => {
+    setIsMinimized(false)
+    setUploadedFiles([])
+    setIsDragging(false)
+    setIsProcessing(false)
+    setUploadMethod(null)
+    setError(null)
+    setUploadSuccess(false)
+    setProcessId(null)
+    setDocumentId(null)
+    setPropertyId(null)
+    setUploadStep('select')
+    setUploadProgress({ current: 0, total: 0 })
+    setDetectedSegments([])
+    setExpandedFiles(new Set())
+    setPreviewFileId(null)
+    setEditingSegmentId(null)
+    setEditPageRange("")
+    onClose()
+  }, [onClose])
+
+  // Handle dialog open change - prevent closing during upload unless confirmed
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open && isProcessing && (uploadStep === 'uploading' || uploadStep === 'classifying')) {
+      // Don't close via overlay click during upload - require explicit cancel
+      return
+    }
+    if (!open) {
+      onClose()
+    }
+  }, [isProcessing, uploadStep, onClose])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes"
@@ -883,18 +953,101 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
   // Get the file being previewed
   const previewFile = previewFileId ? uploadedFiles.find(f => f.id === previewFileId) : null
 
+  // Check if we're in an upload state that can be minimized
+  const canMinimize = isProcessing && (uploadStep === 'uploading' || uploadStep === 'classifying' || uploadStep === 'processing')
+
+  // If minimized, render the minimized toast instead of the dialog
+  if (isMinimized && canMinimize) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[280px] max-w-[320px]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Loader2 className="w-4 h-4 text-blue-500 animate-spin flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {minimizedProgress.stage || 'Processing...'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {minimizedProgress.current} of {minimizedProgress.total} files
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={restoreUpload}
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                title="Expand"
+              >
+                <ChevronDown className="w-4 h-4 text-gray-500 rotate-180" />
+              </button>
+              <button
+                onClick={cancelUpload}
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                title="Cancel"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ 
+                width: minimizedProgress.total > 0 
+                  ? `${(minimizedProgress.current / minimizedProgress.total) * 100}%` 
+                  : '0%' 
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-h-[90vh] overflow-y-auto p-4 sm:p-6 ${
-        uploadStep === 'reviewing'
-          ? 'max-w-[95vw] sm:max-w-[95vw] md:max-w-[95vw] lg:max-w-7xl'
-          : 'max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl'
-      }`}>
-        <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl font-bold">Add Property - Step A: Upload Files</DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
-            Choose how you'd like to add property data to your portfolio
-          </DialogDescription>
+    <Dialog open={isOpen && !isMinimized} onOpenChange={handleOpenChange}>
+      <DialogContent 
+        className={`max-h-[90vh] overflow-y-auto p-4 sm:p-6 ${
+          uploadStep === 'reviewing'
+            ? 'max-w-[95vw] sm:max-w-[95vw] md:max-w-[95vw] lg:max-w-7xl'
+            : 'max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl'
+        }`}
+        showCloseButton={false}
+      >
+        <DialogHeader className="relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-lg sm:text-xl font-bold">Add Property - Step A: Upload Files</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+                Choose how you'd like to add property data to your portfolio
+              </DialogDescription>
+            </div>
+            
+            {/* Header buttons */}
+            <div className="flex items-center gap-2">
+              {/* Minimize button - only show during upload */}
+              {canMinimize && (
+                <button
+                  onClick={minimizeUpload}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Minimize"
+                >
+                  <Minimize2 className="w-4 h-4 text-gray-500" />
+                </button>
+              )}
+              
+              {/* Close button */}
+              <button
+                onClick={cancelUpload}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 sm:space-y-6 mt-4">

@@ -16,7 +16,8 @@ import {
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button" // Added Button import
+import { Button } from "@/components/ui/button"
+import { useTabData } from "@/hooks/use-tab-data"
 
 // Helper function for loan payment calculation
 const calculateMonthlyPayment = (principal: number, annualInterestRate: number, amortizationYears: number): number => {
@@ -203,34 +204,45 @@ export function T12ActualsTab({ property, onValidate, validated = false, onUnval
     setT12DataValidated(validated)
   }, [validated])
 
+  // Use prefetched OS data from context - data is already loaded before this tab opens
+  const { data: cachedOSData, loading: osLoading, prefetched: osPrefetched } = useTabData(propertyId || '', 'os')
+  
   const [osData, setOSData] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
 
-useEffect(() => {
+  // Use cached data if available, otherwise fall back to direct fetch
+  useEffect(() => {
     if (!propertyId) {
       setOSData(null)
       return
     }
 
-
-    const fetchOSData = async () => {
-      try {
-        const response = await fetch(`/api/properties/${propertyId}/os-data`)
-        const data = await response.json()
-
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to fetch OS data")
-        }
-
-        setOSData(data)
-      } catch (err) {
-        console.error(err instanceof Error ? err.message : "Failed to load OS data")
-      
-      }
+    // If we have prefetched data, use it immediately (instant render!)
+    if (osPrefetched && cachedOSData) {
+      setOSData(cachedOSData)
+      return
     }
 
-    fetchOSData()
-  }, [propertyId])
+    // Fallback: fetch if not prefetched (should rarely happen)
+    if (!osPrefetched && !osLoading) {
+      const fetchOSData = async () => {
+        try {
+          const response = await fetch(`/api/properties/${propertyId}/os-data`)
+          const data = await response.json()
+
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to fetch OS data")
+          }
+
+          setOSData(data)
+        } catch (err) {
+          console.error(err instanceof Error ? err.message : "Failed to load OS data")
+        }
+      }
+
+      fetchOSData()
+    }
+  }, [propertyId, cachedOSData, osPrefetched, osLoading])
 
 
   // Update line items from osData when it's loaded

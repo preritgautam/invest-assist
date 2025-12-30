@@ -12,6 +12,7 @@ import { useParams } from "next/navigation"
 import { DollarSign, TrendingUp, Calculator, Percent, Lock, Unlock, Save, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 import { InputField } from "./input-field"
 import type { UserAssumptions } from "./types"
+import { useTabData } from "@/hooks/use-tab-data"
 
 interface AssumptionsSectionProps {
   data: Partial<UserAssumptions>
@@ -22,38 +23,59 @@ export function AssumptionsSection({ data, setData }: AssumptionsSectionProps) {
   const params = useParams()
   const propertyId = params?.id as string | undefined
   
+  // Get prefetched assumptions data
+  const { 
+    data: prefetchedData, 
+    isInitialLoading: prefetchLoading,
+    prefetched 
+  } = useTabData(propertyId || '', 'assumptions')
+  
   const [isFrozen, setIsFrozen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [hasLoadedFromPrefetch, setHasLoadedFromPrefetch] = useState(false)
 
   console.log('[AssumptionsSection] Property ID from params:', propertyId)
 
-  // Load saved assumptions on mount
+  // Use prefetched data when available
   useEffect(() => {
     if (!propertyId) return
-
-    const loadAssumptions = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(`/api/properties/${propertyId}/assumptions`)
-        if (response.ok) {
-          const result = await response.json()
-          if (result.data) {
-            setData(() => result.data)
-            setIsFrozen(result.isFrozen || false)
-          }
-        }
-      } catch (error) {
-        console.error('[AssumptionsSection] Error loading assumptions:', error)
-      } finally {
-        setIsLoading(false)
+    
+    // If we have prefetched data, use it immediately
+    if (prefetched && prefetchedData && !hasLoadedFromPrefetch) {
+      if (prefetchedData.data) {
+        setData(() => prefetchedData.data)
+        setIsFrozen(prefetchedData.isFrozen || false)
       }
+      setHasLoadedFromPrefetch(true)
+      return
     }
 
-    loadAssumptions()
-  }, [propertyId, setData])
+    // Fallback: fetch if not prefetched
+    if (!prefetched && !prefetchLoading && !hasLoadedFromPrefetch) {
+      const loadAssumptions = async () => {
+        setIsLoading(true)
+        try {
+          const response = await fetch(`/api/properties/${propertyId}/assumptions`)
+          if (response.ok) {
+            const result = await response.json()
+            if (result.data) {
+              setData(() => result.data)
+              setIsFrozen(result.isFrozen || false)
+            }
+          }
+        } catch (error) {
+          console.error('[AssumptionsSection] Error loading assumptions:', error)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      loadAssumptions()
+      setHasLoadedFromPrefetch(true)
+    }
+  }, [propertyId, setData, prefetched, prefetchedData, prefetchLoading, hasLoadedFromPrefetch])
 
   const updateField = (field: string, value: any) => {
     if (isFrozen) return // Don't allow updates if frozen

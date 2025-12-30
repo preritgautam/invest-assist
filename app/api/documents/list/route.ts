@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from('documents')
-      .select('id, user_id, process_id, document_id, filename, document_type, file_size, upload_status, extraction_status, created_at, updated_at, property_id', { count: 'exact' })
+      .select('id, user_id, process_id, document_id, filename, document_type, file_size, upload_status, extraction_status, created_at, updated_at, property_id, storage_path', { count: 'exact' })
       .eq('user_id', userId)
       .is('deleted_at', null)
 

@@ -65,6 +65,7 @@ interface DatabaseDocument {
   extraction_status: string
   created_at: string
   updated_at: string
+  storage_path: string | null
 }
 
 // Map database document_type to PropertyDocument type
@@ -142,6 +143,7 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
           extractedData: mapDocumentType(doc.document_type) === "OS" ? mockBrokerData : undefined,
           version: 1,
           holdPeriod: 7,
+          storagePath: doc.storage_path,
         }))
 
         setDocuments(mappedDocuments)
@@ -1152,7 +1154,10 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
 
             {/* Right Toolbar - Hidden on mobile */}
             <div className="hidden lg:block flex-shrink-0 border-l border-gray-200">
-              <RightToolbar />
+              <RightToolbar 
+                documentStoragePath={activeDocument?.storagePath}
+                documentName={activeDocument?.name}
+              />
             </div>
           </div>
         </div>

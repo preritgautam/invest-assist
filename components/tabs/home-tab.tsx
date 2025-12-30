@@ -11,7 +11,7 @@
  * - Add/edit/delete property functionality
  * - Use case sidebar with analysis tools
  * - Interactive property cards with dropdown actions
- * - Prefetch on navigation intent (hover/pointer)
+ * - Smart prefetch: first 6 cards on load + click/focus intent (no hover)
  *
  * @component
  * @example
@@ -103,12 +103,26 @@ export function HomeTab({ onPropertyEdit, openPropertyIds = [] }: HomeTabProps) 
   // This ensures instant loading when user clicks any property
   const prefetchStatus = useHomePrefetch(propertyIds, !isLoadingProperties)
   
-  // Handler for prefetching on hover/pointer intent
+  // Handler for prefetching on pointer/focus intent (removed hover to reduce API calls)
   const createIntentHandlers = useCallback((propertyId: string) => ({
-    onMouseEnter: () => prefetchOnIntent(propertyId),
     onPointerDown: () => prefetchOnIntent(propertyId),
     onFocus: () => prefetchOnIntent(propertyId),
   }), [prefetchOnIntent])
+  
+  // Batch prefetch first 6 visible cards after properties load
+  useEffect(() => {
+    if (isLoadingProperties || properties.length === 0) return
+    
+    // Only prefetch first 6 properties (typically visible in viewport)
+    const visibleProperties = properties.slice(0, 6)
+    
+    // Stagger prefetch calls with 200ms delay between each
+    visibleProperties.forEach((property, index) => {
+      setTimeout(() => {
+        prefetchOnIntent(property.id)
+      }, index * 200)
+    })
+  }, [isLoadingProperties, properties, prefetchOnIntent])
 
   // Fetch properties from database API on mount
   useEffect(() => {

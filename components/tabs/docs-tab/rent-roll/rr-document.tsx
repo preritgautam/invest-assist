@@ -78,6 +78,15 @@ const ALLOWED_CONFIGURED_CHARGE_CATEGORIES = [
   "utility_reimbursement",
 ]
 
+// Summary fields to display when column groups are collapsed
+const COLLAPSED_SUMMARY_FIELDS: Record<string, { field: string; label: string }> = {
+  unit_info: { field: "Suite Number", label: "Suite / Unit" },
+  lease_terms: { field: "Tenant Name", label: "Tenant Name" },
+  tenant_charges: { field: "base_rent", label: "Base Rent" },
+  charge_totals: { field: "monthly_rent", label: "Monthly Rent" },
+  other: { field: "balance", label: "Balance" },
+}
+
 export interface TenantChargeConfig {
   id: string
   name: string
@@ -944,15 +953,16 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                           const groupCols = getGroupColumns(group)
                           if (groupCols.length === 0) return null
                           const isCollapsed = collapsedGroups.has(group.id)
+                          const summaryConfig = COLLAPSED_SUMMARY_FIELDS[group.id]
                           
                           if (isCollapsed) {
                             return (
                               <th
                                 key={`collapsed-${group.id}`}
-                                className={`p-2 text-center font-semibold border-r ${group.bgColor} ${group.color} min-w-[40px] cursor-pointer`}
+                                className={`p-2 text-center font-semibold border-r ${group.bgColor} ${group.color} min-w-[100px] cursor-pointer`}
                                 onClick={() => toggleGroupCollapse(group.id)}
                               >
-                                <span className="text-xs">Click to expand</span>
+                                <span className="text-xs">{summaryConfig?.label || 'Click to expand'}</span>
                               </th>
                             )
                           }
@@ -971,10 +981,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                           isGroupCollapsed("charge_totals") ? (
                             <th
                               key="collapsed-charge-totals"
-                              className="p-2 text-center font-semibold border-r bg-indigo-50 text-indigo-600 min-w-[40px] cursor-pointer"
+                              className="p-2 text-center font-semibold border-r bg-indigo-50 text-indigo-600 min-w-[100px] cursor-pointer"
                               onClick={() => toggleGroupCollapse("charge_totals")}
                             >
-                              <span className="text-xs">Click to expand</span>
+                              <span className="text-xs">{COLLAPSED_SUMMARY_FIELDS.charge_totals?.label || 'Click to expand'}</span>
                             </th>
                           ) : (
                             getAllCategories()?.map((category) => (
@@ -992,10 +1002,10 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                           isGroupCollapsed("other") ? (
                             <th
                               key="collapsed-other"
-                              className="p-2 text-center font-semibold border-r bg-gray-100 text-gray-600 min-w-[40px] cursor-pointer"
+                              className="p-2 text-center font-semibold border-r bg-gray-100 text-gray-600 min-w-[100px] cursor-pointer"
                               onClick={() => toggleGroupCollapse("other")}
                             >
-                              <span className="text-xs">Click to expand</span>
+                              <span className="text-xs">{COLLAPSED_SUMMARY_FIELDS.other?.label || 'Click to expand'}</span>
                             </th>
                           ) : (
                             getUngroupedColumns()?.map((column) => (
@@ -1023,14 +1033,20 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                             const groupCols = getGroupColumns(group)
                             if (groupCols.length === 0) return null
                             const isCollapsed = collapsedGroups.has(group.id)
+                            const summaryConfig = COLLAPSED_SUMMARY_FIELDS[group.id]
                             
                             if (isCollapsed) {
+                              // Show summary field value when collapsed
+                              const summaryValue = summaryConfig ? row[summaryConfig.field] : null
+                              const displaySummary = summaryValue === null || summaryValue === undefined || summaryValue === "NA" || summaryValue === "N/A"
+                                ? "-"
+                                : String(summaryValue)
                               return (
                                 <td
                                   key={`collapsed-data-${group.id}-${globalIndex}`}
-                                  className={`p-2 text-center text-xs border-r ${group.bgColor} ${group.color} opacity-50`}
+                                  className={`p-2 text-center text-sm border-r ${group.bgColor} ${group.color}`}
                                 >
-                                  •••
+                                  {displaySummary}
                                 </td>
                               )
                             }
@@ -1077,12 +1093,18 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                           {/* Charge Category Totals - CHARGE TOTALS */}
                           {getAllCategories()?.length > 0 && (
                             isGroupCollapsed("charge_totals") ? (
-                              <td
-                                key={`collapsed-charge-totals-data-${globalIndex}`}
-                                className="p-2 text-center text-xs border-r bg-indigo-50 text-indigo-500 opacity-50"
-                              >
-                                •••
-                              </td>
+                              (() => {
+                                // Show Monthly Rent value when collapsed
+                                const monthlyRentTotal = getTotalForCategory(row, "monthly_rent")
+                                return (
+                                  <td
+                                    key={`collapsed-charge-totals-data-${globalIndex}`}
+                                    className="p-2 text-center text-sm font-bold border-r bg-indigo-50 text-indigo-700"
+                                  >
+                                    {formatCurrency(monthlyRentTotal)}
+                                  </td>
+                                )
+                              })()
                             ) : (
                               getAllCategories()?.map((category) => {
                                 const total = getTotalForCategory(row, category)
@@ -1101,12 +1123,21 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                           {/* Ungrouped columns data - OTHER (at the very end) */}
                           {getUngroupedColumns().length > 0 && (
                             isGroupCollapsed("other") ? (
-                              <td
-                                key={`collapsed-other-data-${globalIndex}`}
-                                className="p-2 text-center text-xs border-r bg-gray-100 text-gray-500 opacity-50"
-                              >
-                                •••
-                              </td>
+                              (() => {
+                                // Show Balance value when collapsed
+                                const balanceValue = row["balance"] ?? row["Balance"]
+                                const displayBalance = balanceValue === null || balanceValue === undefined || balanceValue === "NA" || balanceValue === "N/A"
+                                  ? "-"
+                                  : typeof balanceValue === "number" ? formatCurrency(balanceValue) : String(balanceValue)
+                                return (
+                                  <td
+                                    key={`collapsed-other-data-${globalIndex}`}
+                                    className="p-2 text-center text-sm border-r bg-gray-100 text-gray-700"
+                                  >
+                                    {displayBalance}
+                                  </td>
+                                )
+                              })()
                             ) : (
                               getUngroupedColumns()?.map((column) => {
                                 const value = row[column]

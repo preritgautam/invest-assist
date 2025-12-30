@@ -869,26 +869,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                         <th className="p-2 text-left font-semibold border-r bg-gray-100 text-gray-700 min-w-[60px]" rowSpan={2}>
                           Unit
                         </th>
-                        {/* Ungrouped columns header - OTHER (collapsible) */}
-                        {getUngroupedColumns().length > 0 && (
-                          <th 
-                            colSpan={isGroupCollapsed("other") ? 1 : getUngroupedColumns().length}
-                            className="p-2 text-center font-bold border-r bg-gray-200 text-gray-800 cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => toggleGroupCollapse("other")}
-                          >
-                            <div className="flex items-center justify-center gap-2">
-                              {isGroupCollapsed("other") ? (
-                                <ChevronRight className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                              <span>OTHER</span>
-                              {isGroupCollapsed("other") && (
-                                <span className="text-xs opacity-70">({getUngroupedColumns().length})</span>
-                              )}
-                            </div>
-                          </th>
-                        )}
                         {/* Group headers with collapse toggle */}
                         {COLUMN_GROUPS.map((group) => {
                           const groupCols = getGroupColumns(group)
@@ -936,30 +916,29 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                             </div>
                           </th>
                         )}
+                        {/* Ungrouped columns header - OTHER (at the very end) */}
+                        {getUngroupedColumns().length > 0 && (
+                          <th 
+                            colSpan={isGroupCollapsed("other") ? 1 : getUngroupedColumns().length}
+                            className="p-2 text-center font-bold border-r bg-gray-200 text-gray-800 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => toggleGroupCollapse("other")}
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              {isGroupCollapsed("other") ? (
+                                <ChevronRight className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                              <span>OTHER</span>
+                              {isGroupCollapsed("other") && (
+                                <span className="text-xs opacity-70">({getUngroupedColumns().length})</span>
+                              )}
+                            </div>
+                          </th>
+                        )}
                       </tr>
                       {/* Column Names Row */}
                       <tr>
-                        {/* Ungrouped columns - OTHER */}
-                        {getUngroupedColumns().length > 0 && (
-                          isGroupCollapsed("other") ? (
-                            <th
-                              key="collapsed-other"
-                              className="p-2 text-center font-semibold border-r bg-gray-100 text-gray-600 min-w-[40px] cursor-pointer"
-                              onClick={() => toggleGroupCollapse("other")}
-                            >
-                              <span className="text-xs">Click to expand</span>
-                            </th>
-                          ) : (
-                            getUngroupedColumns()?.map((column) => (
-                              <th
-                                key={column}
-                                className="p-2 text-left font-semibold border-r text-gray-700 min-w-[100px] bg-gray-50"
-                              >
-                                {formatHeaderName(column)}
-                              </th>
-                            ))
-                          )
-                        )}
                         {/* Grouped columns */}
                         {COLUMN_GROUPS.map((group) => {
                           const groupCols = getGroupColumns(group)
@@ -1008,6 +987,27 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                             ))
                           )
                         )}
+                        {/* Ungrouped columns - OTHER (at the very end) */}
+                        {getUngroupedColumns().length > 0 && (
+                          isGroupCollapsed("other") ? (
+                            <th
+                              key="collapsed-other"
+                              className="p-2 text-center font-semibold border-r bg-gray-100 text-gray-600 min-w-[40px] cursor-pointer"
+                              onClick={() => toggleGroupCollapse("other")}
+                            >
+                              <span className="text-xs">Click to expand</span>
+                            </th>
+                          ) : (
+                            getUngroupedColumns()?.map((column) => (
+                              <th
+                                key={column}
+                                className="p-2 text-left font-semibold border-r text-gray-700 min-w-[100px] bg-gray-50"
+                              >
+                                {formatHeaderName(column)}
+                              </th>
+                            ))
+                          )
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -1018,52 +1018,6 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                           <td className="p-2 text-sm font-semibold text-gray-900 border-r bg-gray-50 sticky left-0 z-10 min-w-[60px]">
                             {globalIndex + 1}
                           </td>
-                          {/* Ungrouped columns data - OTHER */}
-                          {getUngroupedColumns().length > 0 && (
-                            isGroupCollapsed("other") ? (
-                              <td
-                                key={`collapsed-other-data-${globalIndex}`}
-                                className="p-2 text-center text-xs border-r bg-gray-100 text-gray-500 opacity-50"
-                              >
-                                •••
-                              </td>
-                            ) : (
-                              getUngroupedColumns()?.map((column) => {
-                                const value = row[column]
-                                const displayValue =
-                                  value === null ||
-                                  value === undefined ||
-                                  value === "NA" ||
-                                  value === "N/A" ||
-                                  String(value).toUpperCase() === "NA"
-                                    ? "-"
-                                    : String(value)
-
-                                const isStatusColumn = column === "status"
-                                const statusClass = isStatusColumn
-                                  ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
-                                  : ""
-
-                                return (
-                                  <td
-                                    key={`${globalIndex}-${column}`}
-                                    className="p-2 text-sm text-gray-900 border-r"
-                                  >
-                                    <EditableCell
-                                      value={displayValue}
-                                      rowIndex={globalIndex}
-                                      columnName={column}
-                                      isStatusColumn={isStatusColumn}
-                                      statusClass={statusClass}
-                                      onSave={(newValue) =>
-                                        saveRowData(globalIndex, column, newValue)
-                                      }
-                                    />
-                                  </td>
-                                )
-                              })
-                            )
-                          )}
                           {/* Grouped columns data */}
                           {COLUMN_GROUPS.map((group) => {
                             const groupCols = getGroupColumns(group)
@@ -1139,6 +1093,52 @@ export function RRDocument({isOpen, onClose, config, onConfigChange, documentId,
                                     className="p-2 text-sm font-bold text-right text-indigo-700 border-r bg-indigo-50/30"
                                   >
                                     {formatCurrency(total)}
+                                  </td>
+                                )
+                              })
+                            )
+                          )}
+                          {/* Ungrouped columns data - OTHER (at the very end) */}
+                          {getUngroupedColumns().length > 0 && (
+                            isGroupCollapsed("other") ? (
+                              <td
+                                key={`collapsed-other-data-${globalIndex}`}
+                                className="p-2 text-center text-xs border-r bg-gray-100 text-gray-500 opacity-50"
+                              >
+                                •••
+                              </td>
+                            ) : (
+                              getUngroupedColumns()?.map((column) => {
+                                const value = row[column]
+                                const displayValue =
+                                  value === null ||
+                                  value === undefined ||
+                                  value === "NA" ||
+                                  value === "N/A" ||
+                                  String(value).toUpperCase() === "NA"
+                                    ? "-"
+                                    : String(value)
+
+                                const isStatusColumn = column === "status"
+                                const statusClass = isStatusColumn
+                                  ? `${getStatusColor(displayValue)} px-3 py-1 rounded-full font-medium inline-block text-xs`
+                                  : ""
+
+                                return (
+                                  <td
+                                    key={`${globalIndex}-${column}`}
+                                    className="p-2 text-sm text-gray-900 border-r"
+                                  >
+                                    <EditableCell
+                                      value={displayValue}
+                                      rowIndex={globalIndex}
+                                      columnName={column}
+                                      isStatusColumn={isStatusColumn}
+                                      statusClass={statusClass}
+                                      onSave={(newValue) =>
+                                        saveRowData(globalIndex, column, newValue)
+                                      }
+                                    />
                                   </td>
                                 )
                               })

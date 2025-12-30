@@ -1272,27 +1272,27 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
           {/* Segment Review UI with Split Pane */}
           {uploadStep === 'reviewing' && !isProcessing && (
             <div className="space-y-4">
-              {/* Split Pane Layout - Header and content side by side */}
-              <div className="flex gap-4 min-h-[80vh] items-stretch">
+              {/* Header */}
+              <div className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-data-accent-blue" />
+                <h3 className="text-sm font-bold text-foreground">Review Detected Segments</h3>
+              </div>
+
+              {/* Info Box */}
+              <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-foreground">
+                  <p className="font-medium mb-1">AI has analyzed your documents</p>
+                  <p className="text-muted-foreground">
+                    Select which segments to extract. Click the <Eye className="w-3 h-3 inline" /> icon to preview a file and verify page ranges. You can edit page ranges if needed.
+                  </p>
+                </div>
+              </div>
+
+              {/* Split Pane Layout - File list and preview side by side */}
+              <div className="flex gap-4">
                 {/* Left Panel - File/Segment List */}
-                <div className={`flex flex-col space-y-3 overflow-y-auto ${previewFile ? 'w-1/4' : 'w-full'}`}>
-                  {/* Header */}
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-data-accent-blue" />
-                    <h3 className="text-sm font-bold text-foreground">Review Detected Segments</h3>
-                  </div>
-
-                  {/* Info Box */}
-                  <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-foreground">
-                      <p className="font-medium mb-1">AI has analyzed your documents</p>
-                      <p className="text-muted-foreground">
-                        Select which segments to extract. Click the <Eye className="w-3 h-3 inline" /> icon to preview a file and verify page ranges. You can edit page ranges if needed.
-                      </p>
-                    </div>
-                  </div>
-
+                <div className={`flex flex-col space-y-3 ${previewFile ? 'w-1/4 max-h-[50vh] overflow-y-auto pr-2' : 'w-full'}`}>
                   {/* File List */}
                   {uploadedFiles.map((file) => {
                     const fileSegments = getSegmentsForFile(file.id)
@@ -1490,7 +1490,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
 
                 {/* Right Panel - PDF Viewer */}
                 {previewFile && previewFile.file.type === 'application/pdf' && (
-                  <div className="w-3/4 border border-border rounded-lg overflow-hidden bg-muted/30 flex flex-col">
+                  <div className="w-3/4 border border-border rounded-lg overflow-hidden bg-muted/30 flex flex-col min-h-0">
                     <div className="flex items-center justify-between p-2 bg-card border-b border-border flex-shrink-0">
                       <span className="text-xs font-medium text-foreground truncate">{previewFile.name}</span>
                       <button

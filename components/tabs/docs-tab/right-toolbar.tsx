@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Eye, Download, Undo, Redo, Search, ZoomIn, ZoomOut, Maximize, AlertCircle, Loader2 } from "lucide-react"
 
 interface RightToolbarProps {
@@ -15,6 +14,8 @@ interface RightToolbarProps {
   onIssues?: () => void
   documentStoragePath?: string | null
   documentName?: string
+  isViewEnabled?: boolean
+  isLoadingView?: boolean
 }
 
 export function RightToolbar({
@@ -29,42 +30,12 @@ export function RightToolbar({
   onIssues,
   documentStoragePath,
   documentName,
+  isViewEnabled = true,
+  isLoadingView = false,
 }: RightToolbarProps = {}) {
-  const [isLoadingView, setIsLoadingView] = useState(false)
 
-  const handleView = async () => {
-    console.log("[RightToolbar] View clicked, storagePath:", documentStoragePath)
-    
-    if (!documentStoragePath) {
-      alert('No original document available to view')
-      return
-    }
-
-    setIsLoadingView(true)
-    try {
-      // Get signed URL for the document
-      const response = await fetch('/api/storage/signed-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storagePath: documentStoragePath }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to get document URL')
-      }
-
-      const { signedUrl } = await response.json()
-      
-      // Open the document in a new tab
-      window.open(signedUrl, '_blank', 'noopener,noreferrer')
-    } catch (error) {
-      console.error('[RightToolbar] Error opening document:', error)
-      alert(error instanceof Error ? error.message : 'Failed to open document')
-    } finally {
-      setIsLoadingView(false)
-    }
-    
+  const handleView = () => {
+    console.log("[RightToolbar] View clicked")
     onView?.()
   }
 
@@ -160,12 +131,12 @@ export function RightToolbar({
 
   return (
     <div className="w-16 bg-gradient-to-b from-slate-50 to-white border-l border-slate-200 flex flex-col py-2 shadow-sm">
-      {/* View Button - Opens original document */}
+      {/* View Button - Opens original document preview */}
       <button
         onClick={handleView}
-        disabled={isLoadingView || !documentStoragePath}
-        className={`flex flex-col items-center gap-1 py-3 px-2 transition-all duration-200 rounded-lg mx-1 ${documentStoragePath ? 'hover:bg-blue-50 hover:text-blue-600' : 'opacity-50 cursor-not-allowed'}`}
-        title={documentStoragePath ? `View original: ${documentName || 'document'}` : 'No original document'}
+        disabled={isLoadingView || !isViewEnabled || !documentStoragePath}
+        className={`flex flex-col items-center gap-1 py-3 px-2 transition-all duration-200 rounded-lg mx-1 ${isViewEnabled && documentStoragePath ? 'hover:bg-blue-50 hover:text-blue-600' : 'opacity-50 cursor-not-allowed'}`}
+        title={!isViewEnabled ? 'View available only in Upload section' : documentStoragePath ? `View original: ${documentName || 'document'}` : 'No original document'}
       >
         {isLoadingView ? (
           <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />

@@ -25,6 +25,9 @@ import {
   Edit3Icon,
   MenuIcon,
   InspectionPanel,
+  X,
+  Loader2,
+  ExternalLink,
 } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -112,6 +115,11 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
   const [documentsError, setDocumentsError] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<"t12" | "normalized" | "summary">("t12")
   const [activeDocType, setActiveDocType] = useState<"OS" | "RR" | "OM">("OS")
+
+  // Document preview state
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewDocName, setPreviewDocName] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
   // Fetch documents from database - extracted as a reusable function
   const fetchDocuments = useCallback(async () => {
@@ -656,6 +664,44 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
     }
   }
 
+  // Handle viewing the original document in preview panel
+  const handleViewDocument = async () => {
+    if (!activeDocument?.storagePath) {
+      return
+    }
+
+    setIsLoadingPreview(true)
+    try {
+      const response = await fetch('/api/storage/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storagePath: activeDocument.storagePath }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to get document URL')
+      }
+
+      const { signedUrl } = await response.json()
+      setPreviewUrl(signedUrl)
+      setPreviewDocName(activeDocument.name)
+    } catch (error) {
+      console.error('[DocsTab] Error opening document preview:', error)
+      alert(error instanceof Error ? error.message : 'Failed to open document')
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const closePreview = () => {
+    setPreviewUrl(null)
+    setPreviewDocName(null)
+  }
+
+  // View is enabled only in Upload section (t12), disabled in Analyze and Report
+  const isViewEnabled = activeSection === "t12"
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
       <div className="relative flex h-screen bg-gradient-to-br from-gray-50/50 to-slate-50/30">
@@ -1157,11 +1203,58 @@ export function DocumentsTab({ property, propertyId, isLoading: propertyLoading 
               <RightToolbar 
                 documentStoragePath={activeDocument?.storagePath}
                 documentName={activeDocument?.name}
+                isViewEnabled={isViewEnabled}
+                isLoadingView={isLoadingPreview}
+                onView={handleViewDocument}
               />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Document Preview Panel - Modal overlay */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="relative w-[90vw] h-[90vh] max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Preview Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-gray-600" />
+                <span className="font-medium text-gray-900 truncate max-w-md">
+                  {previewDocName || 'Document Preview'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Open in new tab button */}
+                <button
+                  onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open in new tab</span>
+                </button>
+                {/* Close button */}
+                <button
+                  onClick={closePreview}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Close preview"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            {/* PDF Embed */}
+            <div className="flex-1 bg-gray-100">
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title={previewDocName || 'Document Preview'}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Document Dialog */}
       <AddDocumentDialog

@@ -127,6 +127,13 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     }
   }, [isOpen, isMinimized, isProcessing])
 
+  // Auto-restore dialog when analysis completes (transitions to 'reviewing' step) or extraction completes ('complete' step)
+  useEffect(() => {
+    if (isMinimized && (uploadStep === 'reviewing' || uploadStep === 'complete')) {
+      setIsMinimized(false)
+    }
+  }, [isMinimized, uploadStep])
+
   // Minimize upload to a toast notification
   const minimizeUpload = useCallback(() => {
     setIsMinimized(true)
@@ -161,6 +168,10 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
 
   // Handle dialog open change - prevent closing during upload unless confirmed
   const handleOpenChange = useCallback((open: boolean) => {
+    // Don't call onClose when minimizing - the dialog closes visually but state should persist
+    if (!open && isMinimized) {
+      return
+    }
     if (!open && isProcessing && (uploadStep === 'uploading' || uploadStep === 'classifying')) {
       // Don't close via overlay click during upload - require explicit cancel
       return
@@ -168,7 +179,7 @@ export function UploadDialog({ isOpen, onClose, onComplete }: UploadDialogProps)
     if (!open) {
       onClose()
     }
-  }, [isProcessing, uploadStep, onClose])
+  }, [isProcessing, uploadStep, onClose, isMinimized])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes"

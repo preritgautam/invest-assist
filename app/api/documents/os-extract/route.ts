@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Json } from '@/lib/supabase/database.types'
 import { jsonrepair } from 'jsonrepair'
+import * as XLSX from 'xlsx'
 
 const BUCKET_NAME = 'documents'
 
@@ -67,6 +68,7 @@ interface OSExtractionResult {
     period_end: string | null
     fiscal_year: number | null
   }
+  source_file_type: 'pdf' | 'xlsx' | 'xls' | 'csv' | 'png' | 'jpg' | 'jpeg' | 'unknown'
   income_items: LineItem[]
   expense_items: LineItem[]
   capital_items: LineItem[]
@@ -462,25 +464,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert file to base64 for Gemini
+    // Convert file to buffer
     const arrayBuffer = await fileData.arrayBuffer()
-    const base64Data = Buffer.from(arrayBuffer).toString('base64')
+    const buffer = Buffer.from(arrayBuffer)
 
-    // Determine MIME type
+    // Determine file type
     const filename = document.filename.toLowerCase()
-    let mimeType = 'application/pdf'
+    const isExcel = filename.endsWith('.xlsx') || filename.endsWith('.xls')
+    const isCsv = filename.endsWith('.csv')
+    const isSpreadsheet = isExcel || isCsv
 
-    if (filename.endsWith('.png')) {
-      mimeType = 'image/png'
-    } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
-      mimeType = 'image/jpeg'
-    } else if (filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
-      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    } else if (filename.endsWith('.csv')) {
-      mimeType = 'text/csv'
-    }
+    // Determine the source file type for storage
+    let sourceFileType: OSExtractionResult['source_file_type'] = 'unknown'
+    if (filename.endsWith('.pdf')) sourceFileType = 'pdf'
+    else if (filename.endsWith('.xlsx')) sourceFileType = 'xlsx'
+    else if (filename.endsWith('.xls')) sourceFileType = 'xls'
+    else if (filename.endsWith('.csv')) sourceFileType = 'csv'
+    else if (filename.endsWith('.png')) sourceFileType = 'png'
+    else if (filename.endsWith('.jpg')) sourceFileType = 'jpg'
+    else if (filename.endsWith('.jpeg')) sourceFileType = 'jpeg'
 
-    console.log('[OS Extract API] Calling Gemini for extraction...')
+    console.log('[OS Extract API] Calling Gemini for extraction...', { isSpreadsheet, filename, sourceFileType })
 
     // Add total units context to prompt if provided
     let enhancedPrompt = OS_EXTRACTION_PROMPT
@@ -488,7 +492,7 @@ export async function POST(request: NextRequest) {
       enhancedPrompt += `\n\n## ADDITIONAL CONTEXT:\nThis property has ${totalUnits} total units. Use this to calculate all perUnit values.`
     }
 
-    // Call Gemini Vision API for OS extraction with JSON response mode
+    // Call Gemini API for OS extraction with JSON response mode
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash',
       generationConfig: {
@@ -496,15 +500,84 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: base64Data,
+    let result
+
+    if (isSpreadsheet) {
+      // For Excel/CSV files, parse to text and use text-based extraction
+      console.log('[OS Extract API] Processing spreadsheet file...')
+      
+      let spreadsheetText: string
+      try {
+        if (isCsv) {
+          // CSV files can be read as text directly
+          spreadsheetText = buffer.toString('utf-8')
+        } else {
+          // Parse Excel file
+          const workbook = XLSX.read(buffer, { type: 'buffer' })
+          
+          // Convert all sheets to text
+          const sheetsText: string[] = []
+          for (const sheetName of workbook.SheetNames) {
+            const sheet = workbook.Sheets[sheetName]
+            // Convert to CSV format for better readability
+            const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false })
+            if (csv.trim()) {
+              sheetsText.push(`=== Sheet: ${sheetName} ===\n${csv}`)
+            }
+          }
+          spreadsheetText = sheetsText.join('\n\n')
+        }
+        
+        console.log('[OS Extract API] Spreadsheet text length:', spreadsheetText.length)
+        
+        if (!spreadsheetText.trim()) {
+          throw new Error('Spreadsheet appears to be empty')
+        }
+      } catch (parseError) {
+        const errorMessage = parseError instanceof Error ? parseError.message : 'Failed to parse spreadsheet'
+        console.error('[OS Extract API] Spreadsheet parse error:', errorMessage)
+        
+        await supabase
+          .from('documents')
+          .update({
+            extraction_status: 'failed',
+            error_message: `Failed to parse spreadsheet: ${errorMessage}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', documentId)
+
+        return NextResponse.json(
+          { error: `Failed to parse spreadsheet: ${errorMessage}` },
+          { status: 500 }
+        )
+      }
+
+      // Use text-based prompt for spreadsheets
+      const spreadsheetPrompt = `${enhancedPrompt}\n\n## SPREADSHEET DATA:\n${spreadsheetText}`
+      
+      result = await model.generateContent(spreadsheetPrompt)
+    } else {
+      // For PDF and image files, use vision API
+      const base64Data = buffer.toString('base64')
+      
+      // Determine MIME type for vision API
+      let mimeType = 'application/pdf'
+      if (filename.endsWith('.png')) {
+        mimeType = 'image/png'
+      } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+        mimeType = 'image/jpeg'
+      }
+
+      result = await model.generateContent([
+        {
+          inlineData: {
+            mimeType,
+            data: base64Data,
+          },
         },
-      },
-      { text: enhancedPrompt },
-    ])
+        { text: enhancedPrompt },
+      ])
+    }
 
     const response = result.response
     const text = response.text()
@@ -559,6 +632,7 @@ export async function POST(request: NextRequest) {
       // Normalize and validate the response
       extractionResult = {
         property_info: normalizePropertyInfo(parsed.property_info || {}),
+        source_file_type: sourceFileType,
         income_items: normalizeLineItems(parsed.income_items || [], 'income'),
         expense_items: normalizeLineItems(parsed.expense_items || [], 'expense'),
         capital_items: normalizeLineItems(parsed.capital_items || [], 'capital'),
